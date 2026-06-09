@@ -7,12 +7,12 @@
   "author": "Jacob Richter",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/syntax-syllogism/flow-delta.git"
+    "url": "git+https://github.com/Syntax-Syllogism/flow-delta.git"
   },
   "bugs": {
-    "url": "https://github.com/syntax-syllogism/flow-delta/issues"
+    "url": "https://github.com/Syntax-Syllogism/flow-delta/issues"
   },
-  "homepage": "https://github.com/syntax-syllogism/flow-delta#readme",
+  "homepage": "https://github.com/Syntax-Syllogism/flow-delta#readme",
   "keywords": [
     "salesforce",
     "flow",
