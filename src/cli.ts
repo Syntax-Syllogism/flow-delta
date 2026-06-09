@@ -10,6 +10,7 @@ import { layoutDiff } from "./render/layout.ts";
 import { renderHtml } from "./render/render-html.ts";
 import { readFlowFromFile, readFlowFromGit } from "./io/read-flow.ts";
 import { safeFileName } from "./util/file-name.ts";
+import { isMainModule } from "./util/is-main-module.ts";
 
 export interface CliOptions {
   old?: string;
@@ -233,6 +234,6 @@ function globToRegExp(pattern: string): RegExp {
   source += "$";
   return new RegExp(source);
 }
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   void main();
 }

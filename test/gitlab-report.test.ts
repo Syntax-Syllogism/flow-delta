@@ -1,4 +1,5 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
@@ -185,6 +186,24 @@ test("package metadata keeps the published bins and build artifacts aligned", as
 
   assert.ok(logs.some((line) => line.includes("flow-delta --old")));
   assert.ok(logs.some((line) => line.includes("flow-delta-gitlab --in")));
+});
+
+test("published bins execute through npm-style symlinks", async () => {
+  await import(pathToFileURL(join(process.cwd(), "scripts/build.mjs")).href);
+
+  const binDir = mkdtempSync(join(tmpdir(), "flow-delta-bin-"));
+  const cliBin = join(binDir, "flow-delta");
+  const reporterBin = join(binDir, "flow-delta-gitlab");
+  symlinkSync(join(process.cwd(), "dist", "cli.js"), cliBin);
+  symlinkSync(join(process.cwd(), "dist", "gitlab-report.js"), reporterBin);
+
+  assert.match(execFileSync(process.execPath, [cliBin, "--help"], { encoding: "utf8" }), /flow-delta --old/);
+  assert.match(execFileSync(process.execPath, [reporterBin, "--help"], { encoding: "utf8" }), /flow-delta-gitlab --in/);
+});
+
+test("sample GitLab job preserves shell line continuations", () => {
+  const config = readFileSync(join(process.cwd(), "examples", "gitlab-ci.yml"), "utf8");
+  assert.match(config, /script:\n    - \|\n      npx .* flow-delta \\\n/);
 });
 
 function jsonResponse(body: unknown, status = 200): Response {
