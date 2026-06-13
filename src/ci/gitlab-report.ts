@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import type { FlowDiff } from "../diff/diff-model.ts";
 import { safeFileName } from "../util/file-name.ts";
+import { isMainModule } from "../util/is-main-module.ts";
 
 export interface FlowResult {
   flowName: string;
@@ -253,6 +254,6 @@ function escapeTableCell(value: string): string {
   return value.replaceAll("|", "\\|").replaceAll("`", "\\`").replace(/\r?\n/g, "<br>");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   void main();
 }
