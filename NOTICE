@@ -1,0 +1,7 @@
+FlowDelta includes the Flow parser vendored from Google's Flow Lens project.
+
+Upstream project: Google Flow Lens (google-flow-lens)
+License: Apache License 2.0
+Upstream commit used for the vendored parser: afaaef7fe998d46fc73c2e0683e9c989a82b1c28
+
+The vendored parser files in src/parser/ retain their original Apache 2.0 headers.
