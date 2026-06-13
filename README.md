@@ -6,18 +6,27 @@ interactive HTML artifact (plus `diff.json`) that shows added / deleted /
 modified / unchanged nodes and edges with per-property deltas.
 
 Inspired by Google's [Flow Lens](https://github.com/google/flow-lens), with
-a focus on making it work with GitLab's pipelines. We also opted for our own HTML output over plantuml, graphviz, or mermaid.
+a focus on making it work with GitLab's pipelines. We also opted for our own 
+HTML output over plantuml, graphviz, or mermaid.
 
-[Sample Gitlab Project with artifacts](https://gitlab.com/j.p.richter/flow-delta-example/-/merge_requests/1)
+[Sample Gitlab Project with artifacts](https://gitlab.com/j.p.richter/flow-delta-example/-/merge_requests/)
 
 ## Usage
 
-Runs as a TypeScript CLI via `tsx` (no build step). See [docs/cli.md](docs/cli.md)
+Install via npm
+
+```bash
+npm install @syntax-syllogism/flow-delta
+```
+
+Also runs as a TypeScript CLI via `tsx` (no build step). See [docs/cli.md](docs/cli.md)
 for full file-mode and git-mode options.
 
 ```bash
 npx tsx src/cli.ts --old before.flow-meta.xml --new after.flow-meta.xml --out ./flow-delta-out --json
 ```
+
+We have a sample [gitlab-ci.yml](examples/gitlab-ci.yml) for usage in Gitlab pipelines.
 
 ## Development
 
