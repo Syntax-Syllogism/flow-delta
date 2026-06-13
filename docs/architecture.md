@@ -25,7 +25,8 @@ diff; only logic changes should surface.
 | `diff/deep-diff.ts` | Generic recursive `{path, before, after}` diff of two values. |
 | `diff/diff-model.ts` | `GraphModel × GraphModel → FlowDiff`. Classifies nodes/edges added/deleted/modified/unchanged and attaches per-property deltas. |
 | `render/layout.ts` | Deterministic graph layout via `elkjs` (layered, top-down). Positions are computed at build time and baked into the artifact. |
-| `render/render-html.ts` | `LayoutedFlow → self-contained HTML` (inline SVG + vanilla JS pan/zoom + click-for-delta panel + interactive view filters). No network/runtime deps. See [render.md](render.md). |
+| `render/section-schemas.ts` | Type-specific property grouping schemas. Declare how each node type's changes should be organized into semantic sections (e.g., "Outcomes" for decisions) and rendered (lines, table, or grouped-table). |
+| `render/render-html.ts` | `LayoutedFlow → self-contained HTML` (inline SVG + vanilla JS pan/zoom + click-for-delta panel + interactive view filters). Uses section schemas to organize property changes semantically. No network/runtime deps. See [render.md](render.md). |
 | `ci/gitlab-report.ts` | Consumes `*.diff.json`, builds the sticky GitLab MR comment, and upserts it via the GitLab API. See [ci.md](ci.md). |
 | `cli.ts` | Arg parsing + orchestration for file mode and git mode. See [cli.md](cli.md). |
 

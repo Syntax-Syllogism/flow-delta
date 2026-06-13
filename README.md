@@ -5,6 +5,11 @@ A semantic, visual diff for Salesforce Flows: parse two versions of a
 interactive HTML artifact (plus `diff.json`) that shows added / deleted /
 modified / unchanged nodes and edges with per-property deltas.
 
+Inspired by Google's [Flow Lens](https://github.com/google/flow-lens), with
+a focus on making it work with GitLab's pipelines. We also opted for our own HTML output over plantuml, graphviz, or mermaid.
+
+[Sample Gitlab Project with artifacts](https://gitlab.com/j.p.richter/flow-delta-example/-/merge_requests/1)
+
 ## Usage
 
 Runs as a TypeScript CLI via `tsx` (no build step). See [docs/cli.md](docs/cli.md)

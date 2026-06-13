@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -25,6 +26,9 @@ const DEFAULT_REPO_DIR = resolve(ROOT, "sample-project");
 const DEFAULT_BASE_BRANCH = "master";
 const DEFAULT_BRANCH_PREFIX = "flow-delta-smoke/e2e";
 const DEFAULT_TITLE_PREFIX = "FlowDelta smoke/e2e";
+// The smoke pipeline installs THIS file (built from the current source) instead
+// of the published npm package, so the MR exercises the latest local code.
+const SMOKE_TARBALL_NAME = "flow-delta.tgz";
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
   try {
@@ -53,7 +57,12 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       throw new Error("No fixture pairs found under fixtures/diff");
     }
 
+    // Build + pack the current source so the pipeline renders with the latest
+    // local code, not the last published release.
+    const tarballPath = buildAndPackLocal(ROOT);
+
     prepareRepoScaffold(options.repoDir);
+    copyFileSync(tarballPath, join(options.repoDir, SMOKE_TARBALL_NAME));
     ensureGitRepo(options.repoDir, options.baseBranch);
     ensureRemote(options.repoDir, options.remote, options.remoteUrl);
 
@@ -65,7 +74,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     const ciPath = join(options.repoDir, ".gitlab-ci.yml");
     cleanFlowDirectory(flowDir);
     writeText(gitIgnorePath, buildRepoGitIgnore());
-    writeText(ciPath, readFileSync(join(ROOT, "examples", "gitlab-ci.yml"), "utf8"));
+    writeText(ciPath, buildSmokeCi(SMOKE_TARBALL_NAME));
     writeFixtureFiles(flowDir, fixtures, "before");
     stageAndCommit(options.repoDir, `smoke: seed fixture befores (${smokeRunId})`);
     pushBranch(options.repoDir, options.remote, options.baseBranch);
@@ -73,7 +82,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     createBranch(options.repoDir, smokeBranch);
     cleanFlowDirectory(flowDir);
     writeText(gitIgnorePath, buildRepoGitIgnore());
-    writeText(ciPath, readFileSync(join(ROOT, "examples", "gitlab-ci.yml"), "utf8"));
+    writeText(ciPath, buildSmokeCi(SMOKE_TARBALL_NAME));
     writeFixtureFiles(flowDir, fixtures, "after");
     stageAndCommit(options.repoDir, smokeCommitMessage);
     pushBranch(options.repoDir, options.remote, smokeBranch);
@@ -148,9 +157,72 @@ function prepareRepoScaffold(repoDir: string): void {
   mkdirSync(join(repoDir, "force-app", "main", "default", "flows"), { recursive: true });
 }
 
+// Build the current package and pack it into a tarball under a temp dir.
+// Returns the absolute path to the .tgz. Requires the build to emit dist/.
+function buildAndPackLocal(root: string): string {
+  execFileSync("npm", ["run", "build"], { cwd: root, stdio: "inherit" });
+  const dest = mkdtempSync(join(tmpdir(), "flow-delta-pack-"));
+  const output = execFileSync("npm", ["pack", "--pack-destination", dest], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+  const file = output.split("\n").map((line) => line.trim()).filter(Boolean).pop();
+  if (!file) {
+    throw new Error("npm pack did not report a tarball name");
+  }
+  return join(dest, file);
+}
+
+// CI config for the smoke MR: install the packed local tarball and run its bins,
+// instead of npx-installing the published package (which would be stale). Kept
+// separate from examples/gitlab-ci.yml, which is the consumer-facing example.
+function buildSmokeCi(tarballName: string): string {
+  return [
+    "FlowDelta:",
+    "  image: node:24-alpine",
+    "  rules:",
+    "    - if: $CI_PIPELINE_SOURCE == \"merge_request_event\"",
+    "  variables:",
+    "    GIT_DEPTH: 0",
+    "  before_script:",
+    "    - apk add --no-cache git",
+    `    - npm install --no-save "./${tarballName}"`,
+    "  script:",
+    "    - |",
+    "      ./node_modules/.bin/flow-delta \\",
+    "        --repo . \\",
+    "        --from \"$CI_MERGE_REQUEST_DIFF_BASE_SHA\" \\",
+    "        --to   \"$CI_COMMIT_SHA\" \\",
+    "        --path 'force-app/**/*.flow-meta.xml' \\",
+    "        --changed-only \\",
+    "        --out flow-delta-out --json",
+    "    - ./node_modules/.bin/flow-delta-gitlab --in flow-delta-out",
+    "  artifacts:",
+    "    paths: [flow-delta-out]",
+    "    expire_in: 30 days",
+    "  allow_failure: true",
+    "",
+  ].join("\n");
+}
+
 function buildRepoGitIgnore(): string {
-  const baseIgnore = readFileSync(join(ROOT, "sample-project", ".gitignore"), "utf8").trimEnd();
-  return [baseIgnore, "", "# FlowDelta smoke output", "flow-delta-out/"].join("\n");
+  // Read the sample-project ignore and strip any previously appended smoke
+  // blocks so repeated runs stay idempotent (the default repoDir IS this file's
+  // directory, so we read and rewrite the same path).
+  const raw = readFileSync(join(ROOT, "sample-project", ".gitignore"), "utf8");
+  const cleaned = raw
+    .split("\n")
+    .filter((line) => {
+      const trimmed = line.trim();
+      return trimmed !== "# FlowDelta smoke output" && trimmed !== "flow-delta-out/";
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
+  // Note: the packed tarball (SMOKE_TARBALL_NAME) is intentionally NOT ignored —
+  // CI must be able to install it from the checked-out repo.
+  return [cleaned, "", "# FlowDelta smoke output", "flow-delta-out/"].join("\n");
 }
 
 function ensureGitRepo(repoDir: string, baseBranch: string): void {

@@ -9,6 +9,14 @@ export interface NodeDiff {
   label: string;
   status: Status;
   changes?: PropertyChange[];
+  /**
+   * Raw property snapshots for modified nodes, so the renderer can show
+   * unchanged sibling columns (e.g. a condition's Resource/Operator) as
+   * context alongside the one cell that actually changed. Only populated
+   * for "modified" — added/deleted nodes render an empty-state message.
+   */
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
 }
 
 export interface EdgeDiff {
@@ -106,6 +114,8 @@ function classifyNode(oldNode: GraphNode | undefined, newNode: GraphNode | undef
     label: newNode.label,
     status: "modified",
     changes,
+    before: oldNode.properties,
+    after: newNode.properties,
   };
 }
 

@@ -12,6 +12,7 @@ import { deepDiff } from "../src/diff/deep-diff.ts";
 import { diffModel } from "../src/diff/diff-model.ts";
 import { layoutDiff } from "../src/render/layout.ts";
 import { renderHtml } from "../src/render/render-html.ts";
+import { getSectionSchemas } from "../src/render/section-schemas.ts";
 import { main } from "../src/cli.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -167,7 +168,7 @@ test("renderHtml emits a self-contained document with node ids and status classe
 
   assert.match(html, /<!doctype html>/i);
   assert.match(html, /<html/i);
-  assert.match(html, /class="node unchanged"/);
+  assert.match(html, /class="node unchanged type-/);
   assert.match(html, /class="legend"/);
   assert.match(html, /data-view-mode="all"/);
   assert.match(html, /data-view-mode="after"/);
@@ -180,15 +181,59 @@ test("renderHtml emits a self-contained document with node ids and status classe
   assert.match(html, /const DATA = /);
   assert.match(html, /if \(event\.target\.closest\("\.node"\)\) return;/);
   assert.ok(!html.includes("activeView"));
-  assert.match(html, /grid-template-columns: minmax\(0, 1fr\) clamp\(360px, 32vw, 520px\)/);
-  assert.match(html, /beforeMissing \? "Added"/);
-  assert.match(html, /Metadata path:/);
-  assert.match(html, /Not present/);
+  assert.match(html, /grid-template-columns: minmax\(0, 1fr\) clamp\(300px, var\(--panel-width\), 70vw\)/);
+  assert.match(html, /id="panel-resizer"/);
+  assert.match(html, /id="panel-toggle"/);
+  assert.match(html, /id="panel-reopen"/);
+  assert.match(html, /function setPanelCollapsed\(collapsed\)/);
+  assert.match(html, /function diffValue\(before, after\)/);
+  assert.match(html, /class='detail-section'/);
+  assert.match(html, /function renderTable\(changes, basePaths, columns, ctx, options\)/);
+  assert.match(html, /change-kind/);
+  assert.match(html, /function unwrapValue\(value\)/);
+  assert.match(html, /val ins/);
   assert.ok(!html.includes("http://"));
   assert.ok(!html.includes("https://"));
   for (const node of layout.nodes) {
     assert.ok(html.includes(node.id));
   }
+});
+
+test("section schemas name high-impact node property groups", () => {
+  const decision = getSectionSchemas("decision");
+  assert.equal(decision[0].name, "Outcomes");
+  assert.deepEqual(decision[0].paths, ["rules"]);
+  assert.equal(decision[0].render, "grouped-table");
+  assert.equal(decision[0].innerArray, "conditions");
+  assert.deepEqual(decision[0].innerColumns?.map((c) => c.label), ["Resource", "Operator", "Value"]);
+
+  const create = getSectionSchemas("recordCreate");
+  assert.equal(create[0].name, "Field Mappings");
+  assert.equal(create[0].render, "table");
+  assert.deepEqual(create[0].columns?.map((c) => c.path), ["field", "value"]);
+
+  assert.equal(getSectionSchemas("recordUpdate")[0].name, "Field Mappings");
+  assert.equal(getSectionSchemas("recordLookup")[0].name, "Filters");
+  assert.equal(getSectionSchemas("assignment")[0].name, "Assignment Items");
+
+  const params = getSectionSchemas("actionCall");
+  assert.equal(params[0].name, "Parameters");
+  assert.deepEqual(params[0].paths, ["inputParameters", "outputParameters"]);
+
+  assert.deepEqual(getSectionSchemas("unknown"), []);
+});
+
+test("renderHtml embeds semantic schemas and generic grouping fallback", async () => {
+  const diff = await diffFixture("modify_decision");
+  const html = renderHtml(await layoutDiff(diff));
+  const data = extractData(html);
+
+  assert.equal(data.sectionSchemas.decision[0].name, "Outcomes");
+  assert.equal(data.sectionSchemas.decision[0].render, "grouped-table");
+  assert.match(html, /function organizeChanges\(node\)/);
+  assert.match(html, /function renderGroupedTable\(section, node\)/);
+  assert.match(html, /key === "Configuration"/);
+  assert.match(html, /<details class='detail-section' open>/);
 });
 
 test("renderHtml embeds per-view layouts that only reference visible nodes and edges", async () => {
@@ -239,6 +284,121 @@ test("renderHtml client script executes against a lightweight DOM smoke harness"
       assert.equal(button.attributes["aria-pressed"], expected ? "true" : "false");
     }
   }
+});
+
+test("decision panel renders per-outcome group with a conditions table and unwrapped values", async () => {
+  const diff = await diffFixture("modify_decision");
+  const html = renderHtml(await layoutDiff(diff));
+  const data = extractData(html);
+  const dom = createMockDom(data);
+  runInNewContext(extractClientScript(html), dom.context);
+
+  dom.elements.nodeById.get("Includes_Jawn")?.dispatch("click");
+  const panel = dom.context.document.getElementById("panel-body").innerHTML;
+
+  // Grouped under the outcome, not a flat path-keyed table.
+  assert.match(panel, /class='outcome-group'/);
+  assert.match(panel, /class='change-table'/);
+  // Conditions columns are semantic, not raw metadata paths.
+  assert.match(panel, /<th>Resource<\/th>/);
+  assert.match(panel, /<th>Operator<\/th>/);
+  assert.match(panel, /<th>Value<\/th>/);
+  // The removed condition shows its values struck through (git-diff grammar), unwrapped.
+  assert.match(panel, /row-removed/);
+  assert.match(panel, /val del'>\$Record\.CreatedById/);
+  assert.match(panel, /val del'>IsNull/);
+  // Typed wrapper unwrapped to the scalar — no JSON blob.
+  assert.ok(!panel.includes("booleanValue"), "rightValue wrapper should be unwrapped");
+});
+
+test("assignment panel renders an added item as one badged table row", async () => {
+  const diff = await diffFixture("modify_assignment");
+  const html = renderHtml(await layoutDiff(diff));
+  const data = extractData(html);
+  const dom = createMockDom(data);
+  runInNewContext(extractClientScript(html), dom.context);
+
+  dom.elements.nodeById.get("Jawn_that_Jawn")?.dispatch("click");
+  const panel = dom.context.document.getElementById("panel-body").innerHTML;
+
+  assert.match(panel, /Assignment Items/);
+  assert.match(panel, /<th>Variable<\/th>/);
+  // Whole-item add is one row with an Added badge, not three sub-field rows.
+  assert.match(panel, /row-added/);
+  assert.equal([...panel.matchAll(/class='change-kind added'/g)].length, 1);
+  // elementReference unwrapped to {!ref} merge syntax.
+  assert.match(panel, /\{!AddJawnToName\}/);
+  assert.ok(!panel.includes("elementReference"), "value wrapper should be unwrapped");
+});
+
+async function renderPanel(diff: ReturnType<typeof diffModel>, nodeId: string) {
+  const html = renderHtml(await layoutDiff(diff));
+  const dom = createMockDom(extractData(html));
+  runInNewContext(extractClientScript(html), dom.context);
+  dom.elements.nodeById.get(nodeId)?.dispatch("click");
+  return dom.context.document.getElementById("panel-body").innerHTML as string;
+}
+
+function model(node: { id: string; type: string; label: string; properties: Record<string, unknown> }) {
+  return {
+    flowName: "F",
+    label: "F",
+    nodes: [{ id: node.id, type: node.type, label: node.label, properties: node.properties }],
+    edges: [],
+  } as Parameters<typeof diffModel>[0];
+}
+
+test("modified table row keeps unchanged sibling columns as context (Finding 2)", async () => {
+  const condition = { leftValueReference: "isWin", operator: "EqualTo", rightValue: { booleanValue: "true" } };
+  const before = model({ id: "D", type: "decision", label: "D", properties: { rules: [{ label: "R1", conditions: [condition] }] } });
+  const after = model({ id: "D", type: "decision", label: "D", properties: { rules: [{ label: "R1", conditions: [{ ...condition, operator: "NotEqualTo" }] }] } });
+  const panel = await renderPanel(diffModel(before, after), "D");
+
+  // Only the operator changed, but the row still shows Resource and Value for context.
+  assert.match(panel, /val del'>EqualTo/);
+  assert.match(panel, /val ins'>NotEqualTo/);
+  assert.match(panel, /val faint'>isWin/, "unchanged Resource shown as context");
+  assert.match(panel, /val faint'>true/, "unchanged Value shown as context (unwrapped)");
+});
+
+test("wholly added outcome shows one group badge, no per-row Change column (Finding 3)", async () => {
+  const ruleA = { label: "R1", conditions: [{ leftValueReference: "a", operator: "EqualTo", rightValue: { booleanValue: "true" } }] };
+  const ruleB = { label: "R2", conditionLogic: "and", conditions: [{ leftValueReference: "b", operator: "IsNull", rightValue: { booleanValue: "false" } }] };
+  const before = model({ id: "D", type: "decision", label: "D", properties: { rules: [ruleA] } });
+  const after = model({ id: "D", type: "decision", label: "D", properties: { rules: [ruleA, ruleB] } });
+  const panel = await renderPanel(diffModel(before, after), "D");
+
+  // Exactly one Added badge (the group header) — not one per scalar/condition row.
+  assert.equal([...panel.matchAll(/class='change-kind added'/g)].length, 1);
+  // The wholly-added group's inner table drops the redundant Change column.
+  assert.ok(!panel.includes("<th>Change</th>"), "uniform-kind group omits the Change column");
+  assert.match(panel, /group-label'>R2/);
+});
+
+test("scalar-only change renders as a line, never a table", async () => {
+  const before = model({ id: "C", type: "recordCreate", label: "C", properties: { object: "Account", inputAssignments: [] } });
+  const after = model({ id: "C", type: "recordCreate", label: "C", properties: { object: "Contact", inputAssignments: [] } });
+  const panel = await renderPanel(diffModel(before, after), "C");
+
+  assert.match(panel, /change-line-label'>Object/);
+  assert.match(panel, /val del'>Account/);
+  assert.match(panel, /val ins'>Contact/);
+  assert.ok(!panel.includes("change-table"), "a flat scalar must not be forced into a table");
+});
+
+test("filter table unwraps numberValue and unknown node types fall back without error", async () => {
+  const before = model({ id: "L", type: "recordLookup", label: "L", properties: { object: "ApexLog", filters: [] } });
+  const after = model({ id: "L", type: "recordLookup", label: "L", properties: { object: "ApexLog", filters: [{ field: "LogLength", operator: "GreaterThan", value: { numberValue: "99.0" } }] } });
+  const lookupPanel = await renderPanel(diffModel(before, after), "L");
+  assert.match(lookupPanel, /<th>Filters<\/th>|Filters/);
+  assert.match(lookupPanel, /val ins'>99\.0/, "numberValue unwrapped");
+  assert.ok(!lookupPanel.includes("numberValue"));
+
+  const ub = model({ id: "U", type: "unknown", label: "U", properties: { foo: "x", items: ["a"] } });
+  const ua = model({ id: "U", type: "unknown", label: "U", properties: { foo: "y", items: ["a", "b"] } });
+  const unknownPanel = await renderPanel(diffModel(ub, ua), "U");
+  assert.match(unknownPanel, /detail-section/, "unknown type still renders grouped sections");
+  assert.match(unknownPanel, /change-line-label'>Foo/);
 });
 
 test("renderHtml positions node labels within their translated node groups", async () => {
@@ -494,8 +654,16 @@ function createMockDom(data: { nodes: Array<{ id: string }>; edges: Array<{ id: 
         (listeners[type] ??= []).push(handler);
       },
       dispatch(type: string) {
+        const event = {
+          stopPropagation() {},
+          preventDefault() {},
+          clientX: 0,
+          clientY: 0,
+          deltaY: 0,
+          target: { closest: () => null },
+        };
         for (const handler of listeners[type] ?? []) {
-          handler();
+          handler(event);
         }
       },
       setAttribute(name: string, value: string) {
