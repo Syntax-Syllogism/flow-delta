@@ -47,7 +47,10 @@ rather than guessing.
 ## Manual / visual smoke
 
 `npm run render:fixtures` writes one HTML per fixture to `flow-delta-out/fixtures/`.
-Open them and check: status colors and legend, directional edge arrowheads
-(normal solid / fault dashed), the side panel showing per-node `path: before →
-after` deltas, and pan/zoom. A fuller manual checklist and the fixture scenario
-matrix live in this file and the inline comments in `test/semantic-diff.test.ts`.
+Open them and check: status colors and legend, the four view filters (All /
+After / Before / Changes only), directional edge arrowheads (normal solid /
+fault dashed), the side panel showing per-node `path: before → after` deltas,
+and pan/zoom. On `rewire_connector`, verify that `After` and `Before` each
+render as a coherent single-state graph. A fuller manual checklist and the
+fixture scenario matrix live in this file and the inline comments in
+`test/semantic-diff.test.ts`.

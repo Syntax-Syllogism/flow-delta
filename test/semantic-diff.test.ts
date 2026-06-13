@@ -3,6 +3,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
+import { runInNewContext } from "node:vm";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FlowParser } from "../src/parser/flow_parser.ts";
@@ -168,8 +169,17 @@ test("renderHtml emits a self-contained document with node ids and status classe
   assert.match(html, /<html/i);
   assert.match(html, /class="node unchanged"/);
   assert.match(html, /class="legend"/);
+  assert.match(html, /data-view-mode="all"/);
+  assert.match(html, /data-view-mode="after"/);
+  assert.match(html, /data-view-mode="before"/);
+  assert.match(html, /data-view-mode="changes"/);
+  assert.match(html, /function applyView\(mode\)/);
+  assert.match(html, /function round\(value\)/);
+  assert.match(html, /function measureVisibleBounds\(nodes, edges\)/);
+  assert.match(html, /function fitViewBoxRect\(bounds\)/);
+  assert.match(html, /const DATA = /);
   assert.match(html, /if \(event\.target\.closest\("\.node"\)\) return;/);
-  assert.match(html, /DATA\.nodes\.find\(\(node\) => node\.status === "modified"\)/);
+  assert.ok(!html.includes("activeView"));
   assert.match(html, /grid-template-columns: minmax\(0, 1fr\) clamp\(360px, 32vw, 520px\)/);
   assert.match(html, /beforeMissing \? "Added"/);
   assert.match(html, /Metadata path:/);
@@ -178,6 +188,56 @@ test("renderHtml emits a self-contained document with node ids and status classe
   assert.ok(!html.includes("https://"));
   for (const node of layout.nodes) {
     assert.ok(html.includes(node.id));
+  }
+});
+
+test("renderHtml embeds per-view layouts that only reference visible nodes and edges", async () => {
+  const diff = await diffFixture("add_node");
+  const html = renderHtml(await layoutDiff(diff));
+  const data = extractData(html);
+
+  assert.ok(Array.isArray(data.diff.nodes));
+  assert.ok(data.diff.nodes.every((node: { status: string }) => typeof node.status === "string"));
+  assert.ok(data.diff.edges.every((edge: { status: string }) => typeof edge.status === "string"));
+  assert.ok(data.layouts.union);
+  assert.ok(data.layouts.after);
+  assert.ok(data.layouts.before);
+
+  const expectedNodeIds = {
+    union: new Set(data.diff.nodes.map((node: { id: string }) => node.id)),
+    after: new Set(data.diff.nodes.filter((node: { status: string }) => node.status !== "deleted").map((node: { id: string }) => node.id)),
+    before: new Set(data.diff.nodes.filter((node: { status: string }) => node.status !== "added").map((node: { id: string }) => node.id)),
+  };
+
+  for (const [name, expectedIds] of Object.entries(expectedNodeIds)) {
+    const layoutView = data.layouts[name];
+    assert.ok(layoutView.nodes.every((node: { id: string }) => expectedIds.has(node.id)), `${name} nodes`);
+    assert.ok(layoutView.edges.every((edge: { source: string; target: string }) => expectedIds.has(edge.source) && expectedIds.has(edge.target)), `${name} edges`);
+  }
+});
+
+test("renderHtml client script executes against a lightweight DOM smoke harness", async () => {
+  const diff = await diffFixture("rewire_connector");
+  const html = renderHtml(await layoutDiff(diff));
+  const data = extractData(html);
+  const script = extractClientScript(html);
+  const dom = createMockDom(data);
+
+  runInNewContext(script, dom.context);
+
+  assert.equal(dom.elements.svg.viewBox.baseVal.width, 720);
+  assert.equal(dom.elements.filterButtons[0].attributes["aria-pressed"], "true");
+  assert.equal(dom.elements.filterButtons[1].attributes["aria-pressed"], "false");
+  assert.equal(dom.elements.filterButtons[2].attributes["aria-pressed"], "false");
+  assert.equal(dom.elements.filterButtons[3].attributes["aria-pressed"], "false");
+  assert.ok(dom.elements.nodeById.get(data.nodes[0].id)?.attributes["transform"]);
+
+  for (const viewMode of ["after", "before", "changes"]) {
+    dom.elements.filterButtons.find((button) => button.dataset.viewMode === viewMode)?.dispatch("click");
+    for (const button of dom.elements.filterButtons) {
+      const expected = button.dataset.viewMode === viewMode;
+      assert.equal(button.attributes["aria-pressed"], expected ? "true" : "false");
+    }
   }
 });
 
@@ -393,6 +453,121 @@ async function diffFixture(name: string) {
   return diffModel(oldModel, newModel);
 }
 
+function extractData(html: string) {
+  const match = html.match(/const DATA = (.*?);\n    const svg =/s);
+  assert.ok(match, "expected embedded DATA payload");
+  return JSON.parse(match[1]);
+}
+
+function extractClientScript(html: string) {
+  const match = html.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/);
+  assert.ok(match, "expected embedded client script");
+  return match[1];
+}
+
+function createMockDom(data: { nodes: Array<{ id: string }>; edges: Array<{ id: string }> }) {
+  const createElement = (options: {
+    dataset?: Record<string, string>;
+    className?: string;
+    isSvg?: boolean;
+  } = {}) => {
+    const classSet = new Set((options.className ?? "").split(/\s+/).filter(Boolean));
+    const listeners: Record<string, Array<() => void>> = {};
+    return {
+      dataset: { ...(options.dataset ?? {}) },
+      style: {} as Record<string, string>,
+      attributes: {} as Record<string, string>,
+      listeners,
+      textContent: "",
+      innerHTML: "",
+      classList: {
+        add: (...tokens: string[]) => tokens.forEach((token) => classSet.add(token)),
+        remove: (...tokens: string[]) => tokens.forEach((token) => classSet.delete(token)),
+        toggle: (token: string, force?: boolean) => {
+          const shouldAdd = force ?? !classSet.has(token);
+          if (shouldAdd) classSet.add(token); else classSet.delete(token);
+          return shouldAdd;
+        },
+        contains: (token: string) => classSet.has(token),
+      },
+      addEventListener(type: string, handler: () => void) {
+        (listeners[type] ??= []).push(handler);
+      },
+      dispatch(type: string) {
+        for (const handler of listeners[type] ?? []) {
+          handler();
+        }
+      },
+      setAttribute(name: string, value: string) {
+        this.attributes[name] = value;
+      },
+      closest: () => null,
+      getBoundingClientRect: () => ({ left: 0, top: 0, width: 1000, height: 1000 }),
+      setPointerCapture: () => undefined,
+      querySelectorAll: () => [],
+      viewBox: options.isSvg ? { baseVal: { x: 0, y: 0, width: 1, height: 1 } } : undefined,
+    };
+  };
+
+  const nodeElements = new Map(data.nodes.map((node) => [
+    node.id,
+    createElement({ dataset: { nodeId: node.id }, className: "node" }),
+  ]));
+  const edgeElements = new Map(data.edges.map((edge) => [
+    edge.id,
+    createElement({ dataset: { edgeId: edge.id }, className: "edge" }),
+  ]));
+  const filterButtons = ["all", "after", "before", "changes"].map((viewMode) =>
+    createElement({ dataset: { viewMode }, className: "filter-button" }));
+  const panel = createElement({ className: "panel" });
+  const svg = createElement({ isSvg: true });
+  const viewport = createElement();
+  const panelTitle = createElement();
+  const panelBadge = createElement();
+  const panelBody = createElement();
+
+  const document = {
+    getElementById(id: string) {
+      if (id === "flow-svg") return svg;
+      if (id === "viewport") return viewport;
+      if (id === "panel-title") return panelTitle;
+      if (id === "panel-badge") return panelBadge;
+      if (id === "panel-body") return panelBody;
+      return null;
+    },
+    querySelector(selector: string) {
+      if (selector === ".panel") return panel;
+      if (selector === "#flow-svg") return svg;
+      if (selector === "#viewport") return viewport;
+      if (selector === "#panel-title") return panelTitle;
+      if (selector === "#panel-badge") return panelBadge;
+      if (selector === "#panel-body") return panelBody;
+      if (selector.startsWith(".node[data-node-id=\"")) {
+        const id = selector.slice(".node[data-node-id=\"".length, -2);
+        return nodeElements.get(id) ?? null;
+      }
+      return null;
+    },
+    querySelectorAll(selector: string) {
+      if (selector === ".filters button") return filterButtons;
+      if (selector === ".node") return [...nodeElements.values()];
+      if (selector === ".edge") return [...edgeElements.values()];
+      return [];
+    },
+  };
+
+  const CSS = {
+    escape(value: string) {
+      return String(value).replace(/"/g, "\\\"");
+    },
+  };
+
+  return {
+    context: { document, CSS, console },
+    elements: { svg, filterButtons, nodeById: nodeElements },
+  };
+}
+
 for (const { name, expected } of DIFF_CASES) {
   test(`diff fixture "${name}" matches expected summary`, async () => {
     const { summary } = await diffFixture(name);
@@ -436,6 +611,18 @@ test('diff fixture "rewire_connector" changes only edges, not nodes', async () =
   assert.ok(diff.nodes.every((node) => node.status === "unchanged"), "all nodes unchanged");
   assert.equal(diff.summary.addedEdges, 3);
   assert.equal(diff.summary.removedEdges, 3);
+});
+
+test('rendered "rewire_connector" distinguishes added and deleted edges', async () => {
+  const diff = await diffFixture("rewire_connector");
+  const html = renderHtml(await layoutDiff(diff));
+
+  assert.equal([...html.matchAll(/class="edge normal added"/g)].length, 3);
+  assert.equal([...html.matchAll(/class="edge normal deleted"/g)].length, 3);
+  assert.match(html, /data-view-mode="changes"/);
+  assert.match(html, /\.edge\.unchanged \{ stroke-width: 1\.4; opacity: 0\.55; \}/);
+  assert.match(html, /\.edge\.added \{ stroke: var\(--added\); stroke-width: 3; marker-end: url\(#arrow-added\); \}/);
+  assert.match(html, /\.edge\.deleted \{ stroke: var\(--deleted\); stroke-width: 2; stroke-dasharray: 7 5; marker-end: url\(#arrow-deleted\); \}/);
 });
 
 test('diff fixture "fault_path" adds a kind=fault edge into the error node', async () => {

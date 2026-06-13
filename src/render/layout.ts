@@ -29,10 +29,62 @@ export interface LayoutedFlow {
   edges: LayoutedEdge[];
   width: number;
   height: number;
+  views: {
+    union: LayoutView;
+    after: LayoutView;
+    before: LayoutView;
+  };
+}
+
+export interface LayoutView {
+  nodes: LayoutedNode[];
+  edges: LayoutedEdge[];
+  width: number;
+  height: number;
 }
 
 export async function layoutDiff(diff: FlowDiff): Promise<LayoutedFlow> {
-  const elk = new ELK();
+  const union = await layoutView(diff, () => true, () => true);
+  const after = await layoutView(
+    diff,
+    (node) => node.status !== "deleted",
+    (edge) => edge.status !== "deleted",
+  );
+  const before = await layoutView(
+    diff,
+    (node) => node.status !== "added",
+    (edge) => edge.status !== "added",
+  );
+
+  return {
+    diff,
+    nodes: union.nodes,
+    edges: union.edges,
+    width: union.width,
+    height: union.height,
+    views: {
+      union,
+      after,
+      before,
+    },
+  };
+}
+
+const elk = new ELK();
+
+async function layoutView(
+  diff: FlowDiff,
+  nodeVisible: (node: NodeDiff) => boolean,
+  edgeVisible: (edge: EdgeDiff) => boolean,
+): Promise<LayoutView> {
+  const nodes = diff.nodes.filter(nodeVisible);
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const edges = diff.edges.filter((edge) => edgeVisible(edge) && nodeIds.has(edge.source) && nodeIds.has(edge.target));
+
+  if (nodes.length === 0) {
+    return { nodes: [], edges: [], width: 40, height: 40 };
+  }
+
   const graph = {
     id: "root",
     layoutOptions: {
@@ -41,12 +93,12 @@ export async function layoutDiff(diff: FlowDiff): Promise<LayoutedFlow> {
       "elk.layered.spacing.nodeNodeBetweenLayers": 60,
       "elk.spacing.nodeNode": 40,
     },
-    children: diff.nodes.map((node) => ({
+    children: nodes.map((node) => ({
       id: node.id,
       width: estimateWidth(node.label),
       height: 48,
     })),
-    edges: diff.edges.map((edge) => ({
+    edges: edges.map((edge) => ({
       id: edge.id,
       sources: [edge.source],
       targets: [edge.target],
@@ -55,11 +107,11 @@ export async function layoutDiff(diff: FlowDiff): Promise<LayoutedFlow> {
 
   const laidOut = await elk.layout(graph);
   const children = (laidOut.children ?? []) as Array<{ id: string; x?: number; y?: number; width: number; height: number }>;
-  const edges = (laidOut.edges ?? []) as Array<{ id: string; sections?: LayoutSection[] }>;
+  const edgeLayouts = (laidOut.edges ?? []) as Array<{ id: string; sections?: LayoutSection[] }>;
   const nodeMap = new Map(children.map((node) => [node.id, node]));
-  const edgeMap = new Map(edges.map((edge) => [edge.id, edge]));
+  const edgeMap = new Map(edgeLayouts.map((edge) => [edge.id, edge]));
 
-  const nodes = diff.nodes.map((node) => {
+  const positionedNodes = nodes.map((node) => {
     const positioned = nodeMap.get(node.id);
     return {
       ...node,
@@ -70,15 +122,14 @@ export async function layoutDiff(diff: FlowDiff): Promise<LayoutedFlow> {
     };
   });
 
-  const positionedEdges = diff.edges.map((edge) => ({
+  const positionedEdges = edges.map((edge) => ({
     ...edge,
     sections: normalizeSections(edgeMap.get(edge.id)?.sections),
   }));
 
-  const bounds = measureBounds(nodes);
+  const bounds = measureBounds(positionedNodes);
   return {
-    diff,
-    nodes,
+    nodes: positionedNodes,
     edges: positionedEdges,
     width: bounds.width,
     height: bounds.height,

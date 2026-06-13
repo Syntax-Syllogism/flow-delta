@@ -207,22 +207,20 @@ function writeFixtureFiles(flowDir: string, fixtures: FixturePair[], phase: "bef
   });
 }
 
-function renameFlowMetadata(xml: string, nextName: string): string {
-  const labelMatch = xml.match(/<label>([^<]+)<\/label>/);
-  if (!labelMatch) {
-    throw new Error("Could not find top-level <label> in flow XML");
+export function renameFlowMetadata(xml: string, nextName: string): string {
+  const identityPattern =
+    /^([ \t]*)<interviewLabel>([^<]+)<\/interviewLabel>(\r?\n)\1<label>([^<]+)<\/label>/m;
+  const identityMatch = xml.match(identityPattern);
+  if (!identityMatch) {
+    throw new Error("Could not find adjacent top-level <interviewLabel> and <label> in flow XML");
   }
 
-  const currentName = labelMatch[1];
-  let rewritten = xml.replace(/<label>[^<]+<\/label>/, `<label>${nextName}</label>`);
-
-  const interviewLabelMatch = rewritten.match(/<interviewLabel>([^<]+)<\/interviewLabel>/);
-  if (interviewLabelMatch) {
-    const nextInterviewLabel = interviewLabelMatch[1].replace(currentName, nextName);
-    rewritten = rewritten.replace(/<interviewLabel>[^<]+<\/interviewLabel>/, `<interviewLabel>${nextInterviewLabel}</interviewLabel>`);
-  }
-
-  return rewritten;
+  const [, indentation, interviewLabel, newline, currentName] = identityMatch;
+  const nextInterviewLabel = interviewLabel.replace(currentName, nextName);
+  return xml.replace(
+    identityPattern,
+    `${indentation}<interviewLabel>${nextInterviewLabel}</interviewLabel>${newline}${indentation}<label>${nextName}</label>`,
+  );
 }
 
 function stageAndCommit(repoDir: string, message: string): void {

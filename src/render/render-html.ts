@@ -7,6 +7,7 @@ export function renderHtml(layout: LayoutedFlow): string {
     edges: layout.edges,
     width: layout.width,
     height: layout.height,
+    layouts: layout.views,
   };
   const json = JSON.stringify(data).replace(/</g, "\\u003c");
   const s = layout.diff.summary;
@@ -49,6 +50,30 @@ export function renderHtml(layout: LayoutedFlow): string {
     header .meta .deleted:not(.zero) { color: var(--deleted); }
     header .meta .modified:not(.zero) { color: var(--modified); }
     header .meta .sep { color: var(--border); }
+    .header-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .filters button {
+      border: 1px solid var(--border);
+      background: #f8fafc;
+      color: var(--muted);
+      padding: 6px 11px;
+      border-radius: 999px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .filters button.active {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: var(--text);
+      box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.12);
+    }
+    .filters button:focus-visible {
+      outline: 2px solid #93c5fd;
+      outline-offset: 2px;
+    }
     .legend { display: flex; gap: 14px; font-size: 12px; flex-wrap: wrap; color: var(--muted); }
     .legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
     .legend .added::before { background: var(--added); }
@@ -79,11 +104,16 @@ export function renderHtml(layout: LayoutedFlow): string {
     .change-value-label { margin-bottom: 4px; color: #475569; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
     .changes code { font-size: 12px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: #eef1f6; padding: 2px 5px; border-radius: 4px; overflow-wrap: anywhere; }
     .changes pre { max-width: 100%; margin: 0; padding: 11px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; line-height: 1.5; }
-    .edge { fill: none; stroke-width: 1.75; }
-    .edge.normal { stroke: var(--edge); marker-end: url(#arrow-normal); }
-    .edge.fault { stroke: var(--fault); stroke-dasharray: 6 4; marker-end: url(#arrow-fault); }
+    .edge { fill: none; }
+    .edge.unchanged { stroke-width: 1.4; opacity: 0.55; }
+    .edge.normal.unchanged { stroke: var(--edge); marker-end: url(#arrow-normal); }
+    .edge.fault.unchanged { stroke: var(--fault); stroke-dasharray: 6 4; marker-end: url(#arrow-fault); }
+    .edge.added { stroke: var(--added); stroke-width: 3; marker-end: url(#arrow-added); }
+    .edge.deleted { stroke: var(--deleted); stroke-width: 2; stroke-dasharray: 7 5; marker-end: url(#arrow-deleted); }
     #arrow-normal path { fill: var(--edge); }
     #arrow-fault path { fill: var(--fault); }
+    #arrow-added path { fill: var(--added); }
+    #arrow-deleted path { fill: var(--deleted); }
     .node rect { rx: 11; ry: 11; stroke-width: 1.75; filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.08)); }
     .node { cursor: pointer; }
     .node text { font-size: 12px; fill: #111827; pointer-events: none; }
@@ -105,11 +135,19 @@ export function renderHtml(layout: LayoutedFlow): string {
       <h1>${escapeHtml(layout.diff.flowName)}</h1>
       <div class="meta">${metaHtml}</div>
     </div>
-    <div class="legend">
-      <span class="added">Added</span>
-      <span class="deleted">Deleted</span>
-      <span class="modified">Modified</span>
-      <span class="unchanged">Unchanged</span>
+    <div class="header-actions">
+      <div class="filters" role="group" aria-label="Diff view filters">
+        <button type="button" class="active" data-view-mode="all">All</button>
+        <button type="button" data-view-mode="after">After</button>
+        <button type="button" data-view-mode="before">Before</button>
+        <button type="button" data-view-mode="changes">Changes only</button>
+      </div>
+      <div class="legend">
+        <span class="added">Added</span>
+        <span class="deleted">Deleted</span>
+        <span class="modified">Modified</span>
+        <span class="unchanged">Unchanged</span>
+      </div>
     </div>
   </header>
   <main>
@@ -120,6 +158,12 @@ export function renderHtml(layout: LayoutedFlow): string {
             <path d="M0,0 L8,4 L0,8 Z"></path>
           </marker>
           <marker id="arrow-fault" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M0,0 L8,4 L0,8 Z"></path>
+          </marker>
+          <marker id="arrow-added" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M0,0 L8,4 L0,8 Z"></path>
+          </marker>
+          <marker id="arrow-deleted" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse">
             <path d="M0,0 L8,4 L0,8 Z"></path>
           </marker>
         </defs>
@@ -143,9 +187,13 @@ export function renderHtml(layout: LayoutedFlow): string {
     const panelTitle = document.getElementById("panel-title");
     const panelBadge = document.getElementById("panel-badge");
     const panelBody = document.getElementById("panel-body");
+    const filterButtons = [...document.querySelectorAll(".filters button")];
     const nodesById = new Map(DATA.nodes.map((node) => [node.id, node]));
+    const nodeElements = new Map([...document.querySelectorAll(".node")].map((node) => [node.dataset.nodeId, node]));
+    const edgeElements = new Map([...document.querySelectorAll(".edge")].map((edge) => [edge.dataset.edgeId, edge]));
     let viewBox = svg.viewBox.baseVal;
     let dragStart = null;
+    let selectedNodeId = null;
 
     function escapeHtml(value) {
       return String(value)
@@ -155,12 +203,128 @@ export function renderHtml(layout: LayoutedFlow): string {
         .replace(/"/g, "&quot;");
     }
 
-    function selectNode(id) {
+    function isNodeVisible(node, mode) {
+      if (mode === "after") return node.status !== "deleted";
+      if (mode === "before") return node.status !== "added";
+      if (mode === "changes") return node.status !== "unchanged";
+      return true;
+    }
+
+    function isEdgeVisible(edge, mode, visibleNodeIds) {
+      if (!visibleNodeIds.has(edge.source) || !visibleNodeIds.has(edge.target)) {
+        return false;
+      }
+      if (mode === "after") return edge.status !== "deleted";
+      if (mode === "before") return edge.status !== "added";
+      if (mode === "changes") {
+        const source = nodesById.get(edge.source);
+        const target = nodesById.get(edge.target);
+        const sourceChanged = source?.status !== "unchanged";
+        const targetChanged = target?.status !== "unchanged";
+        return edge.status !== "unchanged" || (sourceChanged && targetChanged);
+      }
+      return true;
+    }
+
+    function edgePath(sections) {
+      const points = sections.flatMap((section, index) => {
+        const start = index === 0 ? [section.startPoint] : [];
+        const bends = section.bendPoints ?? [];
+        const end = [section.endPoint];
+        return [...start, ...bends, ...end];
+      });
+      if (points.length === 0) {
+        return "";
+      }
+      return points.map((point, index) => \`\${index === 0 ? "M" : "L"} \${point.x} \${point.y}\`).join(" ");
+    }
+
+    function updateToolbar(mode) {
+      filterButtons.forEach((button) => {
+        const active = button.dataset.viewMode === mode;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+    }
+
+    function round(value) {
+      return Math.round(value * 100) / 100;
+    }
+
+    function collectEdgePoints(sections) {
+      return sections.flatMap((section, index) => {
+        const start = index === 0 ? [section.startPoint] : [];
+        const bends = section.bendPoints ?? [];
+        const end = [section.endPoint];
+        return [...start, ...bends, ...end];
+      });
+    }
+
+    function measureVisibleBounds(nodes, edges) {
+      const points = [
+        ...nodes.flatMap((node) => ([
+          { x: node.x, y: node.y },
+          { x: node.x + node.width, y: node.y + node.height },
+        ])),
+        ...edges.flatMap((edge) => collectEdgePoints(edge.sections)),
+      ];
+
+      if (points.length === 0) {
+        return null;
+      }
+
+      let minX = points[0].x;
+      let minY = points[0].y;
+      let maxX = points[0].x;
+      let maxY = points[0].y;
+      for (const point of points.slice(1)) {
+        if (point.x < minX) minX = point.x;
+        if (point.y < minY) minY = point.y;
+        if (point.x > maxX) maxX = point.x;
+        if (point.y > maxY) maxY = point.y;
+      }
+
+      return {
+        x: minX - 20,
+        y: minY - 20,
+        width: (maxX - minX) + 40,
+        height: (maxY - minY) + 40,
+      };
+    }
+
+    function fitViewBoxRect(bounds) {
+      const minWidth = 720;
+      const minHeight = 540;
+      const width = Math.max(bounds.width, minWidth);
+      const height = Math.max(bounds.height, minHeight);
+      const x = bounds.x + (bounds.width - width) / 2;
+      const y = bounds.y + (bounds.height - height) / 2;
+      return {
+        x: round(x),
+        y: round(y),
+        width: round(width),
+        height: round(height),
+      };
+    }
+
+    function updateViewBox(bounds) {
+      const box = fitViewBoxRect(bounds);
+      viewBox.x = box.x;
+      viewBox.y = box.y;
+      viewBox.width = box.width;
+      viewBox.height = box.height;
+    }
+
+    function clearSelection(message) {
+      selectedNodeId = null;
       document.querySelectorAll(".node").forEach((el) => el.classList.remove("selected"));
-      const selected = document.querySelector(\`.node[data-node-id="\${CSS.escape(id)}"]\`);
-      if (selected) selected.classList.add("selected");
-      const node = nodesById.get(id);
-      if (!node) return;
+      panel.className = "panel";
+      panelTitle.textContent = "No visible nodes";
+      panelBadge.textContent = "Hidden";
+      panelBody.innerHTML = "<div class='empty'>" + escapeHtml(message) + "</div>";
+    }
+
+    function updatePanel(node) {
       panel.className = "panel " + node.status;
       panelTitle.textContent = node.label;
       panelBadge.textContent = node.status.toUpperCase();
@@ -172,6 +336,15 @@ export function renderHtml(layout: LayoutedFlow): string {
           : node.status === "deleted"
             ? "<div class='empty'>This node was removed in the new version.</div>"
             : "<div class='empty'>No property changes.</div>";
+    }
+
+    function selectNode(id) {
+      selectedNodeId = id;
+      document.querySelectorAll(".node").forEach((el) => el.classList.remove("selected"));
+      const selected = document.querySelector(\`.node[data-node-id="\${CSS.escape(id)}"]\`);
+      if (selected) selected.classList.add("selected");
+      const node = nodesById.get(id);
+      if (node) updatePanel(node);
     }
 
     function formatChange(change) {
@@ -213,6 +386,77 @@ export function renderHtml(layout: LayoutedFlow): string {
       return "<code>" + escapeHtml(String(value)) + "</code>";
     }
 
+    function pickInitialNode(visibleNodeIds) {
+      return DATA.nodes.find((node) => visibleNodeIds.has(node.id) && node.status === "modified")
+        || DATA.nodes.find((node) => visibleNodeIds.has(node.id) && node.status !== "unchanged")
+        || DATA.nodes.find((node) => visibleNodeIds.has(node.id))
+        || null;
+    }
+
+    function applyView(mode) {
+      const layout = mode === "all" || mode === "changes"
+        ? DATA.layouts.union
+        : DATA.layouts[mode];
+      const nodeLayout = new Map(layout.nodes.map((node) => [node.id, node]));
+      const edgeLayout = new Map(layout.edges.map((edge) => [edge.id, edge]));
+      const visibleNodeIds = new Set();
+      const visibleNodes = [];
+      const visibleEdges = [];
+
+      DATA.nodes.forEach((node) => {
+        const element = nodeElements.get(node.id);
+        if (!element) return;
+        if (!isNodeVisible(node, mode)) {
+          element.style.display = "none";
+          return;
+        }
+        const positioned = nodeLayout.get(node.id);
+        if (!positioned) {
+          element.style.display = "none";
+          return;
+        }
+        element.style.display = "";
+        element.setAttribute("transform", "translate(" + positioned.x + "," + positioned.y + ")");
+        visibleNodeIds.add(node.id);
+        visibleNodes.push(positioned);
+      });
+
+      DATA.edges.forEach((edge) => {
+        const element = edgeElements.get(edge.id);
+        if (!element) return;
+        if (!isEdgeVisible(edge, mode, visibleNodeIds)) {
+          element.style.display = "none";
+          return;
+        }
+        const positioned = edgeLayout.get(edge.id);
+        if (!positioned) {
+          element.style.display = "none";
+          return;
+        }
+        element.style.display = "";
+        element.setAttribute("d", edgePath(positioned.sections));
+        visibleEdges.push(positioned);
+      });
+
+      updateToolbar(mode);
+      updateViewBox(measureVisibleBounds(visibleNodes, visibleEdges) || { x: 0, y: 0, width: layout.width, height: layout.height });
+
+      if (selectedNodeId && visibleNodeIds.has(selectedNodeId)) {
+        const node = nodesById.get(selectedNodeId);
+        if (node) {
+          updatePanel(node);
+        }
+        return;
+      }
+
+      const initialNode = pickInitialNode(visibleNodeIds);
+      if (initialNode) {
+        selectNode(initialNode.id);
+      } else {
+        clearSelection("This view has no visible nodes.");
+      }
+    }
+
     document.querySelectorAll(".node").forEach((node) => {
       node.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -248,10 +492,13 @@ export function renderHtml(layout: LayoutedFlow): string {
     svg.addEventListener("pointerup", () => { dragStart = null; });
     svg.addEventListener("pointercancel", () => { dragStart = null; });
 
-    const initialNode = DATA.nodes.find((node) => node.status === "modified")
-      || DATA.nodes.find((node) => node.status !== "unchanged")
-      || DATA.nodes[0];
-    selectNode(initialNode?.id);
+    filterButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        applyView(button.dataset.viewMode);
+      });
+    });
+
+    applyView("all");
   </script>
 </body>
 </html>`;
@@ -287,7 +534,7 @@ function renderEdge(edge: LayoutedFlow["edges"][number]): string {
   const d = points
     .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
     .join(" ");
-  return `<path class="edge ${edge.kind}" d="${d}" data-edge-id="${escapeHtml(edge.id)}"></path>`;
+  return `<path class="edge ${edge.kind} ${edge.status}" d="${d}" data-edge-id="${escapeHtml(edge.id)}"></path>`;
 }
 
 function renderNode(node: LayoutedFlow["nodes"][number]): string {
