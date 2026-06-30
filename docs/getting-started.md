@@ -1,0 +1,143 @@
+# Getting Started
+
+FlowDelta is a TypeScript CLI tool that compares Salesforce Flow metadata and produces visual diffs. This guide helps you set up the project locally and run it for the first time.
+
+## Prerequisites
+
+- Node.js ≥ 18 (check with `node --version`)
+- npm (bundled with Node)
+- git
+- A Salesforce org with Flow metadata (for real-world testing)
+
+## Local setup
+
+Clone the repo and install dependencies:
+
+```bash
+git clone https://github.com/Syntax-Syllogism/flow-delta.git
+cd flow-delta
+npm install
+```
+
+## Running the tests
+
+The test suite is the fastest way to verify your setup works:
+
+```bash
+npm test                # Full suite (parser + semantic diff + render + CLI + GitLab)
+npm run test:parser     # Parser regression suite only (fast)
+```
+
+Tests use Node's built-in test runner and complete in under 10 seconds.
+
+## Running the CLI locally
+
+During development, use `tsx` to run the CLI directly without building:
+
+```bash
+# File-mode comparison
+npx tsx src/cli.ts --old path/to/before.flow-meta.xml --new path/to/after.flow-meta.xml --out ./output
+
+# Git-mode comparison
+npx tsx src/cli.ts --repo /path/to/sfdx-repo --from main --to feature-branch --path 'force-app/**/*.flow-meta.xml' --out ./output
+```
+
+For published binary usage, see [docs/cli.md](cli.md).
+
+## Rendering test fixtures
+
+The project ships with fixture flows demonstrating all major change patterns. To render them locally:
+
+```bash
+npm run render:fixtures
+```
+
+This produces HTML artifacts in `flow-delta-out/fixtures/`. Open them in a browser to:
+- Verify the visual diff renders correctly
+- Test the interactive filters (All / After / Before / Changes only)
+- Inspect the semantic property panel on modified nodes
+- Check pan/zoom and panel resizing behavior
+
+## Project structure
+
+```
+src/
+  parser/               # Vendored Apache-2.0 parser from google-flow-lens (DO NOT EDIT)
+  io/                   # File and git I/O (read-flow.ts)
+  model/                # Graph model types and canonicalization (graph-model.ts, build-model.ts)
+  diff/                 # Deep diff and model comparison (deep-diff.ts, diff-model.ts)
+  render/               # HTML rendering and layout (render-html.ts, layout.ts, section-schemas.ts)
+  ci/                   # GitLab reporting (gitlab-report.ts)
+  util/                 # Helpers
+  cli.ts                # Entry point and arg parsing
+
+test/
+  semantic-diff.test.ts # Main test suite with fixtures
+  parser.test.ts        # Parser regression suite
+  gitlab-report.test.ts # GitLab reporter tests
+
+fixtures/
+  parse/                # Single-flow parser goldens
+  diff/                 # before/after fixture pairs for diff testing
+    noop_save/          # Zero-diff save (coordinate churn only)
+    add_node/           # Node addition
+    modify_assignment/  # Assignment modification
+    modify_decision/    # Decision modification
+    rewire_connector/   # Edge rewiring
+    fault_path/         # Fault path changes
+
+docs/
+  architecture.md       # Pipeline and module map
+  cli.md               # Command-line usage
+  render.md            # HTML artifact and interactive features
+  testing.md           # Test layout and fixture authoring
+  ci.md                # GitLab integration
+  publishing.md        # Build and release
+  vendoring.md         # Parser provenance and do-not-edit policy
+```
+
+## Common development workflows
+
+### Adding a new test case
+
+1. Retrieve a flow from your org in both before/after states
+2. Save them as `fixtures/diff/<case_name>/before.flow-meta.xml` and `after.flow-meta.xml`
+3. Add a row to the `DIFF_CASES` table in `test/semantic-diff.test.ts` with expected node/edge counts
+4. Run `npm test` to verify
+5. Run `npm run render:fixtures` to visually inspect the result
+
+See [docs/testing.md](testing.md) for details.
+
+### Understanding the pipeline
+
+The code follows a linear pipeline:
+
+```
+XML (before) ┐
+             ├─► parser ─► GraphModel ─┐
+XML (after)  ┘              (build-model)├─► FlowDiff ─► layout ─► HTML + JSON
+                                        ┊   (diff-model)  (render)
+```
+
+See [docs/architecture.md](architecture.md) for the full module map and invariants.
+
+### Debugging a diff issue
+
+If a diff doesn't look right:
+
+1. **Verify parsing**: Run `npx tsx src/cli.ts --old before.xml --new after.xml --out out --json` and inspect `out/*.diff.json` to see the raw diff structure
+2. **Check canonicalization**: Review [docs/architecture.md#invariants](architecture.md#invariants-that-must-hold) — coordinates, connector references, and array order should not produce diffs
+3. **Render to inspect visually**: Open the `.html` artifact in a browser and check the semantic property panel for each changed node
+
+See [docs/debugging.md](debugging.md) for more troubleshooting tips.
+
+## Next steps
+
+- Read [docs/architecture.md](architecture.md) for the conceptual pipeline
+- Read [docs/render.md](render.md) to understand the interactive HTML features
+- Explore the test fixtures in `fixtures/diff/` to see real-world change patterns
+- Check [CONTRIBUTING.md](../CONTRIBUTING.md) for code style and PR expectations
+
+## Questions?
+
+See [docs/debugging.md](debugging.md) for common issues, or open an issue on [GitHub](https://github.com/Syntax-Syllogism/flow-delta/issues).

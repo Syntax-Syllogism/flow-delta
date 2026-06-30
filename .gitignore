@@ -1,0 +1,54 @@
+# --- PUBLIC repo .gitignore. ---
+# bin/publish.sh copies this over .gitignore on the orphan `release` branch,
+# then `git rm --cached` removes any tracked file matched here. Everything
+# below is therefore EXCLUDED from the public repository.
+#
+# It is the superset of the private .gitignore PLUS private-only material:
+# AI/agent tooling, working notes, and the release tooling itself.
+
+# === same as private .gitignore: build/runtime/local artifacts ===
+node_modules/
+dist/
+dist-server/
+build/
+lib/
+*.tsbuildinfo
+coverage/
+.nyc_output/
+*.xunit.xml
+.eslintcache
+.cache/
+*.log
+npm-error.log
+yarn-error.log
+.env
+.env.*
+!.env.example
+.npmrc
+.DS_Store
+.idea/
+.history/
+
+# === private-only: AI / agent tooling ===
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+.claude/
+.agents/
+.codex/
+.gemini/
+.cursor/
+.rtk/
+.rtk
+
+# === private-only: working material ===
+notes/
+memory/
+deep-dive/
+.kanban/
+docs/smoke-reports/
+
+# === private-only: release tooling (runs only on private master) ===
+.gitignore.public
+bin/publish.sh
+bin/changelog-prompt.txt
