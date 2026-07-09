@@ -5,6 +5,23 @@ artifact plus the embedded `diff.json` payload. The generated page is fully
 offline: CSS, SVG, and client-side JS are all inline, and the browser does not
 fetch external assets.
 
+## Flow-level banner
+
+When `FlowDiff.flowChanges` is present, the renderer emits a banner between the
+page header and the graph. This is for curated `<Flow>` root attributes such as
+`status`, `apiVersion`, and `runInMode`; it is intentionally outside the graph so
+Flow elements remain the only graph nodes.
+
+Status changes get a prominent callout. `Active -> Draft` / `Obsolete` /
+`InvalidDraft` reads as a deactivation, `Draft` / `Obsolete` -> `Active` reads as
+an activation, and other status transitions use a neutral status line. Other
+attributes render as labeled before/after rows using the same inserted/deleted
+value grammar as the node detail panel. Long values are bounded in the banner so
+description changes do not swallow the graph.
+
+The banner is omitted when there are no flow-level changes and for whole-flow
+add/delete cases where one side has no header.
+
 ## Interactive diff filters
 
 The HTML artifact includes four view presets:
@@ -88,7 +105,7 @@ Changes that don't match any section schema are grouped by:
 
 - `src/render/layout.ts` — layout baking and bounds measurement.
 - `src/render/render-html.ts` — HTML shell, filter controls, client-side view
-  switching, and the node detail panel.
+  switching, flow-level banner, and the node detail panel.
 - `src/render/section-schemas.ts` — type-specific property grouping schemas.
 
 ## Manual smoke
@@ -103,3 +120,7 @@ For the detail panel, open a modified node with complex properties (e.g.,
 - Tables render columns correctly and unwrap typed values.
 - Unchanged sibling columns are shown in faint style as context.
 - The panel resizes smoothly and collapses/reopens without visual glitches.
+
+For flow-level changes, open `deactivate_flow` and `bump_api_version` and verify
+that the banner appears above the graph, remains visible in every view filter, and
+does not introduce external network references.

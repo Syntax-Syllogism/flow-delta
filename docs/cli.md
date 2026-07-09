@@ -67,6 +67,12 @@ A one-line summary is printed per flow:
 My_Flow: nodes 1 added, 0 deleted, 1 modified; edges 2 added, 0 deleted
 ```
 
+When curated flow-root attributes changed, the same line gets an additive suffix:
+
+```
+My_Flow: nodes 0 added, 0 deleted, 0 modified; edges 0 added, 0 deleted; flow attributes: 1 changed (status)
+```
+
 Failures are isolated: in git mode, one flow failing to parse logs an error and
 sets a non-zero exit code but does not abort the remaining flows.
 

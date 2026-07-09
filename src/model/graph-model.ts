@@ -1,3 +1,5 @@
+import type { FlowHeader } from "./flow-header.ts";
+
 export type NodeType =
   | "start"
   | "end"
@@ -40,6 +42,7 @@ export interface GraphModel {
   flowName: string;
   label: string;
   processType?: string;
+  header?: FlowHeader;
   nodes: GraphNode[];
   edges: GraphEdge[];
 }

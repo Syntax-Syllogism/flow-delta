@@ -9,8 +9,9 @@ the CLI entrypoints into:
 
 - `dist/cli.js`
 - `dist/gitlab-report.js`
+- `dist/github-report.js`
 
-Both files are emitted with a Node shebang and are marked executable.
+All three files are emitted with a Node shebang and are marked executable.
 
 The build leaves runtime dependencies external, so the published package still
 loads `xml2js` and `elkjs` from npm rather than bundling them into the emitted
@@ -32,12 +33,13 @@ The binary map is:
 |---|---|
 | `flow-delta` | `dist/cli.js` |
 | `flow-delta-gitlab` | `dist/gitlab-report.js` |
+| `flow-delta-github` | `dist/github-report.js` |
 
 ## Release checks
 
 The repository treats `npm test` as the functional gate and `npm pack --json` as
-the publishability smoke check. The packed tarball should include the two `dist`
-entrypoints plus the licensing files above.
+the publishability smoke check. The packed tarball should include the three
+`dist` entrypoints plus the licensing files above.
 
 The Apache-2.0 vendored parser requires `NOTICE` and `LICENSE-APACHE` to travel
 with the npm package. See [vendoring.md](vendoring.md) for the license

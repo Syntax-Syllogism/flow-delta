@@ -67,14 +67,17 @@ src/
   model/                # Graph model types and canonicalization (graph-model.ts, build-model.ts)
   diff/                 # Deep diff and model comparison (deep-diff.ts, diff-model.ts)
   render/               # HTML rendering and layout (render-html.ts, layout.ts, section-schemas.ts)
-  ci/                   # GitLab reporting (gitlab-report.ts)
+  ci/                   # GitLab + GitHub reporting (report-core.ts, gitlab-report.ts, github-report.ts)
   util/                 # Helpers
   cli.ts                # Entry point and arg parsing
 
 test/
   semantic-diff.test.ts # Main test suite with fixtures
   parser.test.ts        # Parser regression suite
+  report-core.test.ts   # Shared reporting-core tests + package/bin/build checks
   gitlab-report.test.ts # GitLab reporter tests
+  github-report.test.ts # GitHub reporter tests
+  smoke-gitlab.test.ts  # GitLab smoke-harness scaffold tests
 
 fixtures/
   parse/                # Single-flow parser goldens

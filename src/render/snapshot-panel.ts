@@ -551,7 +551,7 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function humanizePath(path: string): string {
+export function humanizePath(path: string): string {
   const names: Record<string, string> = {
     assignmentItems: "Assignment item",
     choiceReferences: "Choice reference",

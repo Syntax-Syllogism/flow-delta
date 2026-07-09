@@ -13,7 +13,7 @@ Complete guides for using, understanding, and extending FlowDelta.
 ## Using FlowDelta
 
 - [CLI usage](cli.md) — File mode and git mode, command-line options, output formats
-- [GitLab CI Integration](ci.md) — Running in CI pipelines, MR reporting, sticky comments
+- [CI Integration](ci.md) — Running in GitLab/GitHub pipelines, MR/PR reporting, sticky comments, private-repo artifact viewing
 
 ## Understanding the system
 
@@ -42,8 +42,9 @@ Complete guides for using, understanding, and extending FlowDelta.
 **Compare flows locally**
 → [Getting Started](getting-started.md) → [CLI usage](cli.md)
 
-**Set up CI reporting in GitLab**
-→ [GitLab CI Integration](ci.md) + [examples/gitlab-ci.yml](../examples/gitlab-ci.yml)
+**Set up CI reporting in GitLab or GitHub**
+→ [CI Integration](ci.md) + [examples/gitlab-ci.yml](../examples/gitlab-ci.yml) /
+[examples/github-actions.yml](../examples/github-actions.yml)
 
 **Understand why a diff looks wrong**
 → [Debugging & Troubleshooting](debugging.md) → [Data Model Reference](data-model.md)
@@ -72,7 +73,7 @@ Complete guides for using, understanding, and extending FlowDelta.
 | `src/model/` | [Data Model Reference](data-model.md), [Architecture](architecture.md) |
 | `src/diff/` | [Architecture](architecture.md) |
 | `src/render/` | [Rendering](render.md), [Section Schema Authoring](section-schemas.md) |
-| `src/ci/` | [GitLab CI Integration](ci.md) |
+| `src/ci/` | [CI Integration](ci.md) |
 | `test/` | [Testing](testing.md), [Debugging & Troubleshooting](debugging.md) |
 
 ## Key concepts
@@ -102,7 +103,7 @@ docs/
   section-schemas.md       — Semantic property organization
   extending-node-types.md  — Adding new element type support
   cli.md                   — Command-line interface
-  ci.md                    — GitLab integration
+  ci.md                    — GitLab + GitHub CI integration
   testing.md               — Test layout & fixture authoring
   publishing.md            — Build & npm release
   vendoring.md             — Parser policy & licensing

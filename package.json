@@ -1,6 +1,6 @@
 {
   "name": "@syntax-syllogism/flow-delta",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "Semantic visual diff for Salesforce Flows",
   "license": "MIT",
@@ -27,14 +27,15 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "smoke:gitlab": "node --import tsx scripts/smoke-gitlab.ts",
-    "test": "node --import tsx --test test/parser.test.ts test/semantic-diff.test.ts test/gitlab-report.test.ts test/smoke-gitlab.test.ts",
+    "smoke:github": "node --import tsx scripts/smoke-github.ts",
+    "test": "node --import tsx --test test/parser.test.ts test/semantic-diff.test.ts test/report-core.test.ts test/gitlab-report.test.ts test/github-report.test.ts test/smoke-gitlab.test.ts test/r2-publish.test.ts test/cloudflare-worker.test.ts",
     "test:parser": "node --import tsx --test test/parser.test.ts",
     "prepublishOnly": "npm run build && npm test",
     "render:fixtures": "bash bin/render-fixtures.sh"
   },
   "devDependencies": {
     "esbuild": "^0.28.0",
-    "@types/node": "^25.9.2",
+    "@types/node": "^26.1.0",
     "@types/xml2js": "^0.4.14",
     "tsx": "^4.19.0"
   },
@@ -44,10 +45,13 @@
   },
   "bin": {
     "flow-delta": "dist/cli.js",
-    "flow-delta-gitlab": "dist/gitlab-report.js"
+    "flow-delta-gitlab": "dist/gitlab-report.js",
+    "flow-delta-github": "dist/github-report.js"
   },
   "files": [
     "dist",
+    "examples",
+    "scripts/r2-publish.mjs",
     "NOTICE",
     "LICENSE",
     "LICENSE-APACHE",

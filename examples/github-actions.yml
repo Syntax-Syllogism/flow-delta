@@ -1,0 +1,56 @@
+name: FlowDelta
+
+on: pull_request
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  flowdelta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-save @syntax-syllogism/flow-delta@^0.3
+      - run: |
+          ./node_modules/.bin/flow-delta \
+            --repo . \
+            --from "${{ github.event.pull_request.base.sha }}" \
+            --to   "${{ github.sha }}" \
+            --path 'force-app/**/*.flow-meta.xml' \
+            --changed-only \
+            --out flow-delta-out --json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flow-delta-out
+          path: flow-delta-out
+      # Optional live-render path for private repos using your own R2 bucket and Worker.
+      # See docs/ci.md for the required secrets, Worker template, and presigned alternative.
+      - name: Publish to R2 + sign
+        if: ${{ vars.ARTIFACT_BASE_URL != '' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          ARTIFACT_BASE_URL: ${{ vars.ARTIFACT_BASE_URL }}
+          ARTIFACT_HMAC_KEY: ${{ secrets.ARTIFACT_HMAC_KEY }}
+        run: node ./node_modules/@syntax-syllogism/flow-delta/scripts/r2-publish.mjs flow-delta-out "$GITHUB_REPOSITORY/${{ github.event.number }}/$GITHUB_SHA" > flow-delta-out/urls.json
+        continue-on-error: true
+      - name: Report with live-render links
+        if: ${{ vars.ARTIFACT_BASE_URL != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./node_modules/.bin/flow-delta-github --in flow-delta-out --artifact-urls flow-delta-out/urls.json
+        continue-on-error: true
+      - name: Report with baseline artifact link
+        if: ${{ vars.ARTIFACT_BASE_URL == '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./node_modules/.bin/flow-delta-github --in flow-delta-out
+        continue-on-error: true

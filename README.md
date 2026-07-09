@@ -5,10 +5,12 @@ A semantic, visual diff for Salesforce Flows: parse two versions of a
 interactive HTML artifact (plus `diff.json`) that shows added / deleted /
 modified / unchanged nodes and edges with per-property deltas.
 
-Inspired by Google's [Flow Lens](https://github.com/google/flow-lens), with
-a focus on making it work with GitLab's pipelines. We also opted for our own HTML output over plantuml, graphviz, or mermaid.
+Inspired by Google's [Flow Lens](https://github.com/google/flow-lens), with a
+focus on CI review workflows for GitLab merge requests and GitHub pull requests.
+We also opted for our own HTML output over plantuml, graphviz, or mermaid.
 
-[Sample Gitlab Project with artifacts](https://gitlab.com/j.p.richter/flow-delta-example/-/merge_requests/1)
+- [Sample GitLab project with artifacts](https://gitlab.com/j.p.richter/flow-delta-example/-/merge_requests/)
+- [Sample GitHub project with artifacts](https://github.com/Syntax-Syllogism/flow-delta-example/pulls)
 
 ## Usage
 
@@ -18,6 +20,19 @@ for full file-mode and git-mode options.
 ```bash
 npx tsx src/cli.ts --old before.flow-meta.xml --new after.flow-meta.xml --out ./flow-delta-out --json
 ```
+
+CI reporters read the generated `flow-delta-out/*.diff.json` files and post a
+sticky review comment:
+
+```bash
+flow-delta-gitlab --in flow-delta-out
+flow-delta-github --in flow-delta-out
+```
+
+The GitHub reporter can also consume `--artifact-urls <manifest.json>` for
+user-owned live-render links, such as R2 presigned URLs or Cloudflare
+Worker-backed URLs. See [docs/ci.md](docs/ci.md) for GitLab/GitHub workflow
+recipes, private-repo artifact viewing, and smoke harnesses.
 
 ## Development
 

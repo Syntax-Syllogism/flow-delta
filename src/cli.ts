@@ -5,6 +5,7 @@ import { parseArgs } from "node:util";
 import { FlowParser } from "./parser/flow_parser.ts";
 import { buildModel } from "./model/build-model.ts";
 import type { GraphModel } from "./model/graph-model.ts";
+import { extractFlowHeader } from "./model/flow-header.ts";
 import { diffModel } from "./diff/diff-model.ts";
 import { layoutDiff } from "./render/layout.ts";
 import { renderHtml } from "./render/render-html.ts";
@@ -93,8 +94,10 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 }
 
 async function runFileMode(oldPath: string, newPath: string, outDir: string, writeJson: boolean): Promise<void> {
-  const oldModel = buildModel(await parseXml(readFlowFromFile(oldPath)));
-  const newModel = buildModel(await parseXml(readFlowFromFile(newPath)));
+  const oldXml = readFlowFromFile(oldPath);
+  const newXml = readFlowFromFile(newPath);
+  const oldModel = await buildModelWithHeader(oldXml);
+  const newModel = await buildModelWithHeader(newXml);
   await writeArtifacts(oldModel, newModel, outDir, writeJson);
 }
 
@@ -114,8 +117,8 @@ async function runGitMode(
     try {
       const oldXml = readFlowFromGit(repo, from, filePath);
       const newXml = readFlowFromGit(repo, to, filePath);
-      const oldModel = oldXml ? buildModel(await parseXml(oldXml)) : buildEmptyModel();
-      const newModel = newXml ? buildModel(await parseXml(newXml)) : buildEmptyModel();
+      const oldModel = oldXml ? await buildModelWithHeader(oldXml) : buildEmptyModel();
+      const newModel = newXml ? await buildModelWithHeader(newXml) : buildEmptyModel();
       await writeArtifacts(oldModel, newModel, outDir, writeJson, filePath);
     } catch (error) {
       hadFailure = true;
@@ -131,6 +134,12 @@ async function runGitMode(
 async function parseXml(xml: string) {
   const parser = new FlowParser(xml);
   return parser.generateFlowDefinition();
+}
+
+async function buildModelWithHeader(xml: string): Promise<GraphModel> {
+  const model = buildModel(await parseXml(xml));
+  model.header = await extractFlowHeader(xml);
+  return model;
 }
 
 function buildEmptyModel() {
@@ -158,8 +167,15 @@ async function writeArtifacts(
     writeFileSync(join(outDir, `${fileStem}.diff.json`), JSON.stringify(diff, null, 2), "utf8");
   }
   console.log(
-    `${diff.flowName}: nodes ${diff.summary.addedNodes} added, ${diff.summary.removedNodes} deleted, ${diff.summary.modifiedNodes} modified; edges ${diff.summary.addedEdges} added, ${diff.summary.removedEdges} deleted`,
+    `${diff.flowName}: nodes ${diff.summary.addedNodes} added, ${diff.summary.removedNodes} deleted, ${diff.summary.modifiedNodes} modified; edges ${diff.summary.addedEdges} added, ${diff.summary.removedEdges} deleted${formatFlowAttributeSummary(diff.flowChanges)}`,
   );
+}
+
+function formatFlowAttributeSummary(flowChanges: ReturnType<typeof diffModel>["flowChanges"]): string {
+  if (!flowChanges || flowChanges.length === 0) {
+    return "";
+  }
+  return `; flow attributes: ${flowChanges.length} changed (${flowChanges.map((change) => change.path).join(", ")})`;
 }
 
 function discoverGitFiles(repo: string, from: string, to: string, pattern: string, changedOnly: boolean): string[] {

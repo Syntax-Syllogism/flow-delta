@@ -8,6 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FlowParser } from "../src/parser/flow_parser.ts";
 import { buildModel } from "../src/model/build-model.ts";
+import { extractFlowHeader } from "../src/model/flow-header.ts";
 import { deepDiff } from "../src/diff/deep-diff.ts";
 import { diffModel } from "../src/diff/diff-model.ts";
 import { layoutDiff } from "../src/render/layout.ts";
@@ -57,6 +58,39 @@ test("deepDiff reports exact property paths", () => {
   assert.deepEqual(deepDiff({ value: { a: 1 } }, { value: "x" }), [
     { path: "value", before: { a: 1 }, after: "x" },
   ]);
+});
+
+test("extractFlowHeader returns curated root scalar attributes only", async () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+  <apiVersion>59.0</apiVersion>
+  <description>Line one</description>
+  <interviewLabel>Header {!$Flow.CurrentDateTime}</interviewLabel>
+  <isTemplate>false</isTemplate>
+  <processMetadataValues><name>BuilderType</name></processMetadataValues>
+  <processType>AutoLaunchedFlow</processType>
+  <runInMode>SystemModeWithoutSharing</runInMode>
+  <status>Active</status>
+  <triggerOrder>10</triggerOrder>
+</Flow>`;
+
+  assert.deepEqual(await extractFlowHeader(xml), {
+    status: "Active",
+    processType: "AutoLaunchedFlow",
+    runInMode: "SystemModeWithoutSharing",
+    apiVersion: "59.0",
+    triggerOrder: "10",
+    description: "Line one",
+    interviewLabel: "Header {!$Flow.CurrentDateTime}",
+    isTemplate: "false",
+  });
+});
+
+test("extractFlowHeader omits missing keys and tolerates malformed XML", async () => {
+  assert.deepEqual(await extractFlowHeader("<Flow><status>Draft</status></Flow>"), { status: "Draft" });
+  assert.deepEqual(await extractFlowHeader("<Flow><description><nested>value</nested></description></Flow>"), {});
+  assert.deepEqual(await extractFlowHeader("<Package><types /></Package>"), {});
+  assert.deepEqual(await extractFlowHeader("<not xml"), {});
 });
 
 test("diffModel classifies added, deleted, modified, and edge rewires", async () => {
@@ -156,6 +190,51 @@ test("edge ids distinguish normal and fault connectors", () => {
   assert.equal(diff.edges.filter((edge) => edge.status === "unchanged").length, 2);
 });
 
+test("diffModel reports ordered flow-level attribute changes in the summary", () => {
+  const before = model({ id: "A", type: "start", label: "A", properties: {} });
+  const after = model({ id: "A", type: "start", label: "A", properties: {} });
+  before.header = { status: "Active", apiVersion: "58.0", runInMode: "DefaultMode" };
+  after.header = { status: "Draft", apiVersion: "59.0", runInMode: "SystemModeWithoutSharing" };
+
+  const diff = diffModel(before, after);
+
+  assert.equal(diff.summary.changedFlowAttributes, 3);
+  assert.deepEqual(diff.flowChanges?.map((change) => change.path), ["status", "runInMode", "apiVersion"]);
+  assert.deepEqual(diff.flowChanges?.find((change) => change.path === "status"), {
+    path: "status",
+    before: "Active",
+    after: "Draft",
+  });
+});
+
+test("diffModel skips flow-level changes when one side has no header", () => {
+  const before = model({ id: "A", type: "start", label: "A", properties: {} });
+  before.header = { status: "Active" };
+  const after = {
+    flowName: "(unknown)",
+    label: "(unknown)",
+    nodes: [],
+    edges: [],
+  } as Parameters<typeof diffModel>[0];
+
+  const diff = diffModel(before, after);
+
+  assert.equal(diff.summary.changedFlowAttributes, 0);
+  assert.equal(diff.flowChanges, undefined);
+});
+
+test("diffModel includes a stable zero flow-attribute summary on unchanged flows", () => {
+  const before = model({ id: "A", type: "start", label: "A", properties: {} });
+  const after = model({ id: "A", type: "start", label: "A", properties: {} });
+  before.header = { status: "Active" };
+  after.header = { status: "Active" };
+
+  const diff = diffModel(before, after);
+
+  assert.equal(diff.summary.changedFlowAttributes, 0);
+  assert.equal(diff.flowChanges, undefined);
+});
+
 test("buildModel connects reachable nodes without normal exits to END", async () => {
   const model = buildModel(await parseXml(SAMPLE_XML));
   const terminalSources = model.edges
@@ -207,6 +286,42 @@ test("renderHtml emits a self-contained document with node ids and status classe
   for (const node of layout.nodes) {
     assert.ok(html.includes(node.id));
   }
+});
+
+test("renderHtml emits a flow-level banner for deactivation changes only", async () => {
+  const before = model({ id: "A", type: "start", label: "A", properties: {} });
+  const after = model({ id: "A", type: "start", label: "A", properties: {} });
+  before.header = { status: "Active", apiVersion: "58.0" };
+  after.header = { status: "Draft", apiVersion: "59.0" };
+
+  const html = renderHtml(await layoutDiff(diffModel(before, after)));
+
+  assert.match(html, /<section class="flow-banner"/);
+  assert.match(html, /Deactivated \(Active -> Draft\)/);
+  assert.match(html, /Api Version/);
+  assert.match(html, /flow-change-value \{ min-width: 0; max-height: 180px; overflow: auto; \}/);
+  assert.match(html, /val del/);
+  assert.match(html, /val ins/);
+  assert.ok(!html.includes("http://"));
+  assert.ok(!html.includes("https://"));
+
+  const unchangedHtml = renderHtml(await layoutDiff(diffModel(model({ id: "A", type: "start", label: "A", properties: {} }), model({ id: "A", type: "start", label: "A", properties: {} }))));
+  assert.ok(!unchangedHtml.includes("<section class=\"flow-banner\""));
+});
+
+test("renderHtml emits an apiVersion-only banner without activation callout", async () => {
+  const before = model({ id: "A", type: "start", label: "A", properties: {} });
+  const after = model({ id: "A", type: "start", label: "A", properties: {} });
+  before.header = { apiVersion: "58.0" };
+  after.header = { apiVersion: "59.0" };
+
+  const html = renderHtml(await layoutDiff(diffModel(before, after)));
+
+  assert.match(html, /<section class="flow-banner"/);
+  assert.match(html, /Api Version/);
+  assert.match(html, /58\.0/);
+  assert.match(html, /59\.0/);
+  assert.doesNotMatch(html, /<div class="flow-banner-callout/);
 });
 
 test("section schemas name high-impact node property groups", () => {
@@ -817,6 +932,38 @@ test("CLI file mode writes diff.json and html artifacts", async () => {
   assert.deepEqual(diffJson, JSON.parse(JSON.stringify(expected)));
 });
 
+test("CLI file mode reports flow-level attribute-only changes", async () => {
+  const inputDir = mkdtempSync(join(tmpdir(), "flow-delta-header-files-"));
+  const outDir = mkdtempSync(join(tmpdir(), "flow-delta-header-out-"));
+  const oldPath = join(inputDir, "old.flow-meta.xml");
+  const newPath = join(inputDir, "new.flow-meta.xml");
+  writeFileSync(oldPath, SAMPLE_XML, "utf8");
+  writeFileSync(newPath, SAMPLE_XML.replace("<status>Active</status>", "<status>Draft</status>"), "utf8");
+
+  const logs: string[] = [];
+  const originalConsoleLog = console.log;
+  console.log = (...args: unknown[]) => logs.push(args.join(" "));
+  try {
+    await main([
+      "--old", oldPath,
+      "--new", newPath,
+      "--out", outDir,
+      "--json",
+    ]);
+  } finally {
+    console.log = originalConsoleLog;
+  }
+
+  assert.equal(logs.length, 1);
+  assert.match(logs[0], /flow attributes: 1 changed \(status\)$/);
+  const diffFile = readdirSync(outDir).find((name) => name.endsWith(".diff.json"));
+  assert.ok(diffFile);
+  const diffJson = JSON.parse(readFileSync(join(outDir, diffFile), "utf8"));
+  assert.equal(diffJson.summary.modifiedNodes, 0);
+  assert.equal(diffJson.summary.changedFlowAttributes, 1);
+  assert.deepEqual(diffJson.flowChanges, [{ path: "status", before: "Active", after: "Draft" }]);
+});
+
 test("reordering unordered filter arrays does not produce a diff", async () => {
   const original = await parseXml(SAMPLE_XML);
   const reordered = structuredClone(original);
@@ -840,6 +987,7 @@ interface ExpectedSummary {
   modifiedNodes: number;
   addedEdges: number;
   removedEdges: number;
+  changedFlowAttributes?: number;
 }
 
 const DIFF_CASES: Array<{ name: string; expected: ExpectedSummary }> = [
@@ -856,12 +1004,18 @@ const DIFF_CASES: Array<{ name: string; expected: ExpectedSummary }> = [
   // fault_path bundles two real changes: the fault path (added customError node
   // + fault edge) AND a re-added decision condition. We assert it as-is.
   { name: "fault_path", expected: { addedNodes: 1, removedNodes: 0, modifiedNodes: 1, addedEdges: 2, removedEdges: 0 } },
+  { name: "deactivate_flow", expected: { addedNodes: 0, removedNodes: 0, modifiedNodes: 0, addedEdges: 0, removedEdges: 0, changedFlowAttributes: 1 } },
+  { name: "bump_api_version", expected: { addedNodes: 0, removedNodes: 0, modifiedNodes: 0, addedEdges: 0, removedEdges: 0, changedFlowAttributes: 2 } },
 ];
 
 async function diffFixture(name: string) {
   const dir = join(ROOT, "fixtures", "diff", name);
-  const oldModel = buildModel(await parseXml(readFileSync(join(dir, "before.flow-meta.xml"), "utf8")));
-  const newModel = buildModel(await parseXml(readFileSync(join(dir, "after.flow-meta.xml"), "utf8")));
+  const beforeXml = readFileSync(join(dir, "before.flow-meta.xml"), "utf8");
+  const afterXml = readFileSync(join(dir, "after.flow-meta.xml"), "utf8");
+  const oldModel = buildModel(await parseXml(beforeXml));
+  const newModel = buildModel(await parseXml(afterXml));
+  oldModel.header = await extractFlowHeader(beforeXml);
+  newModel.header = await extractFlowHeader(afterXml);
   return diffModel(oldModel, newModel);
 }
 
@@ -996,8 +1150,25 @@ for (const { name, expected } of DIFF_CASES) {
     assert.equal(summary.modifiedNodes, expected.modifiedNodes, "modifiedNodes");
     assert.equal(summary.addedEdges, expected.addedEdges, "addedEdges");
     assert.equal(summary.removedEdges, expected.removedEdges, "removedEdges");
+    assert.equal(summary.changedFlowAttributes, expected.changedFlowAttributes ?? 0, "changedFlowAttributes");
   });
 }
+
+test('diff fixture "deactivate_flow" reports a header-only deactivation', async () => {
+  const diff = await diffFixture("deactivate_flow");
+  assert.equal(diff.summary.changedFlowAttributes, 1);
+  assert.deepEqual(diff.flowChanges, [{ path: "status", before: "Active", after: "Draft" }]);
+  assert.ok(diff.nodes.every((node) => node.status === "unchanged"), "all nodes unchanged");
+  assert.ok(diff.edges.every((edge) => edge.status === "unchanged"), "all edges unchanged");
+});
+
+test('diff fixture "bump_api_version" reports header-only API/run-mode changes', async () => {
+  const diff = await diffFixture("bump_api_version");
+  assert.equal(diff.summary.changedFlowAttributes, 2);
+  assert.deepEqual(diff.flowChanges?.map((change) => change.path), ["runInMode", "apiVersion"]);
+  assert.ok(diff.nodes.every((node) => node.status === "unchanged"), "all nodes unchanged");
+  assert.ok(diff.edges.every((edge) => edge.status === "unchanged"), "all edges unchanged");
+});
 
 test('diff fixture "noop_save" is a pure no-op (every node and edge unchanged)', async () => {
   const diff = await diffFixture("noop_save");

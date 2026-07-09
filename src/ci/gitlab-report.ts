@@ -1,24 +1,19 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
 import { parseArgs } from "node:util";
-import type { FlowDiff } from "../diff/diff-model.ts";
-import { safeFileName } from "../util/file-name.ts";
 import { isMainModule } from "../util/is-main-module.ts";
+import {
+  DEFAULT_MARKER,
+  buildComment,
+  findStickyNote,
+  isZeroSummary,
+  normalizePath,
+  readResults,
+  type FlowResult,
+  type ReportNote,
+} from "./report-core.ts";
 
-export interface FlowResult {
-  flowName: string;
-  summary: Pick<FlowDiff["summary"], "addedNodes" | "removedNodes" | "modifiedNodes" | "addedEdges" | "removedEdges">;
-  artifactUrl: string;
-}
-
-export interface GitLabNote {
-  id: number;
-  body: string;
-  author?: {
-    id?: number;
-    username?: string;
-  };
-}
+export type { FlowResult };
+export { buildComment, findStickyNote, isZeroSummary };
+export type GitLabNote = ReportNote;
 
 export interface GitLabReporterEnv {
   apiUrl: string;
@@ -31,35 +26,10 @@ export interface GitLabReporterEnv {
   marker?: string;
 }
 
-const DEFAULT_MARKER = "<!-- FlowDelta:report -->";
 const REPORTER_USAGE = `Usage:
   flow-delta-gitlab --in <flow-delta-out> [--api-url <url>] [--project-id <id>] [--mr-iid <iid>]
                     [--project-url <url>] [--job-id <id>] [--token <token>] [--commit-sha <sha>]
 `;
-
-export function buildComment(results: FlowResult[], opts: { marker?: string; commitSha?: string } = {}): string {
-  const marker = opts.marker ?? DEFAULT_MARKER;
-  const sorted = [...results].sort((left, right) => left.flowName.localeCompare(right.flowName));
-  const lines = [marker, "", `## 🔍 FlowDelta — ${sorted.length} flow(s) changed`, ""];
-
-  if (sorted.length === 0) {
-    lines.push("_No Flow changes in this MR._");
-  } else {
-    lines.push("| Flow | +nodes | -nodes | ~nodes | +/-edges | Diff |");
-    lines.push("| --- | ---: | ---: | ---: | ---: | --- |");
-    for (const result of sorted) {
-      lines.push(
-        `| ${escapeTableCell(result.flowName)} | ${result.summary.addedNodes} | ${result.summary.removedNodes} | ${result.summary.modifiedNodes} | ${result.summary.addedEdges} / ${result.summary.removedEdges} | [Open interactive diff ▸](${result.artifactUrl}) |`,
-      );
-    }
-  }
-
-  if (opts.commitSha) {
-    lines.push("", `Commit: \`${opts.commitSha.slice(0, 7)}\``);
-  }
-
-  return lines.join("\n");
-}
 
 export function artifactUrl(env: Pick<GitLabReporterEnv, "projectUrl" | "jobId">, relPath: string, stem: string): string {
   const base = env.projectUrl.replace(/\/+$/, "");
@@ -71,10 +41,6 @@ export function artifactUrl(env: Pick<GitLabReporterEnv, "projectUrl" | "jobId">
     .join("/");
 
   return `${base}/-/jobs/${env.jobId}/artifacts/file/${encodedPath}`;
-}
-
-export function findStickyNote(notes: GitLabNote[], marker: string, authorId?: number): GitLabNote | undefined {
-  return notes.find((note) => note.body.includes(marker) && (authorId === undefined || note.author?.id === authorId));
 }
 
 export async function upsertComment(
@@ -136,6 +102,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     const results = records.map((record) => ({
       flowName: record.flowName,
       summary: record.summary,
+      flowChanges: record.flowChanges,
       artifactUrl: artifactUrl(env, inputDir, record.stem),
     }));
 
@@ -148,38 +115,6 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     console.error((error as Error).message);
     process.exitCode = 1;
   }
-}
-
-function readResults(inputDir: string): Array<{
-  flowName: string;
-  summary: FlowDiff["summary"];
-  stem: string;
-}> {
-  return readdirSync(inputDir)
-    .filter((file) => file.endsWith(".diff.json"))
-    .map((file) => {
-      const diff = JSON.parse(readFileSync(join(inputDir, file), "utf8")) as FlowDiff;
-      if (isZeroSummary(diff.summary)) {
-        return null;
-      }
-
-      return {
-        flowName: diff.flowName,
-        summary: diff.summary,
-        stem: safeFileName(diff.flowName),
-      };
-    })
-    .filter((value): value is { flowName: string; summary: FlowDiff["summary"]; stem: string } => value !== null);
-}
-
-function isZeroSummary(summary: FlowDiff["summary"]): boolean {
-  return (
-    summary.addedNodes === 0 &&
-    summary.removedNodes === 0 &&
-    summary.modifiedNodes === 0 &&
-    summary.addedEdges === 0 &&
-    summary.removedEdges === 0
-  );
 }
 
 function resolveEnv(values: Record<string, string | boolean | undefined>): GitLabReporterEnv {
@@ -210,8 +145,8 @@ async function listNotes(
   fetchImpl: typeof fetch,
   env: GitLabReporterEnv,
   headers: Record<string, string>,
-): Promise<GitLabNote[]> {
-  const notes: GitLabNote[] = [];
+): Promise<ReportNote[]> {
+  const notes: ReportNote[] = [];
   let page = 1;
 
   while (true) {
@@ -219,7 +154,7 @@ async function listNotes(
       `${env.apiUrl}/projects/${env.projectId}/merge_requests/${env.mergeRequestIid}/notes?per_page=100&page=${page}`,
       { headers },
     );
-    const pageNotes = await parseResponse<GitLabNote[]>(response, "list MR notes");
+    const pageNotes = await parseResponse<ReportNote[]>(response, "list MR notes");
     notes.push(...pageNotes);
     if (pageNotes.length < 100) {
       return notes;
@@ -244,14 +179,6 @@ async function parseResponse<T>(response: Response, label: string): Promise<T> {
     throw new Error(`${label} failed: ${response.status} ${body}`);
   }
   return body.length > 0 ? (JSON.parse(body) as T) : (undefined as T);
-}
-
-function normalizePath(value: string): string {
-  return value.replaceAll("\\", "/").replace(/^\.\/+/, "").replace(/^\/+/, "").replace(/\/+$/, "");
-}
-
-function escapeTableCell(value: string): string {
-  return value.replaceAll("|", "\\|").replaceAll("`", "\\`").replace(/\r?\n/g, "<br>");
 }
 
 if (isMainModule(import.meta.url)) {

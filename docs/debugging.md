@@ -223,7 +223,7 @@ This should not happen; the [canonicalization rules](architecture.md#invariants-
    - If layout is unacceptable, this is a limitation of the layout algorithm
    - Consider opening an issue with the graph structure for investigation
 
-## GitLab CI / reporting issues
+## GitLab/GitHub CI reporting issues
 
 ### Symptom: `flow-delta-gitlab` fails, or the MR comment doesn't appear
 
@@ -245,6 +245,32 @@ See [docs/ci.md](ci.md) for troubleshooting GitLab-specific issues. Key points:
 4. **Review the CI logs:**
    - If the reporter runs, errors are printed to stdout
    - Look for API error codes (401 auth, 404 not found, etc.)
+
+### Symptom: `flow-delta-github` fails, or the PR comment doesn't appear
+
+See [docs/ci.md](ci.md#github-actions) for the full GitHub reporting flow. Key points:
+
+1. **Verify the token and permissions:**
+   - The job needs `permissions: pull-requests: write` for `$GITHUB_TOKEN`.
+   - On a fork PR, the default `pull_request`-event token is read-only, so
+     commenting fails there by design; see `ci.md` for the `pull_request_target`
+     caveat.
+
+2. **Check that a PR number resolved:**
+   - The reporter no-ops (no API calls) if it can't resolve a PR number — e.g.
+     the workflow ran on `push` rather than `pull_request`, or `GITHUB_EVENT_PATH`
+     doesn't point at a `pull_request` payload. Pass `--pr <number>` locally to
+     test.
+
+3. **Check the diff.json files:**
+   - Same as GitLab: the reporter reads `*.diff.json` from the output directory;
+     run `flow-delta` first to generate them. Zero changed diffs (including no
+     `changedFlowAttributes`) is also a no-op, by design.
+
+4. **Review the job logs:**
+   - Errors are printed to stdout; look for GitHub API error codes (401, 403,
+     404). Non-2xx responses are non-blocking reporter failures, not job
+     failures, when the step is marked `continue-on-error: true`.
 
 ## Performance issues
 

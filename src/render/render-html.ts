@@ -1,6 +1,6 @@
 import type { LayoutedFlow } from "./layout.ts";
 import { getSectionSchemas } from "./section-schemas.ts";
-import { snapshotPanelClientScript } from "./snapshot-panel.ts";
+import { humanizePath, snapshotPanelClientScript } from "./snapshot-panel.ts";
 
 export function renderHtml(layout: LayoutedFlow): string {
   const data = {
@@ -23,6 +23,7 @@ export function renderHtml(layout: LayoutedFlow): string {
     + `${stat(s.removedNodes, "deleted", "deleted")}<span class="sep">·</span>`
     + `${stat(s.modifiedNodes, "modified", "modified")}${edgeStat}`;
   const viewBox = fitViewBox(layout.width, layout.height);
+  const flowBannerHtml = renderFlowBanner(layout.diff.flowChanges);
 
   return `<!doctype html>
 <html lang="en">
@@ -170,6 +171,15 @@ export function renderHtml(layout: LayoutedFlow): string {
     .group-head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
     .group-label { font-weight: 700; font-size: 12.5px; }
     .outcome-group .changes { margin-bottom: 8px; }
+    .flow-banner { border-bottom: 1px solid var(--border); background: #fffaf0; padding: 12px 20px; }
+    .flow-banner-callout { margin-bottom: 8px; font-weight: 750; }
+    .flow-banner-callout.deactivated { color: var(--deleted); }
+    .flow-banner-callout.activated { color: var(--added); }
+    .flow-banner-callout.neutral { color: var(--modified); }
+    .flow-banner-list { display: grid; gap: 7px; max-width: 960px; }
+    .flow-change-row { display: grid; grid-template-columns: minmax(120px, 190px) minmax(0, 1fr); align-items: start; gap: 10px; }
+    .flow-change-label { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .flow-change-value { min-width: 0; max-height: 180px; overflow: auto; }
     .edge { fill: none; }
     .edge.unchanged { stroke-width: 1.4; opacity: 0.55; }
     .edge.normal.unchanged { stroke: var(--edge); marker-end: url(#arrow-normal); }
@@ -226,6 +236,7 @@ export function renderHtml(layout: LayoutedFlow): string {
       </div>
     </div>
   </header>
+  ${flowBannerHtml}
   <main>
     <div class="canvas">
       <svg id="flow-svg" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Flow diff">
@@ -564,6 +575,52 @@ export function renderHtml(layout: LayoutedFlow): string {
   </script>
 </body>
 </html>`;
+}
+
+function renderFlowBanner(changes: LayoutedFlow["diff"]["flowChanges"]): string {
+  if (!changes || changes.length === 0) {
+    return "";
+  }
+  const statusChange = changes.find((change) => change.path === "status");
+  const callout = statusChange ? renderStatusCallout(statusChange.before, statusChange.after) : "";
+  return `<section class="flow-banner" aria-label="Flow-level changes">
+    ${callout}
+    <div class="flow-banner-list">
+      ${changes.map((change) => `<div class="flow-change-row">
+        <div class="flow-change-label">${escapeHtml(humanizePath(change.path))}</div>
+        <div class="flow-change-value">${renderValueDelta(change.before, change.after)}</div>
+      </div>`).join("")}
+    </div>
+  </section>`;
+}
+
+function renderStatusCallout(before: unknown, after: unknown): string {
+  const beforeText = String(before);
+  const afterText = String(after);
+  if (beforeText === "Active" && afterText !== "Active") {
+    return `<div class="flow-banner-callout deactivated">Deactivated (${escapeHtml(beforeText)} -> ${escapeHtml(afterText)})</div>`;
+  }
+  if (beforeText !== "Active" && afterText === "Active") {
+    return `<div class="flow-banner-callout activated">Activated (${escapeHtml(beforeText)} -> ${escapeHtml(afterText)})</div>`;
+  }
+  return `<div class="flow-banner-callout neutral">Status: ${escapeHtml(beforeText)} -> ${escapeHtml(afterText)}</div>`;
+}
+
+function renderValueDelta(before: unknown, after: unknown): string {
+  if (before === undefined) {
+    return `<span class="val ins">${escapeHtml(formatValue(after))}</span>`;
+  }
+  if (after === undefined) {
+    return `<span class="val del">${escapeHtml(formatValue(before))}</span>`;
+  }
+  return `<span class="val del">${escapeHtml(formatValue(before))}</span><span class="arrow">-></span><span class="val ins">${escapeHtml(formatValue(after))}</span>`;
+}
+
+function formatValue(value: unknown): string {
+  if (value === undefined) {
+    return "(missing)";
+  }
+  return String(value);
 }
 
 // Build a viewBox that frames the graph with a comfortable margin and, for small

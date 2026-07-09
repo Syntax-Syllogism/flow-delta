@@ -4,7 +4,7 @@ Tests use the Node built-in runner (`node:test` + `node:assert/strict`) executed
 through `tsx`.
 
 ```bash
-npm test            # parser suite + semantic diff / render / CLI coverage
+npm test            # parser suite + semantic diff / render / CLI + CI reporter coverage
 npm run test:parser # parser regression suite only
 ```
 
@@ -13,11 +13,22 @@ npm run test:parser # parser regression suite only
 - `test/parser.test.ts` — the vendored parser's own suite, ported to `node:test`
   (proves the Apache-2.0 parser behaves identically under Node). See
   [vendoring.md](vendoring.md).
-- `test/semantic-diff.test.ts` — everything we built: canonicalization, `deepDiff`
-  paths, node/edge classification, edge-id rules, the HTML render, the CLI in both
-  modes, and the real before/after fixture assertions.
-- `test/gitlab-report.test.ts` — GitLab reporting helpers, sticky-note upsert
-  behavior, and the package/build smoke checks.
+- `test/semantic-diff.test.ts` — everything we built: canonicalization,
+  flow-header extraction, `deepDiff` paths, node/edge/header classification,
+  edge-id rules, the HTML render, the CLI in both modes, and the real before/after
+  fixture assertions.
+- `test/report-core.test.ts` — the platform-agnostic reporting core shared by
+  both CI reporters (`buildComment`, `isZeroSummary`, `findStickyNote`), plus
+  the package/bin/build smoke checks (all three published binaries).
+- `test/gitlab-report.test.ts` — GitLab-specific reporting: the artifact-URL
+  scheme and the sticky-note `upsertComment` upsert behavior (list → PUT/POST).
+- `test/github-report.test.ts` — GitHub-specific reporting: the artifact-URL
+  scheme, the issue-comments `upsertComment` upsert behavior (list →
+  PATCH/POST, no `/user` call), and `main()` orchestration (PR-number
+  resolution from `GITHUB_EVENT_PATH`/`--pr`, no-op paths, attribute-only
+  diffs). See [ci.md](ci.md) for the reporting flows themselves.
+- `test/smoke-gitlab.test.ts` — unit coverage for the GitLab smoke harness's
+  shared scaffold helpers (e.g. `renameFlowMetadata`).
 
 ## Fixtures (`fixtures/`)
 
@@ -25,10 +36,13 @@ npm run test:parser # parser regression suite only
 - `fixtures/diff/<case>/before.flow-meta.xml` + `after.flow-meta.xml` — real
   before/after pairs retrieved from an org, one directory per scenario:
   `noop_save`, `add_node`, `modify_assignment`, `modify_decision`,
-  `rewire_connector`, `fault_path`.
+  `rewire_connector`, `fault_path`, plus header-only cases `deactivate_flow` and
+  `bump_api_version`.
 
 `noop_save` is the most important: a real save with **only** coordinate churn,
 asserted to produce zero node/edge changes — the headline canonicalization gate.
+`deactivate_flow` is the headline flow-level fixture: the graph is unchanged, but
+`status` moves from `Active` to `Draft` and `summary.changedFlowAttributes` is 1.
 
 ## Adding a diff fixture
 
@@ -61,6 +75,8 @@ Open them and check:
 - Pan/zoom on the canvas.
 - Resizing the side panel by dragging its left edge.
 - Collapsing/reopening the panel via the toggle button.
+- Flow-level banners for `deactivate_flow` and `bump_api_version`; the graph
+  should remain unchanged while the banner reports the root-attribute changes.
 
 On `rewire_connector`, verify that `After` and `Before` each render as a coherent
 single-state graph. A fuller manual checklist and the fixture scenario matrix live

@@ -1,4 +1,5 @@
 import type { GraphEdge, GraphModel, GraphNode, NodeType } from "../model/graph-model.ts";
+import { FLOW_HEADER_KEYS } from "../model/flow-header.ts";
 import { deepDiff, type PropertyChange } from "./deep-diff.ts";
 
 export type Status = "added" | "deleted" | "modified" | "unchanged";
@@ -36,7 +37,9 @@ export interface FlowDiff {
     unchangedNodes: number;
     addedEdges: number;
     removedEdges: number;
+    changedFlowAttributes: number;
   };
+  flowChanges?: PropertyChange[];
   nodes: NodeDiff[];
   edges: EdgeDiff[];
 }
@@ -52,6 +55,7 @@ export function diffModel(oldModel: GraphModel, newModel: GraphModel): FlowDiff 
 
   const nodes = nodeIds.map((id) => classifyNode(oldNodes.get(id), newNodes.get(id)));
   const edges = edgeIds.map((id) => classifyEdge(oldEdges.get(id), newEdges.get(id)));
+  const flowChanges = diffFlowHeaders(oldModel, newModel);
 
   const summary = {
     addedNodes: nodes.filter((node) => node.status === "added").length,
@@ -60,14 +64,25 @@ export function diffModel(oldModel: GraphModel, newModel: GraphModel): FlowDiff 
     unchangedNodes: nodes.filter((node) => node.status === "unchanged").length,
     addedEdges: edges.filter((edge) => edge.status === "added").length,
     removedEdges: edges.filter((edge) => edge.status === "deleted").length,
+    changedFlowAttributes: flowChanges.length,
   };
 
   return {
     flowName: selectFlowName(oldModel, newModel),
     summary,
+    ...(flowChanges.length > 0 ? { flowChanges } : {}),
     nodes,
     edges,
   };
+}
+
+function diffFlowHeaders(oldModel: GraphModel, newModel: GraphModel): PropertyChange[] {
+  if (!oldModel.header || !newModel.header) {
+    return [];
+  }
+  const changes = deepDiff(oldModel.header, newModel.header);
+  const order = new Map(FLOW_HEADER_KEYS.map((key, index) => [key, index]));
+  return changes.sort((left, right) => (order.get(left.path) ?? 999) - (order.get(right.path) ?? 999));
 }
 
 function selectFlowName(oldModel: GraphModel, newModel: GraphModel): string {

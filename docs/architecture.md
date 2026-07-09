@@ -6,7 +6,7 @@ The pipeline is a straight line:
 ```
 XML (old) ─┐
            ├─► parser ─► GraphModel ─┐
-XML (new) ─┘                          ├─► FlowDiff ─► layout ─► HTML + diff.json
+XML (new) ─┘     └─► header ──────────┤─► FlowDiff ─► layout ─► HTML + diff.json
                           (build-model)         (diff-model)  (render)
 ```
 
@@ -20,21 +20,25 @@ diff; only logic changes should surface.
 |--------|----------------|
 | `parser/flow_parser.ts`, `parser/flow_types.ts` | **Vendored** parser (Apache-2.0). Parses `.flow-meta.xml` into a `ParsedFlow` with typed node collections, a `nameToNode` map, and `transitions` (BFS from start). Do not edit — see [vendoring.md](vendoring.md). |
 | `io/read-flow.ts` | Reads flow XML from a file path or from a git ref (`git show <ref>:<path>`). Returns `null` when a path is absent at a ref (added/deleted flow). |
-| `model/graph-model.ts` | Our normalized types: `GraphNode`, `GraphEdge`, `GraphModel`, `NodeType`. |
+| `model/graph-model.ts` | Our normalized types: `GraphNode`, `GraphEdge`, `GraphModel`, `NodeType`. `GraphModel.header` carries curated flow-root attributes when raw XML is available. |
+| `model/flow-header.ts` | Thin, non-vendored extractor for selected `<Flow>` root scalars (`status`, `processType`, `runInMode`, `apiVersion`, `triggerOrder`, `description`, `interviewLabel`, `isTemplate`). Parses raw XML with `xml2js` and leaves malformed/headerless XML as `{}`. |
 | `model/build-model.ts` | `ParsedFlow → GraphModel`. **Canonicalization lives here.** |
 | `diff/deep-diff.ts` | Generic recursive `{path, before, after}` diff of two values. |
-| `diff/diff-model.ts` | `GraphModel × GraphModel → FlowDiff`. Classifies nodes/edges added/deleted/modified/unchanged and attaches per-property deltas. |
+| `diff/diff-model.ts` | `GraphModel × GraphModel → FlowDiff`. Classifies nodes/edges added/deleted/modified/unchanged, diffs both-present flow headers, and attaches per-property deltas. |
 | `render/layout.ts` | Deterministic graph layout via `elkjs` (layered, top-down). Positions are computed at build time and baked into the artifact. |
 | `render/section-schemas.ts` | Type-specific property grouping schemas. Declare how each node type's changes should be organized into semantic sections (e.g., "Outcomes" for decisions) and rendered (lines, table, or grouped-table). |
 | `render/render-html.ts` | `LayoutedFlow → self-contained HTML` (inline SVG + vanilla JS pan/zoom + click-for-delta panel + interactive view filters). Uses section schemas to organize property changes semantically. No network/runtime deps. See [render.md](render.md). |
-| `ci/gitlab-report.ts` | Consumes `*.diff.json`, builds the sticky GitLab MR comment, and upserts it via the GitLab API. See [ci.md](ci.md). |
+| `ci/report-core.ts` | Platform-agnostic reporting core shared by both CI reporters: `buildComment`, `readResults`, `isZeroSummary`, `findStickyNote`, `escapeTableCell`, `normalizePath`. See [ci.md](ci.md). |
+| `ci/gitlab-report.ts` | Consumes `*.diff.json` (via `report-core`), builds the sticky GitLab MR comment, and upserts it via the GitLab API. See [ci.md](ci.md). |
+| `ci/github-report.ts` | Same shared core, GitHub-shaped: upserts a sticky PR comment via the issue-comments API (marker-only match, no `/user` call). See [ci.md](ci.md). |
 | `cli.ts` | Arg parsing + orchestration for file mode and git mode. See [cli.md](cli.md). |
 
 Delivery extras:
 
-- `scripts/build.mjs` emits the published `dist/cli.js` and `dist/gitlab-report.js`
-  entrypoints.
-- `examples/gitlab-ci.yml` is the documented GitLab job recipe for MR pipelines.
+- `scripts/build.mjs` emits the published `dist/cli.js`, `dist/gitlab-report.js`,
+  and `dist/github-report.js` entrypoints.
+- `examples/gitlab-ci.yml` and `examples/github-actions.yml` are the documented
+  job/workflow recipes for MR and PR pipelines, respectively.
 - [`publishing.md`](publishing.md) covers the npm package shape and release checks.
 
 ## Invariants that must hold
@@ -69,22 +73,38 @@ Edge id = `` `${from}->${to}#${kind}#${label}` `` where `kind` is `fault` or
 `normal`. Without `kind` in the id, a fault connector and a normal connector
 between the same two nodes would collide and one would be lost.
 
-### 4. Per-property deltas are generic
+### 4. Flow-level header attributes are diffed separately
+
+The vendored parser intentionally stays untouched. It parses many Flow-root
+fields, but `build-model.ts` operates on the parser's element graph and should
+stay focused on nodes and edges. The CLI already has raw XML in hand, so it
+attaches `GraphModel.header` by calling `extractFlowHeader(xml)` after model
+building.
+
+Only a curated scalar set is compared: `status`, `processType`, `runInMode`,
+`apiVersion`, `triggerOrder`, `description`, `interviewLabel`, and `isTemplate`.
+These changes appear in `FlowDiff.flowChanges` and increment
+`summary.changedFlowAttributes`. If one side has no header (whole-flow add/delete),
+header diffing is skipped because the node-level add/delete already carries the
+headline signal.
+
+### 5. Per-property deltas are generic
 `deepDiff` recurses structurally and reports each changed leaf as
 `{path, before, after}` (e.g. `rules[0].conditions[1]`). There is no per-node-type
 mapping; it is uniform across all element types.
 
-### 5. The artifact is offline-safe
+### 6. The artifact is offline-safe
 `render-html.ts` emits a single HTML file with inline SVG, CSS, and JS — **no**
 external URLs (asserted in tests). Layout is precomputed; the browser only needs
 to pan/zoom and populate the side panel.
 
 ## Known scope boundaries
 
-- **Flow-level attributes are not diffed.** Only the node/edge graph is compared.
-  `<status>` (Active/Draft), canvas mode, `processMetadataValues`, and similar
-  flow-root metadata are dropped in `build-model` and never reach the diff. (A
-  flow being deactivated is currently invisible — a deliberate open question.)
+- Only the curated flow-level scalar set listed above is diffed. Noisy or
+  structural root collections such as `processMetadataValues`, `variables`,
+  `formulas`, choices, stages, and `startElementReference` remain out of scope.
+- Flow-level headers are not rendered for whole-flow adds/deletes; the graph-level
+  add/delete is the reviewed signal in those cases.
 - No subflow traversal (subflows are opaque nodes), no rename detection.
 
 Rationale and roadmap: the work items `fl-semantic-diff-render-mvp` and
