@@ -33,9 +33,20 @@ jobs:
           cache: npm
 
       # OIDC trusted publishing authenticates via the npm CLI, which needs
-      # >= 11.5.1. Node 22 bundles npm 10.x, so upgrade before publishing.
-      - name: Upgrade npm for OIDC trusted publishing
-        run: npm install -g npm@latest
+      # >= 11.5.1. Node 22 bundles npm 10.x, so we need a newer npm.
+      #
+      # We must NOT `npm install -g npm@latest`: the Node toolcache image ships
+      # a broken bundled npm whose internal dependency tree is missing modules
+      # (e.g. `sigstore`, required by `npm publish --provenance`). Upgrading in
+      # place runs through that same broken npm and reproduces the corruption,
+      # so the publish later fails with `Cannot find module 'sigstore'`.
+      # corepack fetches a clean npm from the registry and shims it, bypassing
+      # the defective toolcache npm. See actions/runner-images#13883.
+      - name: Activate a clean npm via corepack
+        run: |
+          corepack enable
+          corepack prepare npm@11.5.1 --activate
+          npm --version
 
       - name: Install dependencies
         run: npm ci
