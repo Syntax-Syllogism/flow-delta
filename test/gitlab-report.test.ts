@@ -109,7 +109,7 @@ test("upsertComment creates a sticky note when none exists", async () => {
 
 test("sample GitLab job preserves shell line continuations", () => {
   const config = readFileSync(join(process.cwd(), "examples", "gitlab-ci.yml"), "utf8").replace(/\r\n/g, "\n");
-  assert.match(config, /script:\n    - \|\n      npx .* flow-delta \\\n/);
+  assert.match(config, /script:\n    - \|\n(?:      #.*\n)*      npx .* flow-delta \\\n/);
 });
 
 function jsonResponse(body: unknown, status = 200): Response {
