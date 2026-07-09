@@ -25,27 +25,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      # Node 24, not 22: OIDC trusted publishing needs npm >= 11.5.1, but that
+      # is not sufficient on its own — many reports (npm/cli#8730) show the OIDC
+      # handshake still 404ing under Node 22 even with npm 11.6.x, and succeeding
+      # only once moved to Node 24. Node 24 also ships a fresh toolcache.
+      #
+      # No registry-url: actions/setup-node's registry-url auto-writes an .npmrc
+      # with `_authToken=${NODE_AUTH_TOKEN}` (empty here) plus always-auth. npm
+      # then prioritizes that empty token and skips the OIDC trusted-publisher
+      # handshake entirely, surfacing as a 404 on publish (npm/cli#8730). The
+      # default registry is already registry.npmjs.org, so it is not needed.
       - name: Set up Node
         uses: actions/setup-node@v6
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
+          node-version: 24
           cache: npm
 
-      # OIDC trusted publishing authenticates via the npm CLI, which needs
-      # >= 11.5.1. Node 22 bundles npm 10.x, so we need a newer npm.
-      #
-      # We must NOT `npm install -g npm@latest`: the Node toolcache image ships
-      # a broken bundled npm whose internal dependency tree is missing modules
-      # (e.g. `sigstore`, required by `npm publish --provenance`). Upgrading in
-      # place runs through that same broken npm and reproduces the corruption,
-      # so the publish later fails with `Cannot find module 'sigstore'`.
-      # corepack fetches a clean npm from the registry and shims it, bypassing
-      # the defective toolcache npm. See actions/runner-images#13883.
+      # Activate a clean npm via corepack rather than `npm install -g npm@latest`:
+      # the Node toolcache occasionally ships a broken bundled npm whose internal
+      # dependency tree is missing modules (e.g. `sigstore`, required by
+      # `npm publish --provenance`). Upgrading in place runs through that same
+      # broken npm and reproduces the corruption. corepack fetches a clean npm
+      # from the registry and bypasses it. See actions/runner-images#13883.
       - name: Activate a clean npm via corepack
         run: |
           corepack enable
-          corepack prepare npm@11.5.1 --activate
+          corepack prepare npm@latest --activate
           npm --version
 
       - name: Install dependencies
