@@ -5,21 +5,29 @@ artifact plus the embedded `diff.json` payload. The generated page is fully
 offline: CSS, SVG, and client-side JS are all inline, and the browser does not
 fetch external assets.
 
-## Flow-level banner
+## Flow-level changes
 
-When `FlowDiff.flowChanges` is present, the renderer emits a banner between the
-page header and the graph. This is for curated `<Flow>` root attributes such as
-`status`, `apiVersion`, and `runInMode`; it is intentionally outside the graph so
-Flow elements remain the only graph nodes.
+When `FlowDiff.flowChanges` is present, the renderer floats a small tab over the
+top-left corner of the canvas, styled to match the node panel's own collapsed
+`.panel-reopen` affordance (same surface, border, radius, and shadow) so the
+artifact has one disclosure idiom instead of two. This is for curated `<Flow>`
+root attributes such as `status`, `apiVersion`, and `runInMode`; it is
+intentionally outside the graph so Flow elements remain the only graph nodes,
+and it reserves no layout row — the canvas and the node-detail panel both start
+flush under the header whether or not there are flow-level changes.
 
-Status changes get a prominent callout. `Active -> Draft` / `Obsolete` /
+Clicking the tab opens a popover anchored at the same corner. Status changes
+get a prominent callout inside it. `Active -> Draft` / `Obsolete` /
 `InvalidDraft` reads as a deactivation, `Draft` / `Obsolete` -> `Active` reads as
-an activation, and other status transitions use a neutral status line. Other
-attributes render as labeled before/after rows using the same inserted/deleted
-value grammar as the node detail panel. Long values are bounded in the banner so
-description changes do not swallow the graph.
+an activation, and other status transitions use a neutral status line; the tab
+label and its dot color reflect the same classification before the popover is
+even opened. Other attributes render as labeled before/after rows using the
+same inserted/deleted value grammar as the node detail panel. The popover
+closes on outside click, Escape, or selecting a node (node clicks stop
+propagation for their own panel logic, so closing the popover is handled
+explicitly rather than relying on bubbling to `document`).
 
-The banner is omitted when there are no flow-level changes and for whole-flow
+The tab is omitted when there are no flow-level changes and for whole-flow
 add/delete cases where one side has no header.
 
 ## Interactive diff filters
@@ -34,6 +42,17 @@ The HTML artifact includes four view presets:
 
 The filter is client-side only. Clicking a node still opens its delta panel in
 every mode.
+
+## Theme control
+
+The header includes a compact `System / Light / Dark` theme control. `System` is
+the default and follows the reviewer's operating-system color preference using
+`prefers-color-scheme`; `Light` and `Dark` are explicit overrides.
+
+Theme selection is client-side only and is persisted in `localStorage` under
+`flow-delta-theme`. Missing, invalid, or inaccessible storage falls back to
+`System`. The theme bootstrap script, CSS, and controls are all inline, so the
+artifact remains fully offline and does not fetch external assets.
 
 ## Layout strategy
 
@@ -124,3 +143,11 @@ For the detail panel, open a modified node with complex properties (e.g.,
 For flow-level changes, open `deactivate_flow` and `bump_api_version` and verify
 that the banner appears above the graph, remains visible in every view filter, and
 does not introduce external network references.
+
+For theme behavior, open any rendered fixture and verify:
+- `System` follows the OS light/dark preference.
+- `Light` and `Dark` switch immediately and remain selected after refresh.
+- The canvas, nodes, banners, detail sections, value chips, focus rings, and
+  controls remain readable in both light and dark modes.
+- Switching themes does not change graph layout, filters, panel resize/collapse,
+  or offline behavior.

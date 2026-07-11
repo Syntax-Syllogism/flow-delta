@@ -12,7 +12,7 @@ import { extractFlowHeader } from "../src/model/flow-header.ts";
 import { deepDiff } from "../src/diff/deep-diff.ts";
 import { diffModel } from "../src/diff/diff-model.ts";
 import { layoutDiff } from "../src/render/layout.ts";
-import { renderHtml } from "../src/render/render-html.ts";
+import { THEME_STORAGE_KEY, renderHtml } from "../src/render/render-html.ts";
 import { getSectionSchemas } from "../src/render/section-schemas.ts";
 import { renderNodePanelBody } from "../src/render/snapshot-panel.ts";
 import { main } from "../src/cli.ts";
@@ -262,7 +262,17 @@ test("renderHtml emits a self-contained document with node ids and status classe
   assert.match(html, /data-view-mode="after"/);
   assert.match(html, /data-view-mode="before"/);
   assert.match(html, /data-view-mode="changes"/);
+  assert.match(html, /aria-label="Color theme"/);
+  assert.match(html, /data-theme-choice="system"/);
+  assert.match(html, /data-theme-choice="light"/);
+  assert.match(html, /data-theme-choice="dark"/);
+  assert.match(html, /flow-delta-theme/);
+  assert.equal([...html.matchAll(new RegExp(THEME_STORAGE_KEY, "g"))].length, 2);
+  assert.match(html, /@media \(prefers-color-scheme: dark\)/);
+  assert.match(html, /:root\[data-theme="dark"\]/);
+  assert.match(html, /panel-resizer:hover::before, \.panel-resizer\.dragging::before \{ background: var\(--focus\); width: 3px; \}/);
   assert.match(html, /function applyView\(mode\)/);
+  assert.match(html, /function applyTheme\(theme\)/);
   assert.match(html, /function round\(value\)/);
   assert.match(html, /function measureVisibleBounds\(nodes, edges\)/);
   assert.match(html, /function fitViewBoxRect\(bounds\)/);
@@ -296,7 +306,7 @@ test("renderHtml emits a flow-level banner for deactivation changes only", async
 
   const html = renderHtml(await layoutDiff(diffModel(before, after)));
 
-  assert.match(html, /<section class="flow-banner"/);
+  assert.match(html, /id="flow-tab" class="flow-tab deactivated"/);
   assert.match(html, /Deactivated \(Active -> Draft\)/);
   assert.match(html, /Api Version/);
   assert.match(html, /flow-change-value \{ min-width: 0; max-height: 180px; overflow: auto; \}/);
@@ -306,7 +316,7 @@ test("renderHtml emits a flow-level banner for deactivation changes only", async
   assert.ok(!html.includes("https://"));
 
   const unchangedHtml = renderHtml(await layoutDiff(diffModel(model({ id: "A", type: "start", label: "A", properties: {} }), model({ id: "A", type: "start", label: "A", properties: {} }))));
-  assert.ok(!unchangedHtml.includes("<section class=\"flow-banner\""));
+  assert.ok(!unchangedHtml.includes("id=\"flow-tab\""));
 });
 
 test("renderHtml emits an apiVersion-only banner without activation callout", async () => {
@@ -317,11 +327,33 @@ test("renderHtml emits an apiVersion-only banner without activation callout", as
 
   const html = renderHtml(await layoutDiff(diffModel(before, after)));
 
-  assert.match(html, /<section class="flow-banner"/);
+  assert.match(html, /id="flow-tab" class="flow-tab neutral"/);
   assert.match(html, /Api Version/);
   assert.match(html, /58\.0/);
   assert.match(html, /59\.0/);
   assert.doesNotMatch(html, /<div class="flow-banner-callout/);
+});
+
+test("renderHtml closes the flow popover when a node is selected, not just on generic outside clicks", async () => {
+  const before = model({ id: "A", type: "start", label: "A", properties: {} });
+  const after = model({ id: "A", type: "start", label: "A", properties: {} });
+  before.header = { status: "Active", apiVersion: "58.0" };
+  after.header = { status: "Draft", apiVersion: "59.0" };
+
+  const html = renderHtml(await layoutDiff(diffModel(before, after)));
+
+  // Node clicks call event.stopPropagation(), so they never reach the
+  // document-level "outside click" listener that closes the flow popover.
+  // The node click handler must close it directly instead.
+  assert.match(html, /function closeFlowPopover\(\)/);
+  assert.match(
+    html,
+    /node\.addEventListener\("click", \(event\) => \{\s*event\.stopPropagation\(\);\s*closeFlowPopover\(\);\s*selectNode\(node\.dataset\.nodeId\);/,
+  );
+  // event.target !== flowTab is unreachable: any click on the tab or its
+  // children is already stopped by the tab's own handler before it can
+  // bubble to document, so that branch must not be reintroduced.
+  assert.doesNotMatch(html, /event\.target !== flowTab/);
 });
 
 test("section schemas name high-impact node property groups", () => {
@@ -419,6 +451,16 @@ test("renderHtml client script executes against a lightweight DOM smoke harness"
     dom.elements.filterButtons.find((button) => button.dataset.viewMode === viewMode)?.dispatch("click");
     for (const button of dom.elements.filterButtons) {
       const expected = button.dataset.viewMode === viewMode;
+      assert.equal(button.attributes["aria-pressed"], expected ? "true" : "false");
+    }
+  }
+
+  for (const theme of ["light", "dark", "system"]) {
+    dom.elements.themeButtons.find((button) => button.dataset.themeChoice === theme)?.dispatch("click");
+    assert.equal(dom.elements.documentElement.dataset.theme, theme);
+    assert.equal(dom.localStorage.values[THEME_STORAGE_KEY], theme);
+    for (const button of dom.elements.themeButtons) {
+      const expected = button.dataset.themeChoice === theme;
       assert.equal(button.attributes["aria-pressed"], expected ? "true" : "false");
     }
   }
@@ -1026,9 +1068,9 @@ function extractData(html: string) {
 }
 
 function extractClientScript(html: string) {
-  const match = html.match(/<script>([\s\S]*?)<\/script>\s*<\/body>/);
+  const match = html.match(/<script>\s*const DATA = ([\s\S]*?)<\/script>\s*<\/body>/);
   assert.ok(match, "expected embedded client script");
-  return match[1];
+  return `const DATA = ${match[1]}`;
 }
 
 function createMockDom(data: { nodes: Array<{ id: string }>; edges: Array<{ id: string }> }) {
@@ -1093,14 +1135,19 @@ function createMockDom(data: { nodes: Array<{ id: string }>; edges: Array<{ id: 
   ]));
   const filterButtons = ["all", "after", "before", "changes"].map((viewMode) =>
     createElement({ dataset: { viewMode }, className: "filter-button" }));
+  const themeButtons = ["system", "light", "dark"].map((themeChoice) =>
+    createElement({ dataset: { themeChoice }, className: "theme-button" }));
   const panel = createElement({ className: "panel" });
   const svg = createElement({ isSvg: true });
   const viewport = createElement();
   const panelTitle = createElement();
   const panelBadge = createElement();
   const panelBody = createElement();
+  const documentElement = createElement();
+  const localStorageValues: Record<string, string> = {};
 
   const document = {
+    documentElement,
     getElementById(id: string) {
       if (id === "flow-svg") return svg;
       if (id === "viewport") return viewport;
@@ -1124,6 +1171,7 @@ function createMockDom(data: { nodes: Array<{ id: string }>; edges: Array<{ id: 
     },
     querySelectorAll(selector: string) {
       if (selector === ".filters button") return filterButtons;
+      if (selector === ".theme-toggle button") return themeButtons;
       if (selector === ".node") return [...nodeElements.values()];
       if (selector === ".edge") return [...edgeElements.values()];
       return [];
@@ -1137,8 +1185,21 @@ function createMockDom(data: { nodes: Array<{ id: string }>; edges: Array<{ id: 
   };
 
   return {
-    context: { document, CSS, console },
-    elements: { svg, filterButtons, nodeById: nodeElements },
+    context: {
+      document,
+      CSS,
+      console,
+      localStorage: {
+        getItem(key: string) {
+          return localStorageValues[key] ?? null;
+        },
+        setItem(key: string, value: string) {
+          localStorageValues[key] = value;
+        },
+      },
+    },
+    localStorage: { values: localStorageValues },
+    elements: { svg, filterButtons, themeButtons, documentElement, nodeById: nodeElements },
   };
 }
 
