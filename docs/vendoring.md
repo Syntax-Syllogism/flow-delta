@@ -27,11 +27,11 @@ Treat `src/parser/` as read-only. Its behavior is pinned by `test/parser.test.ts
 (the upstream suite, ported to `node:test`), which proves the parser runs
 identically under Node. Edits would diverge from upstream, break that guarantee,
 and complicate any future re-sync. All FlowDelta-specific behavior belongs in the
-layers built *on top* of the parser (`model/`, `diff/`, `render/`).
+layers built _on top_ of the parser (`model/`, `diff/`, `render/`).
 
 ## Why vendor only the parser
 
-A spike confirmed the parser is runtime-agnostic — it imports only `xml2js` plus
+A spike confirmed the parser is runtime-agnostic; it imports only `xml2js` plus
 its own type module, with zero Deno APIs, so it copies into a Node/TypeScript
 project verbatim. The upstream diff/render layers were **not** adopted; FlowDelta
 provides its own normalized model, canonicalization, edge-aware diff, per-property
@@ -46,9 +46,9 @@ Apache-2.0. The project is **not** relicensing the parser as MIT.
 To stay compliant with Apache-2.0 when redistributing (including npm publish),
 all of the following must travel together:
 
-- `src/parser/*` original Apache-2.0 headers (do not strip) — §4(c).
-- [`LICENSE-APACHE`](../LICENSE-APACHE), the full Apache-2.0 text — §4(a).
-- [`NOTICE`](../NOTICE), attribution + upstream commit — §4(d).
+- `src/parser/*` original Apache-2.0 headers (do not strip): §4(c).
+- [`LICENSE-APACHE`](../LICENSE-APACHE), the full Apache-2.0 text: §4(a).
+- [`NOTICE`](../NOTICE), attribution + upstream commit: §4(d).
 
 The parser is vendored verbatim, so there are no "modified file" notices to add
 under §4(b); if that ever changes, mark the modified files prominently.

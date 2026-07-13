@@ -10,28 +10,28 @@ XML (new) ─┘     └─► header ──────────┤─► Fl
                           (build-model)         (diff-model)  (render)
 ```
 
-**Core principle:** diff the *normalized model*, not the rendered diagram or the
+**Core principle:** diff the _normalized model_, not the rendered diagram or the
 raw XML. Cosmetic saves (coordinate churn, element reordering) must produce zero
 diff; only logic changes should surface.
 
 ## Modules (`src/`)
 
-| Module | Responsibility |
-|--------|----------------|
-| `parser/flow_parser.ts`, `parser/flow_types.ts` | **Vendored** parser (Apache-2.0). Parses `.flow-meta.xml` into a `ParsedFlow` with typed node collections, a `nameToNode` map, and `transitions` (BFS from start). Do not edit — see [vendoring.md](vendoring.md). |
-| `io/read-flow.ts` | Reads flow XML from a file path or from a git ref (`git show <ref>:<path>`). Returns `null` when a path is absent at a ref (added/deleted flow). |
-| `model/graph-model.ts` | Our normalized types: `GraphNode`, `GraphEdge`, `GraphModel`, `NodeType`. `GraphModel.header` carries curated flow-root attributes when raw XML is available. |
-| `model/flow-header.ts` | Thin, non-vendored extractor for selected `<Flow>` root scalars (`status`, `processType`, `runInMode`, `apiVersion`, `triggerOrder`, `description`, `interviewLabel`, `isTemplate`). Parses raw XML with `xml2js` and leaves malformed/headerless XML as `{}`. |
-| `model/build-model.ts` | `ParsedFlow → GraphModel`. **Canonicalization lives here.** |
-| `diff/deep-diff.ts` | Generic recursive `{path, before, after}` diff of two values. |
-| `diff/diff-model.ts` | `GraphModel × GraphModel → FlowDiff`. Classifies nodes/edges added/deleted/modified/unchanged, diffs both-present flow headers, and attaches per-property deltas. |
-| `render/layout.ts` | Deterministic graph layout via `elkjs` (layered, top-down). Positions are computed at build time and baked into the artifact. |
-| `render/section-schemas.ts` | Type-specific property grouping schemas. Declare how each node type's changes should be organized into semantic sections (e.g., "Outcomes" for decisions) and rendered (lines, table, or grouped-table). |
-| `render/render-html.ts` | `LayoutedFlow → self-contained HTML` (inline SVG + vanilla JS pan/zoom + click-for-delta panel + interactive view filters). Uses section schemas to organize property changes semantically. No network/runtime deps. See [render.md](render.md). |
-| `ci/report-core.ts` | Platform-agnostic reporting core shared by both CI reporters: `buildComment`, `readResults`, `isZeroSummary`, `findStickyNote`, `escapeTableCell`, `normalizePath`. See [ci.md](ci.md). |
-| `ci/gitlab-report.ts` | Consumes `*.diff.json` (via `report-core`), builds the sticky GitLab MR comment, and upserts it via the GitLab API. See [ci.md](ci.md). |
-| `ci/github-report.ts` | Same shared core, GitHub-shaped: upserts a sticky PR comment via the issue-comments API (marker-only match, no `/user` call). See [ci.md](ci.md). |
-| `cli.ts` | Arg parsing + orchestration for file mode and git mode. See [cli.md](cli.md). |
+| Module                                          | Responsibility                                                                                                                                                                                                                                                 |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parser/flow_parser.ts`, `parser/flow_types.ts` | **Vendored** parser (Apache-2.0). Parses `.flow-meta.xml` into a `ParsedFlow` with typed node collections, a `nameToNode` map, and `transitions` (BFS from start). Do not edit — see [vendoring.md](vendoring.md).                                             |
+| `io/read-flow.ts`                               | Reads flow XML from a file path or from a git ref (`git show <ref>:<path>`). Returns `null` when a path is absent at a ref (added/deleted flow).                                                                                                               |
+| `model/graph-model.ts`                          | Our normalized types: `GraphNode`, `GraphEdge`, `GraphModel`, `NodeType`. `GraphModel.header` carries curated flow-root attributes when raw XML is available.                                                                                                  |
+| `model/flow-header.ts`                          | Thin, non-vendored extractor for selected `<Flow>` root scalars (`status`, `processType`, `runInMode`, `apiVersion`, `triggerOrder`, `description`, `interviewLabel`, `isTemplate`). Parses raw XML with `xml2js` and leaves malformed/headerless XML as `{}`. |
+| `model/build-model.ts`                          | `ParsedFlow → GraphModel`. **Canonicalization lives here.**                                                                                                                                                                                                    |
+| `diff/deep-diff.ts`                             | Generic recursive `{path, before, after}` diff of two values.                                                                                                                                                                                                  |
+| `diff/diff-model.ts`                            | `GraphModel × GraphModel → FlowDiff`. Classifies nodes/edges added/deleted/modified/unchanged, diffs both-present flow headers, and attaches per-property deltas.                                                                                              |
+| `render/layout.ts`                              | Deterministic graph layout via `elkjs` (layered, top-down). Positions are computed at build time and baked into the artifact.                                                                                                                                  |
+| `render/section-schemas.ts`                     | Type-specific property grouping schemas. Declare how each node type's changes should be organized into semantic sections (e.g., "Outcomes" for decisions) and rendered (lines, table, or grouped-table).                                                       |
+| `render/render-html.ts`                         | `LayoutedFlow → self-contained HTML` (inline SVG + vanilla JS pan/zoom + click-for-delta panel + interactive view filters). Uses section schemas to organize property changes semantically. No network/runtime deps. See [render.md](render.md).               |
+| `ci/report-core.ts`                             | Platform-agnostic reporting core shared by both CI reporters: `buildComment`, `readResults`, `isZeroSummary`, `findStickyNote`, `escapeTableCell`, `normalizePath`. See [ci.md](ci.md).                                                                        |
+| `ci/gitlab-report.ts`                           | Consumes `*.diff.json` (via `report-core`), builds the sticky GitLab MR comment, and upserts it via the GitLab API. See [ci.md](ci.md).                                                                                                                        |
+| `ci/github-report.ts`                           | Same shared core, GitHub-shaped: upserts a sticky PR comment via the issue-comments API (marker-only match, no `/user` call). See [ci.md](ci.md).                                                                                                              |
+| `cli.ts`                                        | Arg parsing + orchestration for file mode and git mode. See [cli.md](cli.md).                                                                                                                                                                                  |
 
 Delivery extras:
 
@@ -47,12 +47,14 @@ These are the load-bearing rules. Changing them changes the product's behavior;
 they are covered by tests in `test/semantic-diff.test.ts`.
 
 ### 1. Node identity is the Flow element `<name>`
+
 Nodes are matched between versions by `name` (the stable API name), not by
 position. A renamed element therefore reads as delete + add (rename detection is
 out of scope). `build-model` synthesizes a `start` node (`FLOW_START`) and a
 single `END` node so terminal edges have a target.
 
 ### 2. Canonicalization (in `build-model.ts`)
+
 A node's diff-able `properties` are produced by `structuredClone` + a strip pass:
 
 - **`TOP_LEVEL_KEYS`** removed from the node root: `name`, `label`, `locationX`,
@@ -69,6 +71,7 @@ A node's diff-able `properties` are produced by `structuredClone` + a strip pass
   no-op save shows a spurious `modified` on a reordered array, add its key here.
 
 ### 3. Edges carry `kind` in their identity
+
 Edge id = `` `${from}->${to}#${kind}#${label}` `` where `kind` is `fault` or
 `normal`. Without `kind` in the id, a fault connector and a normal connector
 between the same two nodes would collide and one would be lost.
@@ -89,11 +92,13 @@ header diffing is skipped because the node-level add/delete already carries the
 headline signal.
 
 ### 5. Per-property deltas are generic
+
 `deepDiff` recurses structurally and reports each changed leaf as
 `{path, before, after}` (e.g. `rules[0].conditions[1]`). There is no per-node-type
 mapping; it is uniform across all element types.
 
 ### 6. The artifact is offline-safe
+
 `render-html.ts` emits a single HTML file with inline SVG, CSS, and JS — **no**
 external URLs (asserted in tests). Layout is precomputed; the browser only needs
 to pan/zoom and populate the side panel.

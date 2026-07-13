@@ -1,9 +1,8 @@
 # CI integration (GitLab + GitHub)
 
 This project ships a second binary, `flow-delta-gitlab`, for merge-request
-reporting. It does not recompute diffs; it reads the `*.diff.json` files emitted
-by `flow-delta`, builds one sticky Markdown comment, and updates the existing MR
-note in place.
+reporting. It reads the `*.diff.json` files already emitted by `flow-delta`,
+builds one sticky Markdown comment, and updates the existing MR note in place.
 
 ## Sample pipeline
 
@@ -25,12 +24,12 @@ recipe:
 differ between those two commits. To match GitLab's MR **Changed files** tab,
 `<to>` must be the **source-branch HEAD** — the tip of the branch under review.
 
-The trap is `$CI_COMMIT_SHA`. In a plain **detached** MR pipeline it *is* the
+The trap is `$CI_COMMIT_SHA`. In a plain **detached** MR pipeline it _is_ the
 source-branch HEAD, so `--to "$CI_COMMIT_SHA"` works. But in a **merged results
-pipeline** or **merge train**, `$CI_COMMIT_SHA` is a *synthetic* commit that
+pipeline** or **merge train**, `$CI_COMMIT_SHA` is a _synthetic_ commit that
 merges your source branch into the **latest target branch**. Diffing the base
 against that merge commit pulls in every flow changed on target since the merge
-base — i.e. flows from *other* merged MRs — which then appear in the report even
+base, i.e. flows from _other_ merged MRs, which then appear in the report even
 though they are not in this MR's changed-files list.
 
 Use `$CI_MERGE_REQUEST_SOURCE_BRANCH_SHA` instead. GitLab populates it with the
@@ -66,13 +65,13 @@ the script turns into its own git repository for the smoke run.
 The reporter reads these CI variables by default, with CLI overrides for local
 testing:
 
-| Variable | Purpose |
-|---|---|
-| `CI_API_V4_URL` | GitLab API base URL |
-| `CI_PROJECT_ID` | Project id for the notes endpoint |
-| `CI_MERGE_REQUEST_IID` | Merge request to comment on |
-| `CI_PROJECT_URL` | Base for artifact browse URLs |
-| `CI_JOB_ID` | Job whose artifacts hold the HTML |
+| Variable                 | Purpose                                        |
+| ------------------------ | ---------------------------------------------- |
+| `CI_API_V4_URL`          | GitLab API base URL                            |
+| `CI_PROJECT_ID`          | Project id for the notes endpoint              |
+| `CI_MERGE_REQUEST_IID`   | Merge request to comment on                    |
+| `CI_PROJECT_URL`         | Base for artifact browse URLs                  |
+| `CI_JOB_ID`              | Job whose artifacts hold the HTML              |
 | `FlowDelta_GITLAB_TOKEN` | Project or group access token with `api` scope |
 
 The reporter expects the token to be masked in CI logs.
@@ -132,25 +131,25 @@ supported recipe:
 The reporter reads these `GITHUB_*` variables by default, with CLI overrides for
 local testing:
 
-| Variable | Purpose |
-|---|---|
-| `GITHUB_API_URL` | GitHub API base URL (default `https://api.github.com`) |
-| `GITHUB_REPOSITORY` | `owner/repo` |
-| PR number | from the `pull_request` event payload at `GITHUB_EVENT_PATH`, or `--pr` |
-| `GITHUB_SERVER_URL` | Base for the artifact link (default `https://github.com`) |
-| `GITHUB_RUN_ID` | Run whose artifacts hold the HTML |
-| `GITHUB_SHA` | Commit shown in the comment footer |
-| `GITHUB_TOKEN` | Needs `permissions: pull-requests: write` |
-| `--artifact-urls <manifest.json>` | Optional map of `<artifact>.html` to a live-render URL |
+| Variable                          | Purpose                                                                 |
+| --------------------------------- | ----------------------------------------------------------------------- |
+| `GITHUB_API_URL`                  | GitHub API base URL (default `https://api.github.com`)                  |
+| `GITHUB_REPOSITORY`               | `owner/repo`                                                            |
+| PR number                         | from the `pull_request` event payload at `GITHUB_EVENT_PATH`, or `--pr` |
+| `GITHUB_SERVER_URL`               | Base for the artifact link (default `https://github.com`)               |
+| `GITHUB_RUN_ID`                   | Run whose artifacts hold the HTML                                       |
+| `GITHUB_SHA`                      | Commit shown in the comment footer                                      |
+| `GITHUB_TOKEN`                    | Needs `permissions: pull-requests: write`                               |
+| `--artifact-urls <manifest.json>` | Optional map of `<artifact>.html` to a live-render URL                  |
 
 ### Comment shape and sticky behavior
 
 Same marker, table, and `changedFlowAttributes` reporting rule as the GitLab
 reporter (`isZeroSummary` lives in the shared core, so a pure deactivation
-comments on both platforms). Sticky matching is **by marker only** — the
+comments on both platforms). Sticky matching is **by marker only**: the
 reporter never calls `GET /user`, because the Actions `GITHUB_TOKEN` is an
 installation token that posts as `github-actions[bot]` and can't call that
-endpoint. This is simpler than the GitLab reporter, not harder.
+endpoint. This keeps the GitHub reporter simpler than the GitLab one.
 
 - No existing sticky comment → `POST` to `/repos/{owner}/{repo}/issues/{pr}/comments`.
 - Existing sticky comment → `PATCH` `/repos/{owner}/{repo}/issues/comments/{id}`.
@@ -167,7 +166,7 @@ endpoint. This is simpler than the GitLab reporter, not harder.
 
 The baseline links to the workflow run's artifacts page:
 `${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}`.
-Viewing is **download-then-open** — GitHub Actions artifacts are login-gated
+Viewing is **download-then-open**: GitHub Actions artifacts are login-gated
 zips, not browsable files, so there is no per-file deep link the way GitLab's
 job-artifact browse route provides one. Because FlowDelta's artifact is a
 single self-contained HTML file with no external URLs, download-then-open is
@@ -189,11 +188,10 @@ downloading a zip, publish the self-contained HTML to storage you own and pass
 the resulting URLs through `--artifact-urls`.
 
 **Trust boundary (applies to every option below):** FlowDelta ships the CLI and
-template code. Every credential is one *you* create; every server is
-one *you* deploy in *your* infrastructure. FlowDelta-the-project holds no
-token, runs no server, and never sees your repo or artifacts — this is
-deliberately not the artifact.ci model of one central, tool-author-owned server
-brokering access to many private repos.
+template code. Every credential is one _you_ create; every server is
+one _you_ deploy in _your_ infrastructure. FlowDelta-the-project holds no
+token, runs no server, and never sees your repo or artifacts. Every option
+below deploys entirely in infrastructure you own and control.
 
 Privacy comes from who can see the PR comment. A presigned URL or HMAC-signed
 Worker URL is a bearer capability: on a private repo, only repo-read users see

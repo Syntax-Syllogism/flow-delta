@@ -1,31 +1,37 @@
 # CLI usage
 
-FlowDelta ships a packaged CLI as the `flow-delta` binary. For local source runs
-during development, the entry point is `src/cli.ts`.
+FlowDelta ships a packaged CLI as the `flow-delta` binary, published as
+`@syntax-syllogism/flow-delta`. For local source runs during development, the
+entry point is `src/cli.ts`.
 
 ```bash
-npx flow-delta <options>
+npx @syntax-syllogism/flow-delta <options>
 ```
+
+If you've already installed the package (`npm install` or `npm install -g`),
+the plain `flow-delta` binary is on your `PATH` / in `node_modules/.bin`, so
+`npx flow-delta <options>` works too. A bare `npx flow-delta` with nothing
+installed will fail: there's no unscoped `flow-delta` package on npm.
 
 It operates in one of two mutually exclusive modes, selected by which flags are
 present.
 
-## File mode — compare two local files
+## File mode: compare two local files
 
 ```bash
-npx flow-delta \
+npx @syntax-syllogism/flow-delta \
   --old path/to/before.flow-meta.xml \
   --new path/to/after.flow-meta.xml \
   --out ./flow-delta-out \
   --json
 ```
 
-- `--old` / `--new` — the two `.flow-meta.xml` files to compare (both required).
+- `--old` / `--new`: the two `.flow-meta.xml` files to compare (both required).
 
-## Git mode — compare two refs in a repo
+## Git mode: compare two refs in a repo
 
 ```bash
-npx flow-delta \
+npx @syntax-syllogism/flow-delta \
   --repo /path/to/sfdx-repo \
   --from <base-ref> --to <head-ref> \
   --path 'force-app/**/*.flow-meta.xml' \
@@ -33,12 +39,12 @@ npx flow-delta \
   --json
 ```
 
-- `--repo` — repository to read from.
-- `--from` / `--to` — the two git refs (SHAs, branches, tags).
-- `--path` — a file path or glob (`*` within a segment, `**` across segments,
+- `--repo`: repository to read from.
+- `--from` / `--to`: the two git refs (SHAs, branches, tags).
+- `--path`: a file path or glob (`*` within a segment, `**` across segments,
   `?`). Files are discovered with `git ls-tree -r --name-only` on **both** refs
   and unioned, so additions, deletions, and renames are all visible.
-- `--changed-only` — optional filter that intersects the discovered files with
+- `--changed-only`: optional filter that intersects the discovered files with
   `git diff --name-only --diff-filter=ACMRD <from> <to> -- <pathspec>`, so only
   flows that actually changed are rendered.
 
@@ -55,8 +61,8 @@ The four core git-mode flags are required; `--changed-only` is optional.
 
 Per flow, written to the out directory:
 
-- `<flowName>.html` — the self-contained interactive diff (open in a browser).
-- `<flowName>.diff.json` — the machine-readable `FlowDiff` (only with `--json`).
+- `<flowName>.html`: the self-contained interactive diff (open in a browser).
+- `<flowName>.diff.json`: the machine-readable `FlowDiff` (only with `--json`).
 
 The file stem is derived from the flow name via `safeFileName` (non-alphanumerics
 collapsed to `_`). For a **deleted** flow the *old* name is preserved.
