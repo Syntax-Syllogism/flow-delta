@@ -81,7 +81,7 @@ function diffFlowHeaders(oldModel: GraphModel, newModel: GraphModel): PropertyCh
     return [];
   }
   const changes = deepDiff(oldModel.header, newModel.header);
-  const order = new Map(FLOW_HEADER_KEYS.map((key, index) => [key, index]));
+  const order = new Map<string, number>(FLOW_HEADER_KEYS.map((key, index) => [key, index]));
   return changes.sort((left, right) => (order.get(left.path) ?? 999) - (order.get(right.path) ?? 999));
 }
 

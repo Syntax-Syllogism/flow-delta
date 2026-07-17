@@ -7,7 +7,14 @@ const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 
 await build({
   absWorkingDir: repoRoot,
-  entryPoints: ["./src/cli.ts", "./src/ci/gitlab-report.ts", "./src/ci/github-report.ts"],
+  entryPoints: [
+    join(repoRoot, "src/cli.ts"),
+    join(repoRoot, "src/ci/gitlab-report.ts"),
+    join(repoRoot, "src/ci/github-report.ts"),
+    join(repoRoot, "src/flexipage-cli.ts"),
+    join(repoRoot, "src/ci/flexipage-gitlab-report.ts"),
+    join(repoRoot, "src/ci/flexipage-github-report.ts"),
+  ],
   bundle: true,
   packages: "external",
   platform: "node",
@@ -25,3 +32,6 @@ mkdirSync(distDir, { recursive: true });
 chmodSync(join(distDir, "cli.js"), 0o755);
 chmodSync(join(distDir, "gitlab-report.js"), 0o755);
 chmodSync(join(distDir, "github-report.js"), 0o755);
+chmodSync(join(distDir, "flexipage-cli.js"), 0o755);
+chmodSync(join(distDir, "flexipage-gitlab-report.js"), 0o755);
+chmodSync(join(distDir, "flexipage-github-report.js"), 0o755);

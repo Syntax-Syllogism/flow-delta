@@ -10,6 +10,7 @@ const EDGE_KEYS = new Set([
   "noMoreValuesConnector",
 ]);
 
+
 const TOP_LEVEL_KEYS = new Set([
   "name",
   "label",
@@ -101,7 +102,8 @@ function collectNodes(parsed: ParsedFlow): GraphNode[] {
       continue;
     }
     for (const node of nodes) {
-      result.push(toNode(node, type));
+      const graphNode = toNode(node, type);
+      if (graphNode) result.push(graphNode);
     }
   }
   return result;

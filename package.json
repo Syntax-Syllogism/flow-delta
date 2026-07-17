@@ -1,6 +1,6 @@
 {
   "name": "@syntax-syllogism/flow-delta",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "type": "module",
   "description": "Semantic visual diff for Salesforce Flows",
   "license": "MIT",
@@ -26,18 +26,22 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit && tsc --project tsconfig.test.json --noEmit && tsc --project tsconfig.worker.json --noEmit",
     "smoke:gitlab": "node --import tsx scripts/smoke-gitlab.ts",
     "smoke:github": "node --import tsx scripts/smoke-github.ts",
-    "test": "node --import tsx --test test/parser.test.ts test/semantic-diff.test.ts test/report-core.test.ts test/gitlab-report.test.ts test/github-report.test.ts test/smoke-gitlab.test.ts test/r2-publish.test.ts test/cloudflare-worker.test.ts",
+    "test": "node --import tsx --test test/parser.test.ts test/semantic-diff.test.ts test/report-core.test.ts test/gitlab-report.test.ts test/github-report.test.ts test/smoke-gitlab.test.ts test/smoke-github.test.ts test/r2-publish.test.ts test/cloudflare-worker.test.ts test/flexipage-delta.test.ts",
     "test:parser": "node --import tsx --test test/parser.test.ts",
-    "prepublishOnly": "npm run build && npm test",
+    "prepublishOnly": "npm run typecheck && npm run build && npm test",
     "render:fixtures": "bash bin/render-fixtures.sh"
   },
   "devDependencies": {
-    "esbuild": "^0.28.0",
+    "@cloudflare/workers-types": "^4.20260702.1",
     "@types/node": "^26.1.0",
     "@types/xml2js": "^0.4.14",
-    "tsx": "^4.19.0"
+    "esbuild": "^0.28.0",
+    "happy-dom": "^20.10.6",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "elkjs": "^0.11.1",
@@ -46,7 +50,10 @@
   "bin": {
     "flow-delta": "dist/cli.js",
     "flow-delta-gitlab": "dist/gitlab-report.js",
-    "flow-delta-github": "dist/github-report.js"
+    "flow-delta-github": "dist/github-report.js",
+    "flexipage-delta": "dist/flexipage-cli.js",
+    "flexipage-delta-gitlab": "dist/flexipage-gitlab-report.js",
+    "flexipage-delta-github": "dist/flexipage-github-report.js"
   },
   "files": [
     "dist",

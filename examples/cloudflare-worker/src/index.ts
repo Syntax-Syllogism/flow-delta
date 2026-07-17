@@ -1,3 +1,12 @@
+interface R2Object {
+  body: string;
+  writeHttpMetadata(headers: Headers): void;
+}
+
+interface R2Bucket {
+  get(key: string): Promise<R2Object | null>;
+}
+
 export interface Env {
   BUCKET: R2Bucket;
   ARTIFACT_HMAC_KEY?: string;

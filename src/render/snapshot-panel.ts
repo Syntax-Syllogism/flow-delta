@@ -516,7 +516,7 @@ function getField(obj: Record<string, unknown> | undefined, key: string): unknow
 
 function resolvePath(obj: unknown, path: string): unknown {
   if (obj == null || !path) return obj;
-  let cur = obj;
+  let cur: unknown = obj;
   const tokens = path.match(/[^.[\]]+|\[\d+\]/g) || [];
   for (const token of tokens) {
     if (cur == null || typeof cur !== "object") return undefined;

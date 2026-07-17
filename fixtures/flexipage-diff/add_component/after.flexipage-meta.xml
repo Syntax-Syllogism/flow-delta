@@ -1,0 +1,18 @@
+<FlexiPage>
+  <masterLabel>Contact Record Page</masterLabel>
+  <type>RecordPage</type>
+  <flexiPageRegions>
+    <name>main</name>
+    <type>Region</type>
+    <itemInstances>
+      <componentInstance>
+        <componentName>force:detailPanel</componentName>
+      </componentInstance>
+    </itemInstances>
+    <itemInstances>
+      <componentInstance>
+        <componentName>flowruntime:interview</componentName>
+      </componentInstance>
+    </itemInstances>
+  </flexiPageRegions>
+</FlexiPage>

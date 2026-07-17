@@ -14,6 +14,11 @@ Inspired by Google's [Flow Lens](https://github.com/google/flow-lens), with a
 focus on CI review workflows for GitLab merge requests and GitHub pull requests.
 We also opted for our own HTML output over plantuml, graphviz, or mermaid.
 
+The package also ships [FlexiPageDelta](docs/flexipage.md), a sibling tool for
+semantic diffs of `.flexipage-meta.xml` metadata. It renders an offline
+hierarchical outline and provides `flexipage-delta`,
+`flexipage-delta-gitlab`, and `flexipage-delta-github` binaries.
+
 - [Sample GitLab project with artifacts](https://gitlab.com/j.p.richter/flow-delta-example/-/merge_requests/)
 - [Sample GitHub project with artifacts](https://github.com/Syntax-Syllogism/flow-delta-example/pulls)
 
@@ -38,6 +43,13 @@ flow-delta --old before.flow-meta.xml --new after.flow-meta.xml --out ./flow-del
 ## Usage
 
 See [docs/cli.md](docs/cli.md) for full file-mode and git-mode options.
+
+For FlexiPage metadata, use the sibling CLI documented in
+[docs/flexipage.md](docs/flexipage.md):
+
+```bash
+npx flexipage-delta --old before.flexipage-meta.xml --new after.flexipage-meta.xml --out ./flexipage-delta-out --json
+```
 
 ```bash
 # File mode — compare two local files
@@ -70,7 +82,9 @@ build step:
 ```bash
 npm install
 npm test                 # parser + semantic diff / render / CLI suites
-npm run render:fixtures  # render every diff fixture to flow-delta-out/fixtures/
+npm run render:fixtures  # render all Flow + FlexiPage fixtures
+npm run render:fixtures -- flow       # Flow only
+npm run render:fixtures -- flexipage  # FlexiPage only
 npx tsx src/cli.ts --old before.flow-meta.xml --new after.flow-meta.xml --out ./flow-delta-out --json
 ```
 

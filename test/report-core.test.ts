@@ -156,6 +156,9 @@ test("package metadata keeps the published bins and build artifacts aligned", as
     "flow-delta": "dist/cli.js",
     "flow-delta-gitlab": "dist/gitlab-report.js",
     "flow-delta-github": "dist/github-report.js",
+    "flexipage-delta": "dist/flexipage-cli.js",
+    "flexipage-delta-gitlab": "dist/flexipage-gitlab-report.js",
+    "flexipage-delta-github": "dist/flexipage-github-report.js",
   });
   assert.ok(packageJson.files?.includes("dist"));
   assert.ok(packageJson.files?.includes("NOTICE"));

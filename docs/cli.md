@@ -82,14 +82,56 @@ My_Flow: nodes 0 added, 0 deleted, 0 modified; edges 0 added, 0 deleted; flow at
 Failures are isolated: in git mode, one flow failing to parse logs an error and
 sets a non-zero exit code but does not abort the remaining flows.
 
-## Rendering all fixtures (smoke review)
+## Rendering fixture artifacts (smoke review)
+
+The fixture renderer accepts `flow`, `flexipage`, or `all`:
 
 ```bash
-npm run render:fixtures            # → flow-delta-out/fixtures/<case>.html (+ .diff.json)
+npm run render:fixtures -- flow       # → flow-delta-out/fixtures/<case>.html
+npm run render:fixtures -- flexipage  # → flexipage-delta-out/fixtures/<case>.html
+npm run render:fixtures                # both product fixture sets
 ```
 
-`bin/render-fixtures.sh` renders every `fixtures/diff/<case>/` pair, naming each
-artifact after the fixture directory so they never collide even when two fixtures
-share an internal flow name. See [testing.md](testing.md).
+The default `all` mode writes Flow artifacts to
+`flow-delta-out/fixtures/` and FlexiPage artifacts to
+`flexipage-delta-out/fixtures/`. A custom output directory is accepted after
+the selector; in `all` mode it receives `flow/` and `flexipage/` subdirectories.
+The legacy `bin/render-fixtures.sh OUT_DIR` form remains Flow-only.
+
+`bin/render-fixtures.sh` renders every selected fixture pair, naming each
+artifact after its fixture directory so artifacts never collide even when two
+fixtures share an internal metadata name. See [testing.md](testing.md).
 
 For GitLab MR reporting and artifact links, see [ci.md](ci.md).
+
+## FlexiPageDelta sibling CLI
+
+FlexiPageDelta is published by the same package under the `flexipage-delta`
+binary. It compares `.flexipage-meta.xml` files and writes an offline outline
+artifact, with a template-aware wireframe when geometry is available, to
+`./flexipage-delta-out` by default:
+
+```bash
+npx flexipage-delta \
+  --old path/to/before.flexipage-meta.xml \
+  --new path/to/after.flexipage-meta.xml \
+  --out ./flexipage-delta-out \
+  --json
+```
+
+Its git mode has the same `--repo`, `--from`, `--to`, `--path`,
+`--changed-only`, `--out`, and `--json` flags. When `--path` is omitted, it
+defaults to `force-app/**/*.flexipage-meta.xml`:
+
+```bash
+npx flexipage-delta \
+  --repo /path/to/sfdx-repo \
+  --from <base-ref> --to <head-ref> \
+  --changed-only \
+  --json
+```
+
+The output is `<safe-page-name>.html` plus `<safe-page-name>.diff.json` when
+JSON output is enabled. The summary reports components, regions, region
+metadata changes, and page attributes. See [flexipage.md](flexipage.md) for
+the identity/canonicalization rules and outline behavior.

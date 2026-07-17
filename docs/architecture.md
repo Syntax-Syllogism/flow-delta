@@ -10,6 +10,12 @@ XML (new) ─┘     └─► header ──────────┤─► Fl
                           (build-model)         (diff-model)  (render)
 ```
 
+FlexiPageDelta is a sibling pipeline in the same package. It parses
+`.flexipage-meta.xml` directly with `xml2js`, builds an ordered `PageModel`
+tree, diffs regions/components into a `PageDiff`, and renders an offline
+outline with an optional template wireframe. Its detailed invariants and module
+map live in [flexipage.md](flexipage.md).
+
 **Core principle:** diff the _normalized model_, not the rendered diagram or the
 raw XML. Cosmetic saves (coordinate churn, element reordering) must produce zero
 diff; only logic changes should surface.
@@ -28,15 +34,28 @@ diff; only logic changes should surface.
 | `render/layout.ts`                              | Deterministic graph layout via `elkjs` (layered, top-down). Positions are computed at build time and baked into the artifact.                                                                                                                                  |
 | `render/section-schemas.ts`                     | Type-specific property grouping schemas. Declare how each node type's changes should be organized into semantic sections (e.g., "Outcomes" for decisions) and rendered (lines, table, or grouped-table).                                                       |
 | `render/render-html.ts`                         | `LayoutedFlow → self-contained HTML` (inline SVG + vanilla JS pan/zoom + click-for-delta panel + interactive view filters). Uses section schemas to organize property changes semantically. No network/runtime deps. See [render.md](render.md).               |
-| `ci/report-core.ts`                             | Platform-agnostic reporting core shared by both CI reporters: `buildComment`, `readResults`, `isZeroSummary`, `findStickyNote`, `escapeTableCell`, `normalizePath`. See [ci.md](ci.md).                                                                        |
+| `ci/report-core.ts`                             | Product/platform-agnostic reporting core: vocabulary-driven comment rendering, result loading, zero-summary checks, sticky-note helpers, artifact URLs, and path/table utilities. See [ci.md](ci.md) and [flexipage.md](flexipage.md).                                                                        |
 | `ci/gitlab-report.ts`                           | Consumes `*.diff.json` (via `report-core`), builds the sticky GitLab MR comment, and upserts it via the GitLab API. See [ci.md](ci.md).                                                                                                                        |
 | `ci/github-report.ts`                           | Same shared core, GitHub-shaped: upserts a sticky PR comment via the issue-comments API (marker-only match, no `/user` call). See [ci.md](ci.md).                                                                                                              |
 | `cli.ts`                                        | Arg parsing + orchestration for file mode and git mode. See [cli.md](cli.md).                                                                                                                                                                                  |
 
+FlexiPage modules:
+
+| Module | Responsibility |
+| --- | --- |
+| `io/read-metadata.ts` | Neutral local-file and git-ref XML reader used by the FlexiPage CLI. |
+| `flexipage/parse.ts` / `page-model.ts` | XML parser, canonicalization, and ordered-tree types. |
+| `flexipage/diff-page.ts` | Region-name matching, LCS item matching, header and region metadata diffs. |
+| `flexipage/render-outline.ts` / `render/shell.ts` | Offline nested outline, shared artifact shell, filters, theme controls, and detail panel. |
+| `flexipage/render-wireframe.ts` / `template-geometry.ts` | Registry-driven template placement, nested stacks, slot reconciliation, and removed/unplaced content handling. |
+| `flexipage-cli.ts` | File/git orchestration for `flexipage-delta`. |
+
 Delivery extras:
 
 - `scripts/build.mjs` emits the published `dist/cli.js`, `dist/gitlab-report.js`,
-  and `dist/github-report.js` entrypoints.
+  `dist/github-report.js`, `dist/flexipage-cli.js`,
+  `dist/flexipage-gitlab-report.js`, and `dist/flexipage-github-report.js`
+  entrypoints.
 - `examples/gitlab-ci.yml` and `examples/github-actions.yml` are the documented
   job/workflow recipes for MR and PR pipelines, respectively.
 - [`publishing.md`](publishing.md) covers the npm package shape and release checks.

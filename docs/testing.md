@@ -4,9 +4,18 @@ Tests use the Node built-in runner (`node:test` + `node:assert/strict`) executed
 through `tsx`.
 
 ```bash
+npm run typecheck    # source, DOM-harness tests, and Cloudflare worker example
 npm test            # parser suite + semantic diff / render / CLI + CI reporter coverage
 npm run test:parser # parser regression suite only
 ```
+
+`npm run typecheck` runs the real TypeScript compiler in three scoped projects:
+`tsconfig.json` checks source and scripts without browser globals,
+`tsconfig.test.json` scopes the test include; its harness imports happy-dom's
+types.
+`tsconfig.worker.json` checks the Cloudflare worker example with its worker
+types. The command's exit code is the gate; it runs before build and tests in
+`prepublishOnly` and as a step in repository CI.
 
 ## Layout
 
@@ -18,8 +27,9 @@ npm run test:parser # parser regression suite only
   edge-id rules, the HTML render, the CLI in both modes, and the real before/after
   fixture assertions.
 - `test/report-core.test.ts` — the platform-agnostic reporting core shared by
-  both CI reporters (`buildComment`, `isZeroSummary`, `findStickyNote`), plus
-  the package/bin/build smoke checks (all three published binaries).
+  both products and CI platforms (`buildComment`, the vocabulary-driven builder,
+  `isZeroSummary`, `findStickyNote`), plus the package/bin/build smoke checks
+  (all six published binaries).
 - `test/gitlab-report.test.ts` — GitLab-specific reporting: the artifact-URL
   scheme and the sticky-note `upsertComment` upsert behavior (list → PUT/POST).
 - `test/github-report.test.ts` — GitHub-specific reporting: the artifact-URL
@@ -29,6 +39,27 @@ npm run test:parser # parser regression suite only
   diffs). See [ci.md](ci.md) for the reporting flows themselves.
 - `test/smoke-gitlab.test.ts` — unit coverage for the GitLab smoke harness's
   shared scaffold helpers (e.g. `renameFlowMetadata`).
+- `test/smoke-github.test.ts` — GitHub smoke entrypoint and generated workflow
+  coverage, including both Flow and FlexiPage diff/report pipelines.
+
+## Rendered-artifact DOM harness
+
+`test/dom-harness.ts` provides the default seam for testing generated client
+behavior. `renderDom(html, storage?)` parses a complete rendered Flow or
+FlexiPage artifact with `happy-dom`, enables inline JavaScript evaluation, seeds
+`localStorage` before the document is parsed, waits for the document to settle,
+and returns the live `window` and `document`. Tests should interact with the
+returned DOM and storage rather than extracting or matching the generated
+script text.
+
+The harness is test-only: `happy-dom` is a development dependency, and the
+rendered artifacts remain self-contained and offline. It is used by both
+`test/semantic-diff.test.ts` and `test/flexipage-delta.test.ts` for filters,
+theme and view persistence, detail-panel selection, keyboard activation, and
+stored/invalid preference handling. The pointer-driven panel resizer is
+deliberately excluded because it depends on layout geometry that `happy-dom`
+does not compute; visual/manual checks remain the appropriate coverage for that
+interaction.
 
 ## Fixtures (`fixtures/`)
 
@@ -44,6 +75,22 @@ asserted to produce zero node/edge changes — the headline canonicalization gat
 `deactivate_flow` is the headline flow-level fixture: the graph is unchanged, but
 `status` moves from `Active` to `Draft` and `summary.changedFlowAttributes` is 1.
 
+### FlexiPage fixtures
+
+FlexiPage pairs live under `fixtures/flexipage-diff/<case>/`:
+
+- `noop_save` — Facet GUID regeneration, property reordering, and region-block
+  reordering; the semantic summary must be all zero.
+- `insert_component_top` — LCS insertion without a modification cascade.
+- `change_template` — page-attribute-only change with a reporter callout.
+- `add_component` — component addition.
+- `modify_component_property` — generic property delta.
+
+`test/flexipage-delta.test.ts` walks these on-disk pairs, and also covers
+reorder-as-delete-plus-add, region additions/removals and mode changes,
+whole-page add/delete, parser shape coverage, orphan GUID facets, outline
+rendering, CLI file mode, and CLI git mode against two temporary commits.
+
 ## Adding a diff fixture
 
 1. Retrieve the flow, commit it, make the change in the org, retrieve again — the
@@ -53,15 +100,18 @@ asserted to produce zero node/edge changes — the headline canonicalization gat
 3. Add a row to the `DIFF_CASES` table in `test/semantic-diff.test.ts` with the
    expected summary counts, and (optionally) a targeted assertion on the changed
    property path or edge.
-4. Confirm with `npm test` and eyeball the render via `npm run render:fixtures`.
+4. Confirm with `npm test` and eyeball the render via
+   `npm run render:fixtures -- flow`.
 
 Capture the expected counts from the validated CLI output (`--json` summary)
 rather than guessing.
 
 ## Manual / visual smoke
 
-`npm run render:fixtures` writes one HTML per fixture to `flow-delta-out/fixtures/`.
-Open them and check:
+`npm run render:fixtures -- flow` writes Flow artifacts to
+`flow-delta-out/fixtures/`; `npm run render:fixtures -- flexipage` writes
+FlexiPage artifacts to `flexipage-delta-out/fixtures/`; and the no-argument
+form renders both sets. Open the selected artifacts and check:
 
 - Status colors (added / deleted / modified / unchanged) and legend.
 - The four view filters (All / After / Before / Changes only).
@@ -81,3 +131,10 @@ Open them and check:
 On `rewire_connector`, verify that `After` and `Before` each render as a coherent
 single-state graph. A fuller manual checklist and the fixture scenario matrix live
 in this file and the inline comments in `test/semantic-diff.test.ts`.
+
+For FlexiPage fixtures, the automated checks are the primary gate. Manual visual
+review is optional and should inspect the nested region/Facet outline, status
+filters, template callout, and detail panel. Use
+`npm run render:fixtures -- flexipage` for that review. See
+[flexipage.md](flexipage.md) for the as-built artifact behavior and known
+boundaries.

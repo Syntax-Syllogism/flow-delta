@@ -3,9 +3,9 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
-import { runInNewContext } from "node:vm";
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import type { HTMLButtonElement, HTMLElement, SVGSVGElement } from "happy-dom";
 import { FlowParser } from "../src/parser/flow_parser.ts";
 import { buildModel } from "../src/model/build-model.ts";
 import { extractFlowHeader } from "../src/model/flow-header.ts";
@@ -16,6 +16,7 @@ import { THEME_STORAGE_KEY, renderHtml } from "../src/render/render-html.ts";
 import { getSectionSchemas } from "../src/render/section-schemas.ts";
 import { renderNodePanelBody } from "../src/render/snapshot-panel.ts";
 import { main } from "../src/cli.ts";
+import { renderDom } from "./dom-harness.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SAMPLE_XML = readFileSync(join(ROOT, "fixtures", "parse", "sample.flow-meta.xml"), "utf8");
@@ -105,7 +106,9 @@ test("diffModel classifies added, deleted, modified, and edge rewires", async ()
   const rewireFlow = structuredClone(original);
   const assignment = rewireFlow.assignments?.find((node) => node.name === "Populate_Tag");
   assert.ok(assignment);
-  assignment.connector.targetReference = "Add_No_Tag_Definition_Found_Error";
+  const connector = assignment.connector;
+  assert.ok(connector);
+  connector.targetReference = "Add_No_Tag_Definition_Found_Error";
   rewireFlow.transitions = rewireFlow.transitions?.map((transition) =>
     transition.from === "Populate_Tag"
       ? { ...transition, to: "Add_No_Tag_Definition_Found_Error" }
@@ -177,8 +180,8 @@ test("edge ids distinguish normal and fault connectors", () => {
     flowName: "x",
     label: "x",
     nodes: [
-      { id: "A", type: "start", label: "A", properties: {} },
-      { id: "B", type: "actionCall", label: "B", properties: {} },
+      { id: "A", type: "start" as const, label: "A", properties: {} },
+      { id: "B", type: "actionCall" as const, label: "B", properties: {} },
     ],
     edges: [
       { id: "A->B#normal#", source: "A", target: "B", kind: "normal" as const },
@@ -431,81 +434,109 @@ test("renderHtml embeds per-view layouts that only reference visible nodes and e
   }
 });
 
-test("renderHtml client script executes against a lightweight DOM smoke harness", async () => {
+test("renderHtml client script executes against the rendered artifact DOM harness", async () => {
   const diff = await diffFixture("rewire_connector");
   const html = renderHtml(await layoutDiff(diff));
-  const data = extractData(html);
-  const script = extractClientScript(html);
-  const dom = createMockDom(data);
+  const dom = await renderDom(html);
+  try {
+    const filterButtons = Array.from(dom.document.querySelectorAll(".filters button")) as HTMLButtonElement[];
+    assert.equal(filterButtons[0].getAttribute("aria-pressed"), "true");
+    assert.equal(filterButtons[1].getAttribute("aria-pressed"), "false");
+    assert.equal(filterButtons[2].getAttribute("aria-pressed"), "false");
+    assert.equal(filterButtons[3].getAttribute("aria-pressed"), "false");
+    assert.ok(dom.document.querySelector(".node")?.getAttribute("transform"));
 
-  runInNewContext(script, dom.context);
-
-  assert.equal(dom.elements.svg.viewBox.baseVal.width, 720);
-  assert.equal(dom.elements.filterButtons[0].attributes["aria-pressed"], "true");
-  assert.equal(dom.elements.filterButtons[1].attributes["aria-pressed"], "false");
-  assert.equal(dom.elements.filterButtons[2].attributes["aria-pressed"], "false");
-  assert.equal(dom.elements.filterButtons[3].attributes["aria-pressed"], "false");
-  assert.ok(dom.elements.nodeById.get(data.nodes[0].id)?.attributes["transform"]);
-
-  for (const viewMode of ["after", "before", "changes"]) {
-    dom.elements.filterButtons.find((button) => button.dataset.viewMode === viewMode)?.dispatch("click");
-    for (const button of dom.elements.filterButtons) {
-      const expected = button.dataset.viewMode === viewMode;
-      assert.equal(button.attributes["aria-pressed"], expected ? "true" : "false");
+    for (const viewMode of ["after", "before", "changes"]) {
+      filterButtons.find((button) => button.dataset.viewMode === viewMode)?.click();
+      for (const button of filterButtons) {
+        const expected = button.dataset.viewMode === viewMode;
+        assert.equal(button.getAttribute("aria-pressed"), expected ? "true" : "false");
+      }
     }
+
+    for (const theme of ["light", "dark", "system"]) {
+      const button = dom.document.querySelector(`.theme-toggle button[data-theme-choice="${theme}"]`) as HTMLButtonElement | null;
+      assert.ok(button);
+      button.click();
+      assert.equal(dom.document.documentElement.dataset.theme, theme);
+      assert.equal(dom.window.localStorage.getItem(THEME_STORAGE_KEY), theme);
+      for (const themeButton of Array.from(dom.document.querySelectorAll(".theme-toggle button")) as HTMLButtonElement[]) {
+        const expected = themeButton.dataset.themeChoice === theme;
+        assert.equal(themeButton.getAttribute("aria-pressed"), expected ? "true" : "false");
+      }
+    }
+  } finally {
+    dom.close();
+  }
+});
+
+test("renderHtml resolves stored themes before interaction and rejects poisoned storage", async () => {
+  const html = renderHtml(await layoutDiff(await diffFixture("noop_save")));
+  const seeded = await renderDom(html, { [THEME_STORAGE_KEY]: "dark" });
+  try {
+    assert.equal(seeded.document.documentElement.dataset.theme, "dark");
+    assert.equal((seeded.document.querySelector('[data-theme-choice="dark"]') as HTMLButtonElement | null)?.getAttribute("aria-pressed"), "true");
+  } finally {
+    seeded.close();
   }
 
-  for (const theme of ["light", "dark", "system"]) {
-    dom.elements.themeButtons.find((button) => button.dataset.themeChoice === theme)?.dispatch("click");
-    assert.equal(dom.elements.documentElement.dataset.theme, theme);
-    assert.equal(dom.localStorage.values[THEME_STORAGE_KEY], theme);
-    for (const button of dom.elements.themeButtons) {
-      const expected = button.dataset.themeChoice === theme;
-      assert.equal(button.attributes["aria-pressed"], expected ? "true" : "false");
+  const poisoned = await renderDom(html, { [THEME_STORAGE_KEY]: "purple" });
+  try {
+    assert.equal(poisoned.document.documentElement.dataset.theme, "system");
+    assert.equal(poisoned.window.localStorage.getItem(THEME_STORAGE_KEY), "purple");
+  } finally {
+    poisoned.close();
+  }
+});
+
+test("renderHtml refits the viewport to each filter's visible bounds", async () => {
+  const html = renderHtml(await layoutDiff(await diffFixture("add_node")));
+  const dom = await renderDom(html);
+  try {
+    const svg = dom.document.getElementById("flow-svg") as SVGSVGElement;
+    // Assert on x/y, never width: fitViewBox floors width at 720 and every fixture flow
+    // is narrower, so viewBox.width is 720 in the markup and in every mode. An assertion
+    // on width passes with the refit deleted.
+    const origin = () => `${svg.viewBox.baseVal.x} ${svg.viewBox.baseVal.y}`;
+    const origins = new Map<string, string>();
+    for (const mode of ["all", "after", "before", "changes"]) {
+      (dom.document.querySelector(`.filters button[data-view-mode="${mode}"]`) as HTMLButtonElement | null)?.click();
+      origins.set(mode, origin());
     }
+    assert.equal(new Set(origins.values()).size, 4, `each filter refits to its own visible bounds, got ${[...origins].map(([m, o]) => `${m}=${o}`).join(", ")}`);
+  } finally {
+    dom.close();
   }
 });
 
 test("decision panel renders per-outcome group with a conditions table and unwrapped values", async () => {
   const diff = await diffFixture("modify_decision");
-  const html = renderHtml(await layoutDiff(diff));
-  const data = extractData(html);
-  const dom = createMockDom(data);
-  runInNewContext(extractClientScript(html), dom.context);
-
-  dom.elements.nodeById.get("Includes_Jawn")?.dispatch("click");
-  const panel = dom.context.document.getElementById("panel-body").innerHTML;
+  const panel = await renderPanel(diff, "Includes_Jawn");
 
   // Grouped under the outcome, not a flat path-keyed table.
-  assert.match(panel, /class='outcome-group'/);
-  assert.match(panel, /class='change-table'/);
+  assert.match(panel, /class="outcome-group"/);
+  assert.match(panel, /class="change-table"/);
   // Conditions columns are semantic, not raw metadata paths.
   assert.match(panel, /<th>Resource<\/th>/);
   assert.match(panel, /<th>Operator<\/th>/);
   assert.match(panel, /<th>Value<\/th>/);
   // The removed condition shows its values struck through (git-diff grammar), unwrapped.
   assert.match(panel, /row-removed/);
-  assert.match(panel, /val del'>\$Record\.CreatedById/);
-  assert.match(panel, /val del'>IsNull/);
+  assert.match(panel, /class="val del">\$Record\.CreatedById/);
+  assert.match(panel, /class="val del">IsNull/);
   // Typed wrapper unwrapped to the scalar — no JSON blob.
   assert.ok(!panel.includes("booleanValue"), "rightValue wrapper should be unwrapped");
 });
 
 test("assignment panel renders an added item as one badged table row", async () => {
   const diff = await diffFixture("modify_assignment");
-  const html = renderHtml(await layoutDiff(diff));
-  const data = extractData(html);
-  const dom = createMockDom(data);
-  runInNewContext(extractClientScript(html), dom.context);
-
-  dom.elements.nodeById.get("Jawn_that_Jawn")?.dispatch("click");
-  const panel = dom.context.document.getElementById("panel-body").innerHTML;
+  const panel = await renderPanel(diff, "Jawn_that_Jawn");
 
   assert.match(panel, /Assignment Items/);
   assert.match(panel, /<th>Variable<\/th>/);
   // Whole-item add is one row with an Added badge, not three sub-field rows.
   assert.match(panel, /row-added/);
-  assert.equal([...panel.matchAll(/class='change-kind added'/g)].length, 1);
+  assert.equal([...panel.matchAll(/class="change-kind added"/g)].length, 1);
   // elementReference unwrapped to {!ref} merge syntax.
   assert.match(panel, /\{!AddJawnToName\}/);
   assert.ok(!panel.includes("elementReference"), "value wrapper should be unwrapped");
@@ -735,10 +766,15 @@ test('fixture "delete_node" renders the deleted node\'s prior contents symmetric
 
 async function renderPanel(diff: ReturnType<typeof diffModel>, nodeId: string) {
   const html = renderHtml(await layoutDiff(diff));
-  const dom = createMockDom(extractData(html));
-  runInNewContext(extractClientScript(html), dom.context);
-  dom.elements.nodeById.get(nodeId)?.dispatch("click");
-  return dom.context.document.getElementById("panel-body").innerHTML as string;
+  const dom = await renderDom(html);
+  try {
+    const row = dom.document.querySelector(`.node[data-node-id="${nodeId}"]`) as HTMLElement | null;
+    assert.ok(row, `expected node ${nodeId}`);
+    row.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    return dom.document.getElementById("panel-body")?.innerHTML ?? "";
+  } finally {
+    dom.close();
+  }
 }
 
 function model(node: { id: string; type: string; label: string; properties: Record<string, unknown> }) {
@@ -757,10 +793,10 @@ test("modified table row keeps unchanged sibling columns as context (Finding 2)"
   const panel = await renderPanel(diffModel(before, after), "D");
 
   // Only the operator changed, but the row still shows Resource and Value for context.
-  assert.match(panel, /val del'>EqualTo/);
-  assert.match(panel, /val ins'>NotEqualTo/);
-  assert.match(panel, /val faint'>isWin/, "unchanged Resource shown as context");
-  assert.match(panel, /val faint'>true/, "unchanged Value shown as context (unwrapped)");
+  assert.match(panel, /class="val del">EqualTo/);
+  assert.match(panel, /class="val ins">NotEqualTo/);
+  assert.match(panel, /class="val faint">isWin/, "unchanged Resource shown as context");
+  assert.match(panel, /class="val faint">true/, "unchanged Value shown as context (unwrapped)");
 });
 
 test("wholly added outcome shows one group badge, no per-row Change column (Finding 3)", async () => {
@@ -771,10 +807,10 @@ test("wholly added outcome shows one group badge, no per-row Change column (Find
   const panel = await renderPanel(diffModel(before, after), "D");
 
   // Exactly one Added badge (the group header) — not one per scalar/condition row.
-  assert.equal([...panel.matchAll(/class='change-kind added'/g)].length, 1);
+  assert.equal([...panel.matchAll(/class="change-kind added"/g)].length, 1);
   // The wholly-added group's inner table drops the redundant Change column.
   assert.ok(!panel.includes("<th>Change</th>"), "uniform-kind group omits the Change column");
-  assert.match(panel, /group-label'>R2/);
+  assert.match(panel, /class="group-label">R2/);
 });
 
 test("scalar-only generic change renders in the Settings table", async () => {
@@ -782,10 +818,10 @@ test("scalar-only generic change renders in the Settings table", async () => {
   const after = model({ id: "C", type: "recordCreate", label: "C", properties: { object: "Contact", inputAssignments: [] } });
   const panel = await renderPanel(diffModel(before, after), "C");
 
-  assert.match(panel, /<summary>Settings <span class='section-count'>\(1\)<\/span><\/summary>/);
+  assert.match(panel, /<summary>Settings <span class="section-count">\(1\)<\/span><\/summary>/);
   assert.match(panel, /<th>Object<\/th>/);
-  assert.match(panel, /val del'>Account/);
-  assert.match(panel, /val ins'>Contact/);
+  assert.match(panel, /class="val del">Account/);
+  assert.match(panel, /class="val ins">Contact/);
   assert.ok(!panel.includes("change-table"), "a flat scalar must not be forced into a schema change table");
 });
 
@@ -794,14 +830,14 @@ test("filter table unwraps numberValue and unknown node types fall back without 
   const after = model({ id: "L", type: "recordLookup", label: "L", properties: { object: "ApexLog", filters: [{ field: "LogLength", operator: "GreaterThan", value: { numberValue: "99.0" } }] } });
   const lookupPanel = await renderPanel(diffModel(before, after), "L");
   assert.match(lookupPanel, /<th>Filters<\/th>|Filters/);
-  assert.match(lookupPanel, /val ins'>99\.0/, "numberValue unwrapped");
+  assert.match(lookupPanel, /class="val ins">99\.0/, "numberValue unwrapped");
   assert.ok(!lookupPanel.includes("numberValue"));
 
   const ub = model({ id: "U", type: "unknown", label: "U", properties: { foo: "x", items: ["a"] } });
   const ua = model({ id: "U", type: "unknown", label: "U", properties: { foo: "y", items: ["a", "b"] } });
   const unknownPanel = await renderPanel(diffModel(ub, ua), "U");
   assert.match(unknownPanel, /detail-section/, "unknown type still renders grouped sections");
-  assert.match(unknownPanel, /<summary>Settings <span class='section-count'>\(1\)<\/span><\/summary>/);
+  assert.match(unknownPanel, /<summary>Settings <span class="section-count">\(1\)<\/span><\/summary>/);
   assert.match(unknownPanel, /<th>Foo<\/th>/);
 });
 
@@ -1065,142 +1101,6 @@ function extractData(html: string) {
   const match = html.match(/const DATA = (.*?);\n    const svg =/s);
   assert.ok(match, "expected embedded DATA payload");
   return JSON.parse(match[1]);
-}
-
-function extractClientScript(html: string) {
-  const match = html.match(/<script>\s*const DATA = ([\s\S]*?)<\/script>\s*<\/body>/);
-  assert.ok(match, "expected embedded client script");
-  return `const DATA = ${match[1]}`;
-}
-
-function createMockDom(data: { nodes: Array<{ id: string }>; edges: Array<{ id: string }> }) {
-  const createElement = (options: {
-    dataset?: Record<string, string>;
-    className?: string;
-    isSvg?: boolean;
-  } = {}) => {
-    const classSet = new Set((options.className ?? "").split(/\s+/).filter(Boolean));
-    const listeners: Record<string, Array<() => void>> = {};
-    return {
-      dataset: { ...(options.dataset ?? {}) },
-      style: {} as Record<string, string>,
-      attributes: {} as Record<string, string>,
-      listeners,
-      textContent: "",
-      innerHTML: "",
-      classList: {
-        add: (...tokens: string[]) => tokens.forEach((token) => classSet.add(token)),
-        remove: (...tokens: string[]) => tokens.forEach((token) => classSet.delete(token)),
-        toggle: (token: string, force?: boolean) => {
-          const shouldAdd = force ?? !classSet.has(token);
-          if (shouldAdd) classSet.add(token); else classSet.delete(token);
-          return shouldAdd;
-        },
-        contains: (token: string) => classSet.has(token),
-      },
-      addEventListener(type: string, handler: () => void) {
-        (listeners[type] ??= []).push(handler);
-      },
-      dispatch(type: string) {
-        const event = {
-          stopPropagation() {},
-          preventDefault() {},
-          clientX: 0,
-          clientY: 0,
-          deltaY: 0,
-          target: { closest: () => null },
-        };
-        for (const handler of listeners[type] ?? []) {
-          handler(event);
-        }
-      },
-      setAttribute(name: string, value: string) {
-        this.attributes[name] = value;
-      },
-      closest: () => null,
-      getBoundingClientRect: () => ({ left: 0, top: 0, width: 1000, height: 1000 }),
-      setPointerCapture: () => undefined,
-      querySelectorAll: () => [],
-      viewBox: options.isSvg ? { baseVal: { x: 0, y: 0, width: 1, height: 1 } } : undefined,
-    };
-  };
-
-  const nodeElements = new Map(data.nodes.map((node) => [
-    node.id,
-    createElement({ dataset: { nodeId: node.id }, className: "node" }),
-  ]));
-  const edgeElements = new Map(data.edges.map((edge) => [
-    edge.id,
-    createElement({ dataset: { edgeId: edge.id }, className: "edge" }),
-  ]));
-  const filterButtons = ["all", "after", "before", "changes"].map((viewMode) =>
-    createElement({ dataset: { viewMode }, className: "filter-button" }));
-  const themeButtons = ["system", "light", "dark"].map((themeChoice) =>
-    createElement({ dataset: { themeChoice }, className: "theme-button" }));
-  const panel = createElement({ className: "panel" });
-  const svg = createElement({ isSvg: true });
-  const viewport = createElement();
-  const panelTitle = createElement();
-  const panelBadge = createElement();
-  const panelBody = createElement();
-  const documentElement = createElement();
-  const localStorageValues: Record<string, string> = {};
-
-  const document = {
-    documentElement,
-    getElementById(id: string) {
-      if (id === "flow-svg") return svg;
-      if (id === "viewport") return viewport;
-      if (id === "panel-title") return panelTitle;
-      if (id === "panel-badge") return panelBadge;
-      if (id === "panel-body") return panelBody;
-      return null;
-    },
-    querySelector(selector: string) {
-      if (selector === ".panel") return panel;
-      if (selector === "#flow-svg") return svg;
-      if (selector === "#viewport") return viewport;
-      if (selector === "#panel-title") return panelTitle;
-      if (selector === "#panel-badge") return panelBadge;
-      if (selector === "#panel-body") return panelBody;
-      if (selector.startsWith(".node[data-node-id=\"")) {
-        const id = selector.slice(".node[data-node-id=\"".length, -2);
-        return nodeElements.get(id) ?? null;
-      }
-      return null;
-    },
-    querySelectorAll(selector: string) {
-      if (selector === ".filters button") return filterButtons;
-      if (selector === ".theme-toggle button") return themeButtons;
-      if (selector === ".node") return [...nodeElements.values()];
-      if (selector === ".edge") return [...edgeElements.values()];
-      return [];
-    },
-  };
-
-  const CSS = {
-    escape(value: string) {
-      return String(value).replace(/"/g, "\\\"");
-    },
-  };
-
-  return {
-    context: {
-      document,
-      CSS,
-      console,
-      localStorage: {
-        getItem(key: string) {
-          return localStorageValues[key] ?? null;
-        },
-        setItem(key: string, value: string) {
-          localStorageValues[key] = value;
-        },
-      },
-    },
-    localStorage: { values: localStorageValues },
-    elements: { svg, filterButtons, themeButtons, documentElement, nodeById: nodeElements },
-  };
 }
 
 for (const { name, expected } of DIFF_CASES) {

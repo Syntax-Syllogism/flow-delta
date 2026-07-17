@@ -257,3 +257,28 @@ automated.
 
 For the pure helper functions and the API orchestration coverage, see
 `test/report-core.test.ts` and `test/github-report.test.ts`.
+
+## FlexiPageDelta reporting
+
+The sibling reporters are `flexipage-delta-gitlab` and
+`flexipage-delta-github`. They read FlexiPage `*.diff.json` files from the
+directory passed to `--in` (or `FLOW_LENS_OUT_DIR`) and reuse the shared
+vocabulary-driven comment builder in `src/ci/report-core.ts`.
+
+FlexiPage comments use the marker `<!-- FlexiPageDelta:report -->` and a table
+with these columns:
+
+```md
+| Page | Components (+/–/~) | Regions (+/–/~) | Page attributes | Diff |
+```
+
+Component counts cover added, removed, and modified items. Region counts cover
+added, removed, and region `type`/`mode` changes. A template-only change is
+non-zero and still produces a comment. GitLab uses the job artifact browse path;
+GitHub uses the workflow-run artifact URL, with the same optional
+`--artifact-urls` manifest path supported by the existing GitHub flow reporter.
+
+The FlexiPage entrypoints accept the same platform credential/environment
+inputs as their Flow counterparts, with `flexipage-delta-out` as their default
+input directory when `--in` is omitted. See [flexipage.md](flexipage.md) for
+the product-specific artifact and CLI behavior.

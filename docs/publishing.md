@@ -5,13 +5,16 @@ FlowDelta publishes as the npm package `@syntax-syllogism/flow-delta`.
 ## Build
 
 `npm run build` runs [`scripts/build.mjs`](../scripts/build.mjs), which bundles
-the CLI entrypoints into:
+the six CLI/reporting entrypoints into:
 
 - `dist/cli.js`
 - `dist/gitlab-report.js`
 - `dist/github-report.js`
+- `dist/flexipage-cli.js`
+- `dist/flexipage-gitlab-report.js`
+- `dist/flexipage-github-report.js`
 
-All three files are emitted with a Node shebang and are marked executable.
+All six files are emitted with a Node shebang and are marked executable.
 
 The build leaves runtime dependencies external, so the published package still
 loads `xml2js` and `elkjs` from npm rather than bundling them into the emitted
@@ -34,11 +37,23 @@ The binary map is:
 | `flow-delta` | `dist/cli.js` |
 | `flow-delta-gitlab` | `dist/gitlab-report.js` |
 | `flow-delta-github` | `dist/github-report.js` |
+| `flexipage-delta` | `dist/flexipage-cli.js` |
+| `flexipage-delta-gitlab` | `dist/flexipage-gitlab-report.js` |
+| `flexipage-delta-github` | `dist/flexipage-github-report.js` |
 
 ## Release checks
 
-The repository treats `npm test` as the functional gate and `npm pack --json` as
-the publishability smoke check. The packed tarball should include the three
+Run the checks in this order before publishing:
+
+```bash
+npm run typecheck
+npm run build
+npm test
+npm pack --json
+```
+
+`npm run typecheck` is also wired into repository CI and `prepublishOnly`,
+before the build and test steps. The packed tarball should include the six
 `dist` entrypoints plus the licensing files above.
 
 The Apache-2.0 vendored parser requires `NOTICE` and `LICENSE-APACHE` to travel

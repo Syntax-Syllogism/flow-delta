@@ -1,0 +1,8 @@
+<FlexiPage>
+  <masterLabel>Contact Record Page</masterLabel>
+  <type>RecordPage</type>
+  <sobjectType>Contact</sobjectType>
+  <template>
+    <name>recordHomeTemplateDesktop</name>
+  </template>
+</FlexiPage>

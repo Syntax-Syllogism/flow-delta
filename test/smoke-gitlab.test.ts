@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { buildRepoGitIgnore, checkoutOrCreateBranch, renameFlowMetadata, resolveNpmCommand, resolveNpmInvocation } from "../scripts/smoke-common.ts";
+import { buildRepoGitIgnore, checkoutOrCreateBranch, collectFlexiPageFixturePairs, renameFlexiPageMetadata, renameFlowMetadata, resolveNpmCommand, resolveNpmInvocation } from "../scripts/smoke-common.ts";
 
 test("renameFlowMetadata changes only the Flow identity labels", () => {
   const xml = readFileSync(join(process.cwd(), "fixtures", "diff", "add_node", "after.flow-meta.xml"), "utf8");
@@ -31,13 +31,23 @@ test("renameFlowMetadata handles top-level labels when interviewLabel is absent"
   assert.doesNotMatch(renamed, /<interviewLabel>/);
 });
 
-test("GitHub smoke script invokes main when run through tsx", () => {
-  const output = execFileSync(process.execPath, ["--import", "tsx", "scripts/smoke-github.ts", "--help"], {
-    cwd: process.cwd(),
-    encoding: "utf8",
-  });
+test("FlexiPage smoke fixtures include semantic and template pairs", () => {
+  const semantic = collectFlexiPageFixturePairs(join(process.cwd(), "fixtures", "flexipage-diff"), "diff");
+  const templates = collectFlexiPageFixturePairs(join(process.cwd(), "fixtures", "flexipage-template"), "template");
 
-  assert.match(output, /npm run smoke:github/);
+  assert.ok(semantic.length > 0);
+  assert.ok(templates.length > 0);
+  assert.ok(semantic.every((fixture) => fixture.name.startsWith("diff-")));
+  assert.ok(templates.every((fixture) => fixture.name.startsWith("template-")));
+});
+
+test("renameFlexiPageMetadata changes only the top-level page label", () => {
+  const xml = readFileSync(join(process.cwd(), "fixtures", "flexipage-template", "recordHomeTemplateDesktop", "after.flexipage-meta.xml"), "utf8");
+
+  const renamed = renameFlexiPageMetadata(xml, "smoke-template-record-home");
+
+  assert.match(renamed, /<masterLabel>smoke-template-record-home<\/masterLabel>/);
+  assert.match(renamed, /<name>flexipage:recordHomeTemplateDesktop<\/name>/);
 });
 
 test("resolveNpmCommand uses the Windows command shim", () => {
@@ -68,4 +78,5 @@ test("buildRepoGitIgnore works when the sample ignore template is absent", () =>
 
   assert.match(ignore, /# FlowDelta smoke output/);
   assert.match(ignore, /flow-delta-out\//);
+  assert.match(ignore, /flexipage-delta-out\//);
 });

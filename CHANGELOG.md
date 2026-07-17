@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.6.0] - 2026-07-16
+
+### Added
+
+- Restored project typechecking
+- Extended smoke test pipelines with FlexiPage metadata support
+- Template-aware wireframe rendering for FlexiPage
+- Selective fixture rendering for Flow and FlexiPage
+- FlexiPage semantic diff pipeline
+
+### Fixed
+
+- FlexiPage side panel hide and show behavior now matches Flow artifacts
+
 ## [0.5.1] - 2026-07-13
 
 ### Changed

@@ -1,8 +1,9 @@
 import type { LayoutedFlow } from "./layout.ts";
 import { getSectionSchemas } from "./section-schemas.ts";
 import { humanizePath, snapshotPanelClientScript } from "./snapshot-panel.ts";
+import { THEME_STORAGE_KEY } from "./shell.ts";
 
-export const THEME_STORAGE_KEY = "flow-delta-theme";
+export { THEME_STORAGE_KEY };
 
 export function renderHtml(layout: LayoutedFlow): string {
   const data = {

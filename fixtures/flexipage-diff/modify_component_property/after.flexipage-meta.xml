@@ -1,0 +1,17 @@
+<FlexiPage>
+  <masterLabel>Contact Record Page</masterLabel>
+  <type>RecordPage</type>
+  <flexiPageRegions>
+    <name>header</name>
+    <type>Region</type>
+    <itemInstances>
+      <componentInstance>
+        <componentName>force:highlightsPanel</componentName>
+        <componentInstanceProperties>
+          <name>numVisibleActions</name>
+          <value>5</value>
+        </componentInstanceProperties>
+      </componentInstance>
+    </itemInstances>
+  </flexiPageRegions>
+</FlexiPage>

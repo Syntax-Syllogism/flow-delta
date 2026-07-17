@@ -24,11 +24,14 @@ npm install
 The test suite is the fastest way to verify your setup works:
 
 ```bash
+npm run typecheck       # Typecheck source, tests, and the worker example
 npm test                # Full suite (parser + semantic diff + render + CLI + GitLab)
 npm run test:parser     # Parser regression suite only (fast)
 ```
 
 Tests use Node's built-in test runner and complete in under 10 seconds.
+The typecheck is a separate compiler gate; see [Testing](testing.md) for its
+three project scopes and the rendered-artifact harness.
 
 ## Running the CLI locally
 
@@ -49,10 +52,12 @@ For published binary usage, see [docs/cli.md](cli.md).
 The project ships with fixture flows demonstrating all major change patterns. To render them locally:
 
 ```bash
-npm run render:fixtures
+npm run render:fixtures -- flow
 ```
 
-This produces HTML artifacts in `flow-delta-out/fixtures/`. Open them in a browser to:
+This produces Flow HTML artifacts in `flow-delta-out/fixtures/`. To render the
+FlexiPage fixture set instead, use `npm run render:fixtures -- flexipage`; to
+render both sets, omit the selector. Open the selected artifacts in a browser to:
 - Verify the visual diff renders correctly
 - Test the interactive filters (All / After / Before / Changes only)
 - Inspect the semantic property panel on modified nodes
@@ -78,6 +83,7 @@ test/
   gitlab-report.test.ts # GitLab reporter tests
   github-report.test.ts # GitHub reporter tests
   smoke-gitlab.test.ts  # GitLab smoke-harness scaffold tests
+  smoke-github.test.ts  # GitHub smoke-harness workflow tests
 
 fixtures/
   parse/                # Single-flow parser goldens

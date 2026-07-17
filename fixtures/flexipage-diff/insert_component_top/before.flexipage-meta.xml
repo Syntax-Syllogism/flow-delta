@@ -1,0 +1,20 @@
+<FlexiPage>
+  <masterLabel>Contact Record Page</masterLabel>
+  <type>RecordPage</type>
+  <sobjectType>Contact</sobjectType>
+  <flexiPageRegions>
+    <name>main</name>
+    <type>Region</type>
+    <mode>Replace</mode>
+    <itemInstances>
+      <componentInstance>
+        <componentName>force:detailPanel</componentName>
+      </componentInstance>
+    </itemInstances>
+    <itemInstances>
+      <componentInstance>
+        <componentName>force:relatedListContainer</componentName>
+      </componentInstance>
+    </itemInstances>
+  </flexiPageRegions>
+</FlexiPage>

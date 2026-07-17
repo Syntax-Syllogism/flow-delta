@@ -129,9 +129,12 @@ Changes that don't match any section schema are grouped by:
 
 ## Manual smoke
 
-`npm run render:fixtures` writes fixture artifacts to `flow-delta-out/fixtures/`.
-For `rewire_connector`, check that `After` and `Before` each read as a coherent
-single-state graph and that switching between modes preserves offline behavior.
+`npm run render:fixtures -- flow` writes Flow fixture artifacts to
+`flow-delta-out/fixtures/`; `npm run render:fixtures -- flexipage` writes
+FlexiPage artifacts to `flexipage-delta-out/fixtures/`; and the no-argument form
+renders both sets. For `rewire_connector`, check that `After` and `Before` each
+read as a coherent single-state graph and that switching between modes preserves
+offline behavior.
 
 For the detail panel, open a modified node with complex properties (e.g.,
 `modify_decision` or `modify_assignment`) and verify:
@@ -151,3 +154,33 @@ For theme behavior, open any rendered fixture and verify:
   controls remain readable in both light and dark modes.
 - Switching themes does not change graph layout, filters, panel resize/collapse,
   or offline behavior.
+
+## FlexiPage outline rendering
+
+`src/flexipage/render-outline.ts` renders a template-agnostic hierarchical
+outline instead of an SVG graph. Regions are sections and components are
+stacked rows; Facets referenced by component properties are nested beneath the
+referencing tab or tabset. Rows carry added, deleted, modified, or unchanged
+status classes.
+
+When the after/current template has validated geometry and reconciled slots,
+FlexiPage artifacts also include a CSS-grid Wireframe canvas rendered by
+`src/flexipage/render-wireframe.ts`, with support for nested stacks, empty
+slots, deleted-slot content, removed-region appendices, and unplaced Facets.
+The artifact defaults to Wireframe when available and falls back to Outline
+for unknown templates or slot mismatches. The Outline/Wireframe selector and
+theme control share one right-aligned row, and the selected canvas is retained
+in browser storage.
+
+FlexiPage artifacts use the current `src/render/shell.ts` for inline theme
+controls, four view filters, the resizable/collapsible detail panel, and the
+offline document shell. Clicking a component or field row renders generic
+property delta lines. A template change is promoted to a page-level callout;
+there is no placeholder next-steps copy in the generated artifact.
+
+The Flow renderer continues to use its established inline shell. Migrating it
+onto `render/shell.ts` is deferred until a separate layout-refactor task so
+the existing Flow artifact remains stable.
+
+See [flexipage.md](flexipage.md) for the full FlexiPage model, CLI, fixture,
+and scope documentation.

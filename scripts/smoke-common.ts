@@ -16,14 +16,23 @@ export const DEFAULT_REPO_DIR = resolve(ROOT, "sample-project");
 export const SMOKE_TARBALL_NAME = "flow-delta.tgz";
 
 export function collectFixturePairs(root: string): FixturePair[] {
+  return collectMetadataFixturePairs(root, "before.flow-meta.xml", "after.flow-meta.xml");
+}
+
+export function collectFlexiPageFixturePairs(root: string, namePrefix: string): FixturePair[] {
+  return collectMetadataFixturePairs(root, "before.flexipage-meta.xml", "after.flexipage-meta.xml")
+    .map((fixture) => ({ ...fixture, name: `${namePrefix}-${fixture.name}` }));
+}
+
+function collectMetadataFixturePairs(root: string, beforeName: string, afterName: string): FixturePair[] {
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort()
     .map((name) => {
       const fixtureDir = join(root, name);
-      const before = join(fixtureDir, "before.flow-meta.xml");
-      const after = join(fixtureDir, "after.flow-meta.xml");
+      const before = join(fixtureDir, beforeName);
+      const after = join(fixtureDir, afterName);
       if (!existsSync(before) || !existsSync(after)) {
         throw new Error(`Fixture pair is incomplete: ${name}`);
       }
@@ -38,6 +47,7 @@ export function collectFixturePairs(root: string): FixturePair[] {
 export function prepareRepoScaffold(repoDir: string): void {
   mkdirSync(repoDir, { recursive: true });
   mkdirSync(join(repoDir, "force-app", "main", "default", "flows"), { recursive: true });
+  mkdirSync(join(repoDir, "force-app", "main", "default", "flexipages"), { recursive: true });
 }
 
 export function buildAndPackLocal(root: string): string {
@@ -81,12 +91,14 @@ export function buildRepoGitIgnore(): string {
     .split("\n")
     .filter((line) => {
       const trimmed = line.trim();
-      return trimmed !== "# FlowDelta smoke output" && trimmed !== "flow-delta-out/";
+      return trimmed !== "# FlowDelta smoke output"
+        && trimmed !== "flow-delta-out/"
+        && trimmed !== "flexipage-delta-out/";
     })
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trimEnd();
-  return [cleaned, "", "# FlowDelta smoke output", "flow-delta-out/"].join("\n");
+  return [cleaned, "", "# FlowDelta smoke output", "flow-delta-out/", "flexipage-delta-out/"].join("\n");
 }
 
 export function ensureGitRepo(repoDir: string, baseBranch: string): void {
@@ -142,10 +154,18 @@ export function createBranch(repoDir: string, branch: string): void {
 }
 
 export function cleanFlowDirectory(flowDir: string): void {
-  mkdirSync(flowDir, { recursive: true });
-  for (const entry of readdirSync(flowDir, { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith(".flow-meta.xml")) {
-      rmSync(join(flowDir, entry.name));
+  cleanMetadataDirectory(flowDir, ".flow-meta.xml");
+}
+
+export function cleanFlexiPageDirectory(flexiPageDir: string): void {
+  cleanMetadataDirectory(flexiPageDir, ".flexipage-meta.xml");
+}
+
+function cleanMetadataDirectory(directory: string, suffix: string): void {
+  mkdirSync(directory, { recursive: true });
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    if (entry.isFile() && entry.name.endsWith(suffix)) {
+      rmSync(join(directory, entry.name));
     }
   }
 }
@@ -156,6 +176,15 @@ export function writeFixtureFiles(flowDir: string, fixtures: FixturePair[], phas
     const xml = phase === "before" ? fixture.before : fixture.after;
     const rewritten = renameFlowMetadata(xml, flowName);
     writeText(join(flowDir, `${flowName}.flow-meta.xml`), rewritten);
+  });
+}
+
+export function writeFlexiPageFixtureFiles(flexiPageDir: string, fixtures: FixturePair[], phase: "before" | "after"): void {
+  fixtures.forEach((fixture, index) => {
+    const pageName = safeFileName(`smoke-${String(index + 1).padStart(2, "0")}-${fixture.name}`);
+    const xml = phase === "before" ? fixture.before : fixture.after;
+    const rewritten = renameFlexiPageMetadata(xml, pageName);
+    writeText(join(flexiPageDir, `${pageName}.flexipage-meta.xml`), rewritten);
   });
 }
 
@@ -178,6 +207,16 @@ export function renameFlowMetadata(xml: string, nextName: string): string {
     .replace(labelPattern, `${indentation}<label>${nextName}</label>`);
 }
 
+export function renameFlexiPageMetadata(xml: string, nextName: string): string {
+  const masterLabelMatch = findShallowTag(xml, "masterLabel");
+  if (!masterLabelMatch) {
+    throw new Error("Could not find top-level <masterLabel> in FlexiPage XML");
+  }
+
+  const masterLabelPattern = tagPattern("masterLabel", escapeRegExp(masterLabelMatch.indentation), "gm");
+  return xml.replace(masterLabelPattern, `${masterLabelMatch.indentation}<masterLabel>${nextName}</masterLabel>`);
+}
+
 function findShallowTag(xml: string, tagName: string): { indentation: string; value: string } | undefined {
   const matches = [...xml.matchAll(tagPattern(tagName, "[ \\t]+", "gm"))];
   if (matches.length === 0) {
@@ -189,6 +228,10 @@ function findShallowTag(xml: string, tagName: string): { indentation: string; va
 
 function tagPattern(tagName: string, indentation = "[ \\t]+", flags = "m"): RegExp {
   return new RegExp(`^(${indentation})<${tagName}>([^<]+)<\\/${tagName}>`, flags);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&");
 }
 
 export function stageAndCommit(repoDir: string, message: string): void {

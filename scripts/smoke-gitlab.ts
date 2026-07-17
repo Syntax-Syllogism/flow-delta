@@ -10,6 +10,8 @@ import {
   buildAndPackLocal,
   buildRepoGitIgnore,
   cleanFlowDirectory,
+  cleanFlexiPageDirectory,
+  collectFlexiPageFixturePairs,
   collectFixturePairs,
   createBranch,
   ensureGitRepo,
@@ -21,6 +23,7 @@ import {
   timestamp,
   prepareRepoScaffold,
   writeFixtureFiles,
+  writeFlexiPageFixtureFiles,
   writeText,
 } from "./smoke-common.ts";
 
@@ -59,9 +62,13 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     }
 
     const options = resolveOptions(parsed.values);
-    const fixtures = collectFixturePairs(join(ROOT, "fixtures", "diff"));
-    if (fixtures.length === 0) {
-      throw new Error("No fixture pairs found under fixtures/diff");
+    const flowFixtures = collectFixturePairs(join(ROOT, "fixtures", "diff"));
+    const flexiPageFixtures = [
+      ...collectFlexiPageFixturePairs(join(ROOT, "fixtures", "flexipage-diff"), "diff"),
+      ...collectFlexiPageFixturePairs(join(ROOT, "fixtures", "flexipage-template"), "template"),
+    ];
+    if (flowFixtures.length === 0 || flexiPageFixtures.length === 0) {
+      throw new Error("No Flow or FlexiPage fixture pairs found");
     }
 
     // Build + pack the current source so the pipeline renders with the latest
@@ -77,20 +84,25 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     const smokeBranch = `${options.branchPrefix}-${smokeRunId}`;
     const smokeCommitMessage = `chore(smoke): ${options.titlePrefix} ${smokeRunId}`;
     const flowDir = join(options.repoDir, "force-app", "main", "default", "flows");
+    const flexiPageDir = join(options.repoDir, "force-app", "main", "default", "flexipages");
     const gitIgnorePath = join(options.repoDir, ".gitignore");
     const ciPath = join(options.repoDir, ".gitlab-ci.yml");
     cleanFlowDirectory(flowDir);
+    cleanFlexiPageDirectory(flexiPageDir);
     writeText(gitIgnorePath, buildRepoGitIgnore());
     writeText(ciPath, buildSmokeCi(SMOKE_TARBALL_NAME));
-    writeFixtureFiles(flowDir, fixtures, "before");
+    writeFixtureFiles(flowDir, flowFixtures, "before");
+    writeFlexiPageFixtureFiles(flexiPageDir, flexiPageFixtures, "before");
     stageAndCommit(options.repoDir, `smoke: seed fixture befores (${smokeRunId})`);
     pushBranch(options.repoDir, options.remote, options.baseBranch);
 
     createBranch(options.repoDir, smokeBranch);
     cleanFlowDirectory(flowDir);
+    cleanFlexiPageDirectory(flexiPageDir);
     writeText(gitIgnorePath, buildRepoGitIgnore());
     writeText(ciPath, buildSmokeCi(SMOKE_TARBALL_NAME));
-    writeFixtureFiles(flowDir, fixtures, "after");
+    writeFixtureFiles(flowDir, flowFixtures, "after");
+    writeFlexiPageFixtureFiles(flexiPageDir, flexiPageFixtures, "after");
     stageAndCommit(options.repoDir, smokeCommitMessage);
     pushBranch(options.repoDir, options.remote, smokeBranch);
 
@@ -158,13 +170,22 @@ function buildSmokeCi(tarballName: string): string {
     "      ./node_modules/.bin/flow-delta \\",
     "        --repo . \\",
     "        --from \"$CI_MERGE_REQUEST_DIFF_BASE_SHA\" \\",
-    "        --to   \"$CI_COMMIT_SHA\" \\",
+    "        --to   \"${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA:-$CI_COMMIT_SHA}\" \\",
     "        --path 'force-app/**/*.flow-meta.xml' \\",
     "        --changed-only \\",
     "        --out flow-delta-out --json",
+    "    - |",
+    "      ./node_modules/.bin/flexipage-delta \\",
+    "        --repo . \\",
+    "        --from \"$CI_MERGE_REQUEST_DIFF_BASE_SHA\" \\",
+    "        --to   \"${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA:-$CI_COMMIT_SHA}\" \\",
+    "        --path 'force-app/**/*.flexipage-meta.xml' \\",
+    "        --changed-only \\",
+    "        --out flexipage-delta-out --json",
     "    - ./node_modules/.bin/flow-delta-gitlab --in flow-delta-out",
+    "    - ./node_modules/.bin/flexipage-delta-gitlab --in flexipage-delta-out",
     "  artifacts:",
-    "    paths: [flow-delta-out]",
+    "    paths: [flow-delta-out, flexipage-delta-out]",
     "    expire_in: 30 days",
     "  allow_failure: true",
     "",

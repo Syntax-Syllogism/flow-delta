@@ -10,6 +10,8 @@ import {
   buildAndPackLocal,
   buildRepoGitIgnore,
   cleanFlowDirectory,
+  cleanFlexiPageDirectory,
+  collectFlexiPageFixturePairs,
   collectFixturePairs,
   createBranch,
   ensureGitRepo,
@@ -21,6 +23,7 @@ import {
   timestamp,
   prepareRepoScaffold,
   writeFixtureFiles,
+  writeFlexiPageFixtureFiles,
   writeText,
 } from "./smoke-common.ts";
 
@@ -62,9 +65,13 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     }
 
     const options = resolveOptions(parsed.values);
-    const fixtures = collectFixturePairs(join(ROOT, "fixtures", "diff"));
-    if (fixtures.length === 0) {
-      throw new Error("No fixture pairs found under fixtures/diff");
+    const flowFixtures = collectFixturePairs(join(ROOT, "fixtures", "diff"));
+    const flexiPageFixtures = [
+      ...collectFlexiPageFixturePairs(join(ROOT, "fixtures", "flexipage-diff"), "diff"),
+      ...collectFlexiPageFixturePairs(join(ROOT, "fixtures", "flexipage-template"), "template"),
+    ];
+    if (flowFixtures.length === 0 || flexiPageFixtures.length === 0) {
+      throw new Error("No Flow or FlexiPage fixture pairs found");
     }
 
     ensureGithubRepo(options.githubRepo);
@@ -80,24 +87,29 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     const smokeBranch = `${options.branchPrefix}-${smokeRunId}`;
     const smokeCommitMessage = `chore(smoke): ${options.titlePrefix} ${smokeRunId}`;
     const flowDir = join(options.repoDir, "force-app", "main", "default", "flows");
+    const flexiPageDir = join(options.repoDir, "force-app", "main", "default", "flexipages");
     const scriptDir = join(options.repoDir, "scripts");
     const workflowDir = join(options.repoDir, ".github", "workflows");
     cleanFlowDirectory(flowDir);
+    cleanFlexiPageDirectory(flexiPageDir);
     mkdirSync(scriptDir, { recursive: true });
     mkdirSync(workflowDir, { recursive: true });
     writeText(join(options.repoDir, ".gitignore"), buildRepoGitIgnore());
     writeText(join(workflowDir, "flowdelta.yml"), buildSmokeWorkflow(SMOKE_TARBALL_NAME));
     copyFileSync(join(ROOT, "scripts", "r2-publish.mjs"), join(scriptDir, "r2-publish.mjs"));
-    writeFixtureFiles(flowDir, fixtures, "before");
+    writeFixtureFiles(flowDir, flowFixtures, "before");
+    writeFlexiPageFixtureFiles(flexiPageDir, flexiPageFixtures, "before");
     stageAndCommit(options.repoDir, `smoke: seed fixture befores (${smokeRunId})`);
     pushBranch(options.repoDir, options.remote, options.baseBranch);
 
     createBranch(options.repoDir, smokeBranch);
     cleanFlowDirectory(flowDir);
+    cleanFlexiPageDirectory(flexiPageDir);
     writeText(join(options.repoDir, ".gitignore"), buildRepoGitIgnore());
     writeText(join(workflowDir, "flowdelta.yml"), buildSmokeWorkflow(SMOKE_TARBALL_NAME));
     copyFileSync(join(ROOT, "scripts", "r2-publish.mjs"), join(scriptDir, "r2-publish.mjs"));
-    writeFixtureFiles(flowDir, fixtures, "after");
+    writeFixtureFiles(flowDir, flowFixtures, "after");
+    writeFlexiPageFixtureFiles(flexiPageDir, flexiPageFixtures, "after");
     stageAndCommit(options.repoDir, smokeCommitMessage);
     pushBranch(options.repoDir, options.remote, smokeBranch);
 
@@ -150,7 +162,7 @@ Optional:
 `.trimEnd());
 }
 
-function buildSmokeWorkflow(tarballName: string): string {
+export function buildSmokeWorkflow(tarballName: string): string {
   return [
     "name: FlowDelta",
     "",
@@ -179,10 +191,22 @@ function buildSmokeWorkflow(tarballName: string): string {
     "            --path 'force-app/**/*.flow-meta.xml' \\",
     "            --changed-only \\",
     "            --out flow-delta-out --json",
+    "      - run: |",
+    "          ./node_modules/.bin/flexipage-delta \\",
+    "            --repo . \\",
+    '            --from "${{ github.event.pull_request.base.sha }}" \\',
+    '            --to   "${{ github.sha }}" \\',
+    "            --path 'force-app/**/*.flexipage-meta.xml' \\",
+    "            --changed-only \\",
+    "            --out flexipage-delta-out --json",
     "      - uses: actions/upload-artifact@v4",
     "        with:",
     "          name: flow-delta-out",
     "          path: flow-delta-out",
+    "      - uses: actions/upload-artifact@v4",
+    "        with:",
+    "          name: flexipage-delta-out",
+    "          path: flexipage-delta-out",
     "      - name: Publish to R2 + sign",
     "        env:",
     "          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}",
@@ -193,7 +217,21 @@ function buildSmokeWorkflow(tarballName: string): string {
     "          ARTIFACT_HMAC_KEY: ${{ secrets.ARTIFACT_HMAC_KEY }}",
     '        run: node scripts/r2-publish.mjs flow-delta-out "$GITHUB_REPOSITORY/${{ github.event.number }}/$GITHUB_SHA" > flow-delta-out/urls.json',
     "        continue-on-error: true",
+    "      - name: Publish FlexiPage to R2 + sign",
+    "        env:",
+    "          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}",
+    "          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}",
+    "          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}",
+    "          R2_BUCKET: ${{ secrets.R2_BUCKET }}",
+    "          ARTIFACT_BASE_URL: ${{ vars.ARTIFACT_BASE_URL }}",
+    "          ARTIFACT_HMAC_KEY: ${{ secrets.ARTIFACT_HMAC_KEY }}",
+    '        run: node scripts/r2-publish.mjs flexipage-delta-out "$GITHUB_REPOSITORY/${{ github.event.number }}/$GITHUB_SHA" > flexipage-delta-out/urls.json',
+    "        continue-on-error: true",
     "      - run: ./node_modules/.bin/flow-delta-github --in flow-delta-out --artifact-urls flow-delta-out/urls.json",
+    "        env:",
+    "          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}",
+    "        continue-on-error: true",
+    "      - run: ./node_modules/.bin/flexipage-delta-github --in flexipage-delta-out --artifact-urls flexipage-delta-out/urls.json",
     "        env:",
     "          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}",
     "        continue-on-error: true",
