@@ -14,10 +14,13 @@ Inspired by Google's [Flow Lens](https://github.com/google/flow-lens), with a
 focus on CI review workflows for GitLab merge requests and GitHub pull requests.
 We also opted for our own HTML output over plantuml, graphviz, or mermaid.
 
-The package also ships [FlexiPageDelta](docs/flexipage.md), a sibling tool for
-semantic diffs of `.flexipage-meta.xml` metadata. It renders an offline
-hierarchical outline and provides `flexipage-delta`,
-`flexipage-delta-gitlab`, and `flexipage-delta-github` binaries.
+Raw XML isn't just a Flow problem. The package also ships
+[FlexiPageDelta](docs/flexipage.md), a sibling tool that does the same for
+`.flexipage-meta.xml` — semantic diffs of regions, components, and facets,
+rendered as an interactive outline with an optional template-aware wireframe
+canvas so you can see *where* on the page layout changed, not just what.
+`flexipage-delta`, `flexipage-delta-gitlab`, and `flexipage-delta-github`
+ship alongside the Flow binaries.
 
 - [Sample GitLab project with artifacts](https://gitlab.com/j.p.richter/flow-delta-example/-/merge_requests/)
 - [Sample GitHub project with artifacts](https://github.com/Syntax-Syllogism/flow-delta-example/pulls)
@@ -40,12 +43,19 @@ npm install -g @syntax-syllogism/flow-delta
 flow-delta --old before.flow-meta.xml --new after.flow-meta.xml --out ./flow-delta-out
 ```
 
+Working with Lightning pages instead? [FlexiPageDelta](docs/flexipage.md)
+is available too:
+
+```bash
+npx flexipage-delta --old before.flexipage-meta.xml --new after.flexipage-meta.xml --out ./flexipage-delta-out
+```
+
 ## Usage
 
 See [docs/cli.md](docs/cli.md) for full file-mode and git-mode options.
 
-For FlexiPage metadata, use the sibling CLI documented in
-[docs/flexipage.md](docs/flexipage.md):
+For FlexiPage metadata, see [docs/flexipage.md](docs/flexipage.md) for the
+full CLI, outline/wireframe artifact, and CI reporting details:
 
 ```bash
 npx flexipage-delta --old before.flexipage-meta.xml --new after.flexipage-meta.xml --out ./flexipage-delta-out --json
@@ -68,6 +78,9 @@ npm install @syntax-syllogism/flow-delta
 npx flow-delta-gitlab --in flow-delta-out
 npx flow-delta-github --in flow-delta-out
 ```
+
+FlexiPageDelta has the same reporters — swap in `flexipage-delta-gitlab` /
+`flexipage-delta-github` and point `--in` at `flexipage-delta-out`.
 
 The GitHub reporter can also consume `--artifact-urls <manifest.json>` for
 user-owned live-render links, such as R2 presigned URLs or Cloudflare

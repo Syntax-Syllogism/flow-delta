@@ -17,7 +17,16 @@ FlowDelta:
         --changed-only \
         --out flow-delta-out --json
     - npx --yes -p @syntax-syllogism/flow-delta@latest flow-delta-gitlab --in flow-delta-out
+    - |
+      npx --yes -p @syntax-syllogism/flow-delta@latest flexipage-delta \
+        --repo . \
+        --from "$CI_MERGE_REQUEST_DIFF_BASE_SHA" \
+        --to   "${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA:-$CI_COMMIT_SHA}" \
+        --path 'force-app/**/*.flexipage-meta.xml' \
+        --changed-only \
+        --out flexipage-delta-out --json
+    - npx --yes -p @syntax-syllogism/flow-delta@latest flexipage-delta-gitlab --in flexipage-delta-out
   artifacts:
-    paths: [flow-delta-out]
+    paths: [flow-delta-out, flexipage-delta-out]
     expire_in: 30 days
   allow_failure: true
