@@ -86,6 +86,15 @@ FlexiPage pairs live under `fixtures/flexipage-diff/<case>/`:
 - `add_component` — component addition.
 - `modify_component_property` — generic property delta.
 
+The `fixtures/flexipage-template/nestedDynamicForms/` pair covers transitive
+tab/accordion/field-section/column nesting, regenerated Facet GUIDs, the
+former collision-loser `+2/−2/~1` add/remove scenario, and a field added with a
+visibility rule. The focused suite also locks duplicate field identity,
+name-keyed multi-property diffs, criterion-level visibility changes, and
+breadcrumb placement, wireframe rollup counts, direct region-plus-nested
+aggregation, multi-container digest grouping, pill-versus-row click isolation,
+and digest drill-down/back navigation.
+
 `test/flexipage-delta.test.ts` walks these on-disk pairs, and also covers
 reorder-as-delete-plus-add, region additions/removals and mode changes,
 whole-page add/delete, parser shape coverage, orphan GUID facets, outline
@@ -134,7 +143,8 @@ in this file and the inline comments in `test/semantic-diff.test.ts`.
 
 For FlexiPage fixtures, the automated checks are the primary gate. Manual visual
 review is optional and should inspect the nested region/Facet outline, status
-filters, template callout, and detail panel. Use
+filters, template callout, wireframe change-count pills, grouped digest
+headings, digest drill-down/back behavior, and detail panel. Use
 `npm run render:fixtures -- flexipage` for that review. See
 [flexipage.md](flexipage.md) for the as-built artifact behavior and known
 boundaries.

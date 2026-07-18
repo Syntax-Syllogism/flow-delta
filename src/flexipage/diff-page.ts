@@ -5,10 +5,13 @@ export type PageStatus = "added" | "deleted" | "modified" | "unchanged";
 
 export interface ItemDiff {
   id: string;
+  path: string;
   kind: Item["kind"];
   status: PageStatus;
   componentName?: string;
   fieldItem?: string;
+  identifier?: string;
+  notes?: string[];
   changes?: PropertyChange[];
   before?: Item;
   after?: Item;
@@ -16,6 +19,7 @@ export interface ItemDiff {
 
 export interface RegionDiff {
   name: string;
+  path: string;
   type: Region["type"];
   mode?: Region["mode"];
   status: PageStatus;
@@ -71,11 +75,11 @@ export function diffPage(oldModel: PageModel, newModel: PageModel): PageDiff {
 }
 
 function diffRegion(name: string, oldRegion: Region | undefined, newRegion: Region | undefined): RegionDiff {
-  if (!oldRegion) return { name, type: newRegion!.type, mode: newRegion!.mode, status: "added", items: newRegion!.items.map((item, index) => classifyItem(undefined, item, `${name}:after:${index}`)) };
-  if (!newRegion) return { name, type: oldRegion.type, mode: oldRegion.mode, status: "deleted", items: oldRegion.items.map((item, index) => classifyItem(item, undefined, `${name}:before:${index}`)) };
+  if (!oldRegion) return { name, path: name, type: newRegion!.type, mode: newRegion!.mode, status: "added", items: newRegion!.items.map((item, index) => classifyItem(undefined, item, `${name}:after:${index}`, name)) };
+  if (!newRegion) return { name, path: name, type: oldRegion.type, mode: oldRegion.mode, status: "deleted", items: oldRegion.items.map((item, index) => classifyItem(item, undefined, `${name}:before:${index}`, name)) };
   const items = diffItems(oldRegion.items, newRegion.items, name);
   const regionChanges = deepDiff({ type: oldRegion.type, mode: oldRegion.mode }, { type: newRegion.type, mode: newRegion.mode });
-  return { name, type: newRegion.type, mode: newRegion.mode, status: regionChanges.length || items.some((item) => item.status !== "unchanged") ? "modified" : "unchanged", ...(regionChanges.length ? { changes: regionChanges } : {}), items };
+  return { name, path: name, type: newRegion.type, mode: newRegion.mode, status: regionChanges.length || items.some((item) => item.status !== "unchanged") ? "modified" : "unchanged", ...(regionChanges.length ? { changes: regionChanges } : {}), items };
 }
 
 function diffItems(oldItems: Item[], newItems: Item[], regionName: string): ItemDiff[] {
@@ -84,27 +88,31 @@ function diffItems(oldItems: Item[], newItems: Item[], regionName: string): Item
   let oldIndex = 0;
   let newIndex = 0;
   for (const [matchOld, matchNew] of pairs) {
-    while (oldIndex < matchOld) output.push(classifyItem(oldItems[oldIndex], undefined, `${regionName}:before:${oldIndex++}`));
-    while (newIndex < matchNew) output.push(classifyItem(undefined, newItems[newIndex], `${regionName}:after:${newIndex++}`));
-    output.push(classifyItem(oldItems[matchOld], newItems[matchNew], `${regionName}:${matchNew}`));
+    while (oldIndex < matchOld) output.push(classifyItem(oldItems[oldIndex], undefined, `${regionName}:before:${oldIndex++}`, regionName));
+    while (newIndex < matchNew) output.push(classifyItem(undefined, newItems[newIndex], `${regionName}:after:${newIndex++}`, regionName));
+    output.push(classifyItem(oldItems[matchOld], newItems[matchNew], `${regionName}:${matchNew}`, regionName));
     oldIndex = matchOld + 1;
     newIndex = matchNew + 1;
   }
-  while (oldIndex < oldItems.length) output.push(classifyItem(oldItems[oldIndex], undefined, `${regionName}:before:${oldIndex++}`));
-  while (newIndex < newItems.length) output.push(classifyItem(undefined, newItems[newIndex], `${regionName}:after:${newIndex++}`));
+  while (oldIndex < oldItems.length) output.push(classifyItem(oldItems[oldIndex], undefined, `${regionName}:before:${oldIndex++}`, regionName));
+  while (newIndex < newItems.length) output.push(classifyItem(undefined, newItems[newIndex], `${regionName}:after:${newIndex++}`, regionName));
   return output;
 }
 
-function classifyItem(before: Item | undefined, after: Item | undefined, id: string): ItemDiff {
+function classifyItem(before: Item | undefined, after: Item | undefined, id: string, regionPath: string): ItemDiff {
   const item = after ?? before!;
+  const identifier = item.identifier;
+  const itemPath = `${regionPath} › ${itemLabel(item)}`;
   const base = item.kind === "component"
-    ? { id, kind: item.kind, componentName: item.componentName }
-    : { id, kind: item.kind, fieldItem: item.fieldItem };
-  if (!before) return { ...base, status: "added", after };
-  if (!after) return { ...base, status: "deleted", before };
+    ? { id, path: itemPath, kind: item.kind, componentName: item.componentName, ...(identifier ? { identifier } : {}) }
+    : { id, path: itemPath, kind: item.kind, fieldItem: item.fieldItem, ...(identifier ? { identifier } : {}) };
+  if (!before) return { ...base, status: "added", ...visibilityNote(item), after };
+  if (!after) return { ...base, status: "deleted", ...visibilityNote(item), before };
   const changes = before.kind === "component" && after.kind === "component"
     ? deepDiff(before.properties, after.properties)
-    : deepDiff(before, after);
+    : before.kind === "field" && after.kind === "field"
+      ? deepDiff(before.attributes, after.attributes)
+      : deepDiff(before, after);
   return changes.length ? { ...base, status: "modified", changes, before, after } : { ...base, status: "unchanged", after };
 }
 
@@ -133,7 +141,21 @@ function lcs(oldItems: Item[], newItems: Item[]): Array<[number, number]> {
 }
 
 function itemKey(item: Item): string {
-  return item.kind === "component" ? `component:${item.componentName}` : `field:${item.fieldItem}`;
+  return item.kind === "component"
+    ? `component:${item.componentName}#${item.identifier ?? ""}`
+    : `field:${item.fieldItem}#${item.identifier ?? ""}`;
+}
+
+function itemLabel(item: Item): string {
+  return item.kind === "component"
+    ? `${item.componentName}${item.identifier ? `#${item.identifier}` : ""}`
+    : `${item.fieldItem}${item.identifier ? `#${item.identifier}` : ""}`;
+}
+
+function visibilityNote(item: Item): { notes?: string[] } {
+  return item.kind === "field" && item.attributes.visibilityRule !== undefined
+    ? { notes: ["has visibility rule"] }
+    : {};
 }
 
 function orderOf(path: string): number {

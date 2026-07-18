@@ -2,7 +2,53 @@ import type { PageDiff, RegionDiff } from "./diff-page.ts";
 import { escapeHtml, itemFacetRefs, renderItem } from "./render-helpers.ts";
 import { validateTemplateGeometry, type LayoutCell, type LayoutRow, type SlotGeometry, type StackGeometry, type TemplateGeometry } from "./template-geometry.ts";
 
-export function renderWireframe(diff: PageDiff, geometry: TemplateGeometry | undefined): string | undefined {
+export interface WireframeDigestGroup {
+  label: string;
+  itemIds: string[];
+}
+
+export interface WireframeRollup {
+  count: number;
+  itemIds: string[];
+  groups: WireframeDigestGroup[];
+}
+
+export type WireframeRollups = Record<string, WireframeRollup>;
+
+export function getWireframeRollups(diff: PageDiff): WireframeRollups {
+  const rollups = new Map<string, { itemIds: string[]; groups: Map<string, string[]> }>();
+  const addEntry = (root: string, group: string, id: string): void => {
+    const rollup = rollups.get(root) ?? { itemIds: [], groups: new Map<string, string[]>() };
+    rollup.itemIds.push(id);
+    const groupItems = rollup.groups.get(group) ?? [];
+    groupItems.push(id);
+    rollup.groups.set(group, groupItems);
+    rollups.set(root, rollup);
+  };
+  for (const region of diff.regions) {
+    if (!region.changes?.length) continue;
+    const segments = region.path.split(" › ");
+    const root = segments[0];
+    addEntry(root, digestGroupLabel([...segments, "__region__"], root), regionChangeId(region));
+  }
+  for (const item of diff.regions.flatMap((region) => region.items)) {
+    if (item.status === "unchanged") continue;
+    const segments = item.path.split(" › ");
+    const root = segments[0];
+    addEntry(root, digestGroupLabel(segments, root), item.id);
+  }
+  return Object.fromEntries([...rollups.entries()].map(([region, value]) => [region, {
+    count: value.itemIds.length,
+    itemIds: value.itemIds,
+    groups: [...value.groups.entries()].map(([label, itemIds]) => ({ label, itemIds })),
+  }]));
+}
+
+export function regionChangeId(region: RegionDiff): string {
+  return `region:${region.name}`;
+}
+
+export function renderWireframe(diff: PageDiff, geometry: TemplateGeometry | undefined, rollups = getWireframeRollups(diff)): string | undefined {
   if (!geometry) return undefined;
   validateTemplateGeometry(geometry);
   const slots = geometry.rows.flatMap((row) => row.flatMap(slotsInCell));
@@ -26,7 +72,9 @@ export function renderWireframe(diff: PageDiff, geometry: TemplateGeometry | und
   const renderSlot = (slot: string): string => {
     const region = regions.get(slot);
     const status = region?.status ?? "unchanged";
-    return `<div class="wireframe-cell${region ? ` ${status}` : " wireframe-empty"}" data-region-status="${status}" data-slot="${escapeHtml(slot)}"><div class="wireframe-slot-head"><span class="status-badge">${status}</span><span>${escapeHtml(slot)}</span></div><div class="wireframe-items">${region ? renderRegionItems(region) : '<span class="wireframe-empty-label">Empty slot</span>'}</div></div>`;
+    const rollup = rollups[slot];
+    const rollupMarkup = rollup ? `<button class="wireframe-rollup" type="button" data-rollup-region="${escapeHtml(slot)}" aria-label="${rollup.count} changes in ${escapeHtml(slot)}">${rollup.count} ${rollup.count === 1 ? "change" : "changes"}</button>` : "";
+    return `<div class="wireframe-cell${region ? ` ${status}` : " wireframe-empty"}" data-region-status="${status}" data-slot="${escapeHtml(slot)}"><div class="wireframe-slot-head"><span class="status-badge">${status}</span><span>${escapeHtml(slot)}</span>${rollupMarkup}</div><div class="wireframe-items">${region ? renderRegionItems(region) : '<span class="wireframe-empty-label">Empty slot</span>'}</div></div>`;
   };
   const renderCell = (cell: LayoutCell): string => {
     if (isStack(cell)) return `<div class="wireframe-cell wireframe-stack-cell"><div class="wireframe-stack">${cell.stack.map((child) => Array.isArray(child) ? renderNestedRow(child) : renderSlot(child.slot)).join("")}</div></div>`;
@@ -44,6 +92,11 @@ export function renderWireframe(diff: PageDiff, geometry: TemplateGeometry | und
   function renderAppendixRegion(region: RegionDiff): string {
     return `<div class="wireframe-removed-region" data-region-status="${region.status}"><div class="wireframe-slot-head"><span class="status-badge">${region.status}</span><span>${escapeHtml(region.name)}</span></div><div class="wireframe-items">${renderRegionItems(region)}</div></div>`;
   }
+}
+
+function digestGroupLabel(segments: string[], root: string): string {
+  const ancestor = [...segments.slice(1, -1)].reverse().find((segment) => /\([^()]+\)$/.test(segment));
+  return ancestor?.match(/\(([^()]+)\)$/)?.[1] ?? segments.at(-2) ?? root;
 }
 
 function slotsInCell(cell: LayoutCell): string[] {

@@ -44,10 +44,10 @@ FlexiPage modules:
 | Module | Responsibility |
 | --- | --- |
 | `io/read-metadata.ts` | Neutral local-file and git-ref XML reader used by the FlexiPage CLI. |
-| `flexipage/parse.ts` / `page-model.ts` | XML parser, canonicalization, and ordered-tree types. |
-| `flexipage/diff-page.ts` | Region-name matching, LCS item matching, header and region metadata diffs. |
-| `flexipage/render-outline.ts` / `render/shell.ts` | Offline nested outline, shared artifact shell, filters, theme controls, and detail panel. |
-| `flexipage/render-wireframe.ts` / `template-geometry.ts` | Registry-driven template placement, nested stacks, slot reconciliation, and removed/unplaced content handling. |
+| `flexipage/parse.ts` / `page-model.ts` | XML parser, recursive property normalization, transitive stable facet-path canonicalization, and ordered-tree types. |
+| `flexipage/diff-page.ts` | Collision-free canonical-region matching, identifier-aware LCS item matching, breadcrumbs, and header/region metadata diffs. |
+| `flexipage/render-outline.ts` / `render/shell.ts` | Offline nested outline, shared artifact shell, filters, theme controls, detail panel, and wireframe rollup/digest client state. |
+| `flexipage/render-wireframe.ts` / `template-geometry.ts` | Registry-driven template placement, nested stacks, slot reconciliation, removed/unplaced content handling, and top-level change rollups. |
 | `flexipage-cli.ts` | File/git orchestration for `flexipage-delta`. |
 
 Delivery extras:

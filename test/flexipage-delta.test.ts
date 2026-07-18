@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { test } from "node:test";
 import type { Element, HTMLButtonElement, HTMLElement } from "happy-dom";
 import { buildFlexiPageComment, isZeroPageSummary } from "../src/ci/report-core.ts";
-import { diffPage } from "../src/flexipage/diff-page.ts";
+import { diffPage, type PageDiff } from "../src/flexipage/diff-page.ts";
 import { parseFlexiPage } from "../src/flexipage/parse.ts";
 import { renderOutline } from "../src/flexipage/render-outline.ts";
 import { renderWireframe } from "../src/flexipage/render-wireframe.ts";
@@ -18,7 +18,31 @@ import { renderDom } from "./dom-harness.ts";
 const page = (body: string, template = "recordHomeTemplateDesktop") => `<FlexiPage><masterLabel>Contact Record Page</masterLabel><type>RecordPage</type><sobjectType>Contact</sobjectType><template><name>${template}</name></template>${body}</FlexiPage>`;
 const region = (name: string, type: string, items: string, mode = "Replace") => `<flexiPageRegions><name>${name}</name><type>${type}</type><mode>${mode}</mode>${items}</flexiPageRegions>`;
 const component = (name: string, properties = "") => `<itemInstances><componentInstance><componentName>${name}</componentName>${properties}</componentInstance></itemInstances>`;
+const componentWithIdentifier = (name: string, identifier: string, properties = "") => `<itemInstances><componentInstance><componentName>${name}</componentName><identifier>${identifier}</identifier>${properties}</componentInstance></itemInstances>`;
+const field = (fieldItem: string, identifier: string, properties = "") => `<itemInstances><fieldInstance><fieldItem>${fieldItem}</fieldItem><identifier>${identifier}</identifier>${properties}</fieldInstance></itemInstances>`;
 const property = (name: string, value: string) => `<componentInstanceProperties><name>${name}</name><value>${value}</value></componentInstanceProperties>`;
+const fieldProperty = (name: string, value: string) => `<fieldInstanceProperties><name>${name}</name><value>${value}</value></fieldInstanceProperties>`;
+const visibilityRule = (rightValue: string) => `<visibilityRule><criteria><leftValue>Record.Name</leftValue><operator>CONTAINS</operator><rightValue>${rightValue}</rightValue></criteria><booleanFilter>1</booleanFilter></visibilityRule>`;
+
+function nestedPage(firstColumnField: string, firstColumnProperties: string, secondColumnField = "Record.Rating", secondColumnProperties = ""): string {
+  const tabs = "Facet-11111111-1111-1111-1111-111111111111";
+  const accordion = "Facet-22222222-2222-2222-2222-222222222222";
+  const section = "Facet-33333333-3333-3333-3333-333333333333";
+  const fieldSection = "Facet-44444444-4444-4444-4444-444444444444";
+  const columns = "Facet-55555555-5555-5555-5555-555555555555";
+  const firstColumn = "Facet-66666666-6666-6666-6666-666666666666";
+  const secondColumn = "Facet-77777777-7777-7777-7777-777777777777";
+  return page(
+    region("main", "Region", componentWithIdentifier("flexipage:tabset", "tabset", property("label", "Tabs") + property("tabs", tabs)))
+      + region(tabs, "Facet", componentWithIdentifier("flexipage:tab", "detailsTab", property("title", "Details") + property("body", accordion)))
+      + region(accordion, "Facet", componentWithIdentifier("flexipage:accordion", "accountAccordion", property("sections", section)))
+      + region(section, "Facet", componentWithIdentifier("flexipage:accordionSection", "accountSection", property("label", "Account Information") + property("body", fieldSection)))
+      + region(fieldSection, "Facet", componentWithIdentifier("flexipage:fieldSection", "accountFields", property("columns", columns)))
+      + region(columns, "Facet", componentWithIdentifier("flexipage:column", "column1", property("body", firstColumn)) + componentWithIdentifier("flexipage:column", "column2", property("body", secondColumn)))
+      + region(firstColumn, "Facet", field(firstColumnField, "firstField", firstColumnProperties))
+      + region(secondColumn, "Facet", field(secondColumnField, "secondField", secondColumnProperties)),
+  );
+}
 
 test("FlexiPage no-op save canonicalizes GUID facets, property order, and region order", async () => {
   const oldXml = page(
@@ -92,6 +116,7 @@ test("wireframe renders registry placement, status rows, and defaults to wirefra
   assert.match(html, /data-view-canvas="outline"/);
   assert.match(html, /data-view-canvas="wireframe"/);
   assert.match(html, /<div class="display-controls"><div class="view-toggle"[\s\S]*<div class="theme-toggle"/);
+  assert.match(html, /\.wireframe-rollup \{[^}]*border:1px solid var\(--modified\)[^}]*background:var\(--modified-fill\)[^}]*color:var\(--modified\)/);
   assert.doesNotMatch(html, /https?:\/\//);
   assert.ok(TEMPLATE_GEOMETRY["flexipage:recordHomeTemplateDesktop"]);
   assert.ok(Object.isFrozen(TEMPLATE_GEOMETRY));
@@ -387,6 +412,184 @@ test("parser covers app slots, field instances, and flow interview properties", 
   assert.equal(model.regions[0].items[0].kind, "field");
   assert.equal(model.regions[1].items[0].kind, "component");
   assert.equal((model.regions[1].items[0] as { properties: Record<string,string> }).properties.flowName, "MyFlow");
+});
+
+test("nested facets resolve transitively with collision-free breadcrumbs and preserve identifiers", async () => {
+  const oldModel = await parseFlexiPage(nestedPage("Record.Name", fieldProperty("uiBehavior", "required")));
+  const newModel = await parseFlexiPage(nestedPage("Record.Name", fieldProperty("uiBehavior", "readonly")));
+  assert.equal(oldModel.regions.length, new Set(oldModel.regions.map((region) => region.name)).size);
+  assert.ok(oldModel.regions.every((region) => !/Facet-[0-9a-f-]{36}/i.test(region.name)));
+  const tabset = oldModel.regions.find((region) => region.name === "main")?.items[0];
+  assert.equal(tabset?.kind, "component");
+  assert.equal(tabset?.identifier, "tabset");
+
+  const diff = diffPage(oldModel, newModel);
+  assert.equal(diff.summary.modifiedComponents, 1);
+  const changed = diff.regions.flatMap((region) => region.items).find((item) => item.status === "modified");
+  assert.ok(changed);
+  assert.match(changed.path, /main.*Tabs.*Details.*accordion.*Account Information.*column1/);
+  assert.doesNotMatch(changed.path, /Facet-[0-9a-f-]{36}/i);
+  assert.deepEqual(changed.changes, [{ path: "fieldInstanceProperties.uiBehavior", before: "required", after: "readonly" }]);
+});
+
+test("nested facet GUID churn is a semantic no-op", async () => {
+  const original = nestedPage("Record.Name", fieldProperty("uiBehavior", "required"));
+  const churned = [
+    ["11111111-1111-1111-1111-111111111111", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"],
+    ["22222222-2222-2222-2222-222222222222", "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"],
+    ["33333333-3333-3333-3333-333333333333", "cccccccc-cccc-cccc-cccc-cccccccccccc"],
+    ["44444444-4444-4444-4444-444444444444", "dddddddd-dddd-dddd-dddd-dddddddddddd"],
+    ["55555555-5555-5555-5555-555555555555", "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee"],
+    ["66666666-6666-6666-6666-666666666666", "ffffffff-ffff-ffff-ffff-ffffffffffff"],
+    ["77777777-7777-7777-7777-777777777777", "99999999-9999-9999-9999-999999999999"],
+  ].reduce((xml, [before, after]) => xml.replaceAll(`Facet-${before}`, `Facet-${after}`), original);
+  assert.equal(isZeroPageSummary(diffPage(await parseFlexiPage(original), await parseFlexiPage(churned)).summary), true);
+});
+
+test("nested fixture locks add/remove placement in the former collision-loser column", async () => {
+  const root = join(process.cwd(), "fixtures", "flexipage-template", "nestedDynamicForms");
+  const diff = diffPage(
+    await parseFlexiPage(readFileSync(join(root, "before.flexipage-meta.xml"), "utf8")),
+    await parseFlexiPage(readFileSync(join(root, "after.flexipage-meta.xml"), "utf8")),
+  );
+  assert.equal(diff.summary.addedComponents, 2);
+  assert.equal(diff.summary.removedComponents, 2);
+  assert.equal(diff.summary.modifiedComponents, 1);
+  const items = diff.regions.flatMap((region) => region.items);
+  const accountNumber = items.find((item) => item.fieldItem === "Record.AccountNumber");
+  assert.equal(accountNumber?.status, "deleted");
+  assert.match(accountNumber?.path ?? "", /main.*column1/);
+  assert.equal(items.find((item) => item.fieldItem === "Record.Sic")?.status, "deleted");
+  assert.deepEqual(items.find((item) => item.fieldItem === "Record.Fax")?.changes, [{ path: "fieldInstanceProperties.uiBehavior", before: "none", after: "readonly" }]);
+  assert.deepEqual(items.find((item) => item.fieldItem === "Record.ShippingAddress")?.notes, ["has visibility rule"]);
+  assert.equal(items.find((item) => item.fieldItem === "Record.CleanStatus")?.status, "added");
+});
+
+test("wireframe rolls nested changes into an in-panel digest", async () => {
+  const root = join(process.cwd(), "fixtures", "flexipage-template", "nestedDynamicForms");
+  const diff = diffPage(
+    await parseFlexiPage(readFileSync(join(root, "before.flexipage-meta.xml"), "utf8")),
+    await parseFlexiPage(readFileSync(join(root, "after.flexipage-meta.xml"), "utf8")),
+  );
+  const dom = await renderDom(renderOutline(diff, { template: "recordHomeTemplateDesktop" }));
+  try {
+    const main = dom.document.querySelector('[data-view-canvas="wireframe"] [data-slot="main"]') as HTMLElement | null;
+    assert.ok(main);
+    assert.match(main.textContent ?? "", /5 changes/);
+    assert.equal(dom.document.querySelector('[data-slot="header"] .wireframe-rollup'), null);
+    assert.equal(dom.document.querySelector('[data-slot="sidebar"] .wireframe-rollup'), null);
+
+    const tabset = main.querySelector('.outline-row') as HTMLElement | null;
+    assert.ok(tabset);
+    tabset.click();
+    assert.equal(dom.document.getElementById("panel-title")?.textContent, "flexipage:tabset");
+
+    (dom.document.getElementById("panel-toggle") as HTMLButtonElement | null)?.click();
+    assert.equal(dom.document.body.classList.contains("panel-collapsed"), true);
+    (main.querySelector(".wireframe-rollup") as HTMLButtonElement | null)?.click();
+    assert.equal(dom.document.getElementById("panel-title")?.textContent, "main changes");
+    assert.equal(dom.document.body.classList.contains("panel-collapsed"), false);
+    assert.equal(dom.document.getElementById("panel-toggle")?.getAttribute("aria-expanded"), "true");
+    assert.equal(dom.document.querySelectorAll(".digest-group").length, 1);
+    assert.match(dom.document.querySelector(".digest-group-head")?.textContent ?? "", /Account Information/);
+    assert.equal(dom.document.querySelectorAll(".digest-entry").length, 5);
+    assert.ok(dom.document.querySelector(".digest-entry.deleted .status-badge"));
+    assert.ok(dom.document.querySelector(".digest-entry.modified .status-badge"));
+    assert.ok(dom.document.querySelector(".digest-entry.added .status-badge"));
+
+    (dom.document.querySelector(".digest-entry") as HTMLButtonElement | null)?.click();
+    assert.equal(dom.document.getElementById("panel-title")?.textContent, "Record.AccountNumber");
+    assert.equal((dom.document.getElementById("panel-back") as HTMLButtonElement | null)?.hidden, false);
+    assert.match(dom.document.getElementById("panel-body")?.textContent ?? "", /AccountNumber/);
+
+    (dom.document.getElementById("panel-back") as HTMLButtonElement | null)?.click();
+    assert.equal(dom.document.getElementById("panel-title")?.textContent, "main changes");
+    assert.equal(dom.document.querySelectorAll(".digest-entry").length, 5);
+  } finally {
+    dom.close();
+  }
+});
+
+test("wireframe rollup includes a region's own change with nested changes", async () => {
+  const root = join(process.cwd(), "fixtures", "flexipage-template", "nestedDynamicForms");
+  const before = readFileSync(join(root, "before.flexipage-meta.xml"), "utf8");
+  const after = readFileSync(join(root, "after.flexipage-meta.xml"), "utf8").replace("<mode>Replace</mode>", "<mode>Append</mode>");
+  const diff = diffPage(await parseFlexiPage(before), await parseFlexiPage(after));
+  const dom = await renderDom(renderOutline(diff, { template: "recordHomeTemplateDesktop" }));
+  try {
+    const main = dom.document.querySelector('[data-view-canvas="wireframe"] [data-slot="main"]') as HTMLElement | null;
+    assert.ok(main);
+    assert.match(main.className, /modified/);
+    assert.match(main.textContent ?? "", /6 changes/);
+    (main.querySelector(".wireframe-rollup") as HTMLButtonElement | null)?.click();
+    assert.equal(dom.document.querySelectorAll(".digest-entry").length, 6);
+    assert.match(dom.document.querySelector(".digest-entry")?.textContent ?? "", /main/);
+  } finally {
+    dom.close();
+  }
+});
+
+test("wireframe digest groups changes by labeled container", async () => {
+  const item = (id: string, container: string, fieldItem: string): PageDiff["regions"][number]["items"][number] => ({
+    id,
+    path: `main › flexipage:accordionSection#${container} (${container}) › ${fieldItem}`,
+    kind: "field",
+    status: "modified",
+    fieldItem,
+    changes: [{ path: "fieldInstanceProperties.uiBehavior", before: "none", after: "readonly" }],
+  });
+  const diff: PageDiff = {
+    pageName: "Contact Record Page",
+    kind: "flexipage",
+    summary: { addedComponents:0, removedComponents:0, modifiedComponents:2, unchangedComponents:0, addedRegions:0, removedRegions:0, modifiedRegions:0, changedPageAttributes:0 },
+    regions: [
+      { name: "main", path: "main", type: "Region", status: "unchanged", items: [] },
+      { name: "account", path: "main › flexipage:accordionSection#account (Account Information)", type: "Facet", status: "modified", items: [item("account-field", "Account Information", "Record.Fax")] },
+      { name: "additional", path: "main › flexipage:accordionSection#additional (Additional Information)", type: "Facet", status: "modified", items: [item("additional-field", "Additional Information", "Record.CleanStatus")] },
+    ],
+  };
+  const dom = await renderDom(renderOutline(diff, { template: "recordHomeTemplateDesktop" }));
+  try {
+    const main = dom.document.querySelector('[data-view-canvas="wireframe"] [data-slot="main"]') as HTMLElement | null;
+    assert.ok(main);
+    assert.match(main.textContent ?? "", /2 changes/);
+    (main.querySelector(".wireframe-rollup") as HTMLButtonElement | null)?.click();
+    const groups = Array.from(dom.document.querySelectorAll(".digest-group-head"), (group) => group.textContent ?? "");
+    assert.deepEqual(groups, ["Account Information1 change", "Additional Information1 change"]);
+  } finally {
+    dom.close();
+  }
+});
+
+test("Dynamic Forms duplicate fields use identifier-aware identity", async () => {
+  const oldXml = page(region("main", "Region", field("Record.Website", "RecordWebsiteField", fieldProperty("uiBehavior", "readonly")) + field("Record.Website", "RecordWebsiteField2", fieldProperty("uiBehavior", "required"))));
+  const newXml = page(region("main", "Region", field("Record.Website", "RecordWebsiteField", fieldProperty("uiBehavior", "readonly")) + field("Record.Website", "RecordWebsiteField2", fieldProperty("uiBehavior", "none"))));
+  const diff = diffPage(await parseFlexiPage(oldXml), await parseFlexiPage(newXml));
+  assert.equal(diff.summary.modifiedComponents, 1);
+  assert.equal(diff.regions[0].items.filter((item) => item.status === "unchanged").length, 1);
+  assert.equal(diff.regions[0].items.find((item) => item.status === "modified")?.identifier, "RecordWebsiteField2");
+  assert.deepEqual(diff.regions[0].items.find((item) => item.status === "modified")?.changes, [{ path: "fieldInstanceProperties.uiBehavior", before: "required", after: "none" }]);
+});
+
+test("Dynamic Forms field properties merge by name regardless of sibling count or order", async () => {
+  const oldXml = page(region("main", "Region", field("Record.Name", "name", fieldProperty("density", "comfy") + fieldProperty("uiBehavior", "required"))));
+  const changedXml = page(region("main", "Region", field("Record.Name", "name", fieldProperty("density", "comfy") + fieldProperty("uiBehavior", "readonly"))));
+  const insertedXml = page(region("main", "Region", field("Record.Name", "name", fieldProperty("density", "comfy") + fieldProperty("label", "Name") + fieldProperty("uiBehavior", "required"))));
+  const changed = diffPage(await parseFlexiPage(oldXml), await parseFlexiPage(changedXml));
+  assert.deepEqual(changed.regions[0].items[0].changes, [{ path: "fieldInstanceProperties.uiBehavior", before: "required", after: "readonly" }]);
+  const inserted = diffPage(await parseFlexiPage(oldXml), await parseFlexiPage(insertedXml));
+  assert.deepEqual(inserted.regions[0].items[0].changes, [{ path: "fieldInstanceProperties.label", before: undefined, after: "Name" }]);
+});
+
+test("visibility rules diff by criterion and are noted on added fields", async () => {
+  const oldXml = page(region("main", "Region", field("Record.ShippingAddress", "shipping", visibilityRule("Ship"))));
+  const changedXml = page(region("main", "Region", field("Record.ShippingAddress", "shipping", visibilityRule("Deliver"))));
+  const changed = diffPage(await parseFlexiPage(oldXml), await parseFlexiPage(changedXml));
+  assert.deepEqual(changed.regions[0].items[0].changes, [{ path: "visibilityRule.criteria[0].rightValue", before: "Ship", after: "Deliver" }]);
+
+  const added = diffPage(await parseFlexiPage(page(region("main", "Region", ""))), await parseFlexiPage(oldXml));
+  assert.deepEqual(added.regions[0].items[0].notes, ["has visibility rule"]);
+  assert.match(renderOutline(added), /has visibility rule/);
 });
 
 test("unreferenced GUID facets canonicalize by content", async () => {

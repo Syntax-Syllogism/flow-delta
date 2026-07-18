@@ -17,11 +17,11 @@ XML (old/new) -> xml2js parser -> PageModel -> PageDiff -> outline/wireframe HTM
 | Module | Responsibility |
 | --- | --- |
 | `src/io/read-metadata.ts` | Read XML from a local path or `git show <ref>:<path>`. |
-| `src/flexipage/parse.ts` | Parse FlexiPage XML and canonicalize property order and facet identities. |
-| `src/flexipage/page-model.ts` | Define page headers, ordered regions, components, and field items. |
-| `src/flexipage/diff-page.ts` | Match regions by name and items within each region with LCS. |
-| `src/flexipage/render-outline.ts` | Render the hierarchical, self-contained outline artifact and select wireframe geometry. |
-| `src/flexipage/render-wireframe.ts` | Render registry-driven slot placement, nested stacks, and removal/orphan appendices. |
+| `src/flexipage/parse.ts` | Parse FlexiPage XML, preserve recursive property structure, and canonicalize nested facet identities. |
+| `src/flexipage/page-model.ts` | Define page headers, ordered regions, identifier-aware components/fields, and recursive property values. |
+| `src/flexipage/diff-page.ts` | Match unique canonical region paths and identifier-aware items with LCS; attach breadcrumbs and visibility notes. |
+| `src/flexipage/render-outline.ts` | Render the hierarchical, self-contained outline artifact, select wireframe geometry, and drive the shared rollup digest panel. |
+| `src/flexipage/render-wireframe.ts` | Render registry-driven slot placement, nested stacks, removal/orphan appendices, and top-level change rollup pills. |
 | `src/flexipage/template-geometry.ts` | Store and validate the curated template geometry registry. |
 | `src/flexipage-cli.ts` | Orchestrate file and git modes and write artifacts. |
 | `src/ci/flexipage-gitlab-report.ts` / `flexipage-github-report.ts` | Post FlexiPage-specific sticky comments using the shared CI core. |
@@ -40,22 +40,34 @@ FlexiPages are modeled as ordered trees:
 - Curated page scalars are `masterLabel`, `type`, `sobjectType`, `template`,
   `parentFlexiPage`, and `description`.
 - Regions are anchored by their `name`, with `type`, `mode`, and ordered items.
-- Components use `componentName` plus sorted name/value properties. Field items
-  use their `fieldItem` identity and retain additional attributes.
+- Components preserve an optional `identifier` and use
+  `(componentName, identifier)` for item identity. Their properties retain
+  recursive structure instead of flattening nested XML into strings.
+- Field items preserve `(fieldItem, identifier)` identity. Named
+  `fieldInstanceProperties` merge into a stable keyed object, and
+  `visibilityRule` retains its criteria and `booleanFilter` structure.
 - A component property that names a Facet region becomes a `facetRef`; the
   outline nests that Facet beneath the referencing component.
 
 The semantic invariants are:
 
 1. Component property order and XML region-block order are cosmetic.
-2. Referenced GUID Facets are renamed to a stable parent-region/component/
-   property context. Unreferenced GUID Facets use a content hash fallback.
-3. Components within a region are matched by LCS on component identity, so an
-   insertion does not cascade into false modifications.
-4. A genuine reorder is reported as delete plus add in v0.1.0.
-5. Root scalar changes appear in `pageChanges`; whole-page add/delete cases
+2. Referenced GUID Facets are resolved transitively from each top-level region
+   into stable, human-readable paths such as
+   `main › flexipage:tab#detailsTab (Details) › body`; raw GUIDs never enter a
+   canonical path. Duplicate sibling signals receive a deterministic positional
+   suffix, and unreferenced GUID Facets use a content-hash fallback.
+3. Canonical region paths are unique, so nested regions cannot collapse in the
+   diff map or silently drop their items.
+4. Components and fields within a region are matched by LCS on their
+   identifier-aware identities, so an insertion does not cascade into false
+   modifications. Within-region move detection remains a separate follow-up.
+5. Field-property and visibility-rule changes produce recursive property paths;
+   added or removed fields carrying a visibility rule are tagged `has visibility
+   rule`. Region and item diffs carry top-level-rooted human breadcrumbs.
+6. Root scalar changes appear in `pageChanges`; whole-page add/delete cases
    skip root-header comparison.
-6. Region `type`/`mode` changes are marked as modified and counted as
+7. Region `type`/`mode` changes are marked as modified and counted as
    `summary.modifiedRegions`, so they remain visible to CI reporting.
 
 ## CLI
@@ -100,12 +112,35 @@ available, with the theme control on the far right. Theme selection uses the
 same `flow-delta-theme` storage key as FlowDelta.
 
 Template changes receive a prominent page-level callout. Generic property
-changes use the same before/after value grammar as FlowDelta. When the after
-template is present in the geometry registry and its slots reconcile with the
-current page regions, the artifact includes a Wireframe canvas and opens there
-by default; otherwise it remains Outline-only. The selected canvas is retained
-in browser storage under `flow-delta-view`, with invalid or inaccessible values
-falling back to the generated default.
+changes use the same before/after value grammar as FlowDelta. Nested region and
+item breadcrumbs appear in the selected detail panel; the row keeps the path as
+`data-item-path` without printing the full ancestry inline. Fields added or
+removed with conditional visibility show a styled `has visibility rule` note.
+When the after template is present in the geometry registry and its slots
+reconcile with the current page regions, the artifact includes a Wireframe
+canvas and opens there by default; otherwise it remains Outline-only. The
+selected canvas is retained in browser storage under `flow-delta-view`, with
+invalid or inaccessible values falling back to the generated default.
+
+### Wireframe change rollups and digest
+
+The Wireframe remains a map rather than a nested geometry view. For each
+top-level slot, the renderer rolls up every non-`unchanged` descendant
+`ItemDiff`, plus any direct region-level `type`/`mode` change, by the first
+segment of its breadcrumb path. A changed region cell retains its own status
+badge and gains one pill such as `5 changes`; unchanged cells have no pill.
+Derived region status from changed child items is not counted a second time.
+
+Clicking the pill opens a digest in the shared detail panel. Digest entries are
+grouped by the nearest breadcrumb ancestor with a human-facing parenthesized
+label, falling back to the penultimate segment when no such label exists. This
+keeps headings such as `Account Information` and `Additional Information`
+instead of exposing unlabeled connector or column segments. Clicking an entry
+uses the existing item detail path, including generic property deltas and
+visibility-rule notes; direct region changes are represented as equivalent
+detail entries. The Back control returns to the digest. The pill is a separate
+button with propagation stopped, so item-row clicks inside the cell continue to
+open their own details and the interaction never switches to Outline.
 
 ### Template wireframe
 
@@ -143,10 +178,16 @@ shared usage and reporting conventions.
 ## Fixtures and tests
 
 FlexiPage semantic fixtures live under `fixtures/flexipage-diff/<case>/`, and
-retrieved template geometry pairs live under `fixtures/flexipage-template/<template>/`.
-Both are covered by `test/flexipage-delta.test.ts`, including registry slots,
-nested stacks, fallback behavior, empty slots, deleted-slot handling, facets,
-artifact controls, CLI file mode, and CLI git mode.
+retrieved/template-focused pairs live under
+`fixtures/flexipage-template/<template>/`. The
+`nestedDynamicForms` pair covers transitive tabs/accordion/field-section/column
+paths, GUID churn, the former collision-loser `+2/−2/~1` scenario, and a
+visibility-rule addition. Both fixture families are covered by
+`test/flexipage-delta.test.ts`, including registry slots, nested stacks,
+fallback behavior, empty slots, deleted-slot handling, facets, artifact
+controls, wireframe rollup counts, direct-region aggregation, multi-container
+digest grouping, pill-versus-row click isolation, digest drill-down/back
+navigation, CLI file mode, and CLI git mode.
 
 Run the focused suite with:
 
@@ -159,8 +200,8 @@ entrypoints with `npm run build`.
 
 ## Current boundaries
 
-The v0.1.0 implementation intentionally defers component reorder detection,
-per-component semantic schemas, faithful side-by-side before/after template
-geometry, and a unified extension-dispatching front end. These are follow-up
-improvements, not parser or diff correctness requirements for the current
-sibling tool.
+The current implementation intentionally defers within-region move detection,
+per-component semantic schemas/friendly property labels, faithful side-by-side
+before/after template geometry, and a unified extension-dispatching front end.
+These are follow-up improvements, not parser or diff correctness requirements
+for the current sibling tool.

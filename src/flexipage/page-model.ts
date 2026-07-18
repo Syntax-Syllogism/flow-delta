@@ -7,17 +7,21 @@ export interface PageHeader {
   description?: string;
 }
 
+export type PropertyValue = string | PropertyValue[] | { [key: string]: PropertyValue };
+
 export interface ComponentItem {
   kind: "component";
   componentName: string;
-  properties: Record<string, string>;
+  identifier?: string;
+  properties: Record<string, PropertyValue>;
   facetRefs: string[];
 }
 
 export interface FieldItem {
   kind: "field";
   fieldItem: string;
-  attributes: Record<string, string>;
+  identifier?: string;
+  attributes: Record<string, PropertyValue>;
 }
 
 export type Item = ComponentItem | FieldItem;

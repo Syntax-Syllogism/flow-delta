@@ -172,11 +172,28 @@ for unknown templates or slot mismatches. The Outline/Wireframe selector and
 theme control share one right-aligned row, and the selected canvas is retained
 in browser storage.
 
+Each Wireframe cell also shows a single change-count pill when any changed item
+or region-level type/mode change belongs to that top-level region's breadcrumb
+subtree. The pill does not add nested geometry or replace the region's own
+status badge. Clicking it opens an in-panel digest grouped by the nearest
+human-labeled container in the breadcrumb (falling back to the penultimate
+segment when no label is available); unlabeled connector and column segments
+are therefore not exposed as group headings. A digest entry reuses the normal
+item detail view, including property changes and visibility-rule notes, and a
+Back control returns to the digest. The pill stops event propagation, so item
+rows in the same cell remain independent click targets and the Outline view is
+not involved.
+
 FlexiPage artifacts use the current `src/render/shell.ts` for inline theme
 controls, four view filters, the resizable/collapsible detail panel, and the
 offline document shell. Clicking a component or field row renders generic
-property delta lines. A template change is promoted to a page-level callout;
-there is no placeholder next-steps copy in the generated artifact.
+property delta lines and its resolved breadcrumb. Dynamic Forms property
+changes are rendered from structured values, including criterion-level
+`visibilityRule` changes; added or removed fields with a rule carry a styled
+`has visibility rule` note. Rows retain their breadcrumb in `data-item-path`
+for the detail interaction without printing the full ancestry inline. A
+template change is promoted to a page-level callout; there is no placeholder
+next-steps copy in the generated artifact.
 
 The Flow renderer continues to use its established inline shell. Migrating it
 onto `render/shell.ts` is deferred until a separate layout-refactor task so
