@@ -13,8 +13,12 @@ the plain `flow-delta` binary is on your `PATH` / in `node_modules/.bin`, so
 `npx flow-delta <options>` works too. A bare `npx flow-delta` with nothing
 installed will fail: there's no unscoped `flow-delta` package on npm.
 
-It operates in one of two mutually exclusive modes, selected by which flags are
-present.
+From a source checkout, invoke the TypeScript entry point through the local
+runner: `node --import tsx src/cli.ts <options>` (or
+`npx --no-install tsx src/cli.ts <options>`).
+
+It operates in one of three mutually exclusive modes, selected by which flags
+are present.
 
 ## File mode: compare two local files
 
@@ -50,6 +54,42 @@ npx @syntax-syllogism/flow-delta \
 
 The four core git-mode flags are required; `--changed-only` is optional.
 
+## Org mode: compare two versions from Salesforce
+
+Org mode uses the Salesforce CLI's existing authentication and retrieves two
+historical Flow versions as metadata XML before passing them through the same
+pipeline as file mode:
+
+```bash
+npx @syntax-syllogism/flow-delta \
+  --org my-org \
+  --flow My_Flow \
+  --from-version 1 --to-version 2 \
+  --out ./flow-delta-out \
+  --json
+```
+
+- `--org`: Salesforce org alias or username already authenticated in `sf`.
+- `--flow`: Flow developer name. Omit it to choose from an interactive list.
+- `--from-version` / `--to-version`: two version numbers. Omit either to use
+  the interactive picker, which defaults to the latest two versions.
+- `--interactive`: always show the picker.
+- `--keep`: retain the temporary Salesforce project for troubleshooting; it is
+  deleted automatically after the diff otherwise.
+
+The picker requires a TTY. In CI or other non-interactive environments, provide
+`--flow`, `--from-version`, and `--to-version` explicitly.
+
+Org mode requires the Salesforce CLI (`sf`) at runtime. FlowDelta does not
+handle Salesforce credentials. Authenticate first with `sf org login web`.
+Missing `sf`, unauthenticated orgs, unknown flows, unavailable versions, and
+legacy flows without a modern `<start>` element produce actionable errors.
+
+On Windows, FlowDelta invokes the Salesforce CLI through its `sf.cmd` shim.
+The shell launching Node must still expose the Salesforce CLI on `PATH`; if
+PowerShell can find `sf` but Git Bash cannot, add the Salesforce CLI directory
+to Git Bash's `PATH` or run the command from PowerShell.
+
 ## Common flags
 
 | Flag | Default | Meaning |
@@ -72,6 +112,9 @@ A one-line summary is printed per flow:
 ```
 My_Flow: nodes 1 added, 0 deleted, 1 modified; edges 2 added, 0 deleted
 ```
+
+After the run, the CLI also prints the absolute output directory, for example
+`Artifacts written to C:\path\to\flow-delta-out`.
 
 When curated flow-root attributes changed, the same line gets an additive suffix:
 

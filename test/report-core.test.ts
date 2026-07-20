@@ -31,12 +31,10 @@ test("buildComment renders a marker, table, escaped flow names, and commit foote
   const comment = buildComment(results, { commitSha: "abcdef1234567890" });
 
   assert.match(comment, /^<!-- FlowDelta:report -->/);
-  assert.match(comment, /## 🔍 FlowDelta — 2 flow\(s\) changed/);
-  assert.match(comment, /\| Flow \| \+nodes \| -nodes \| ~nodes \| \+\/-edges \| Flow \| Diff \|/);
-  assert.match(comment, /TA \\| Case \\| InsertAuroraTag \| 1 \| 0 \| 2 \| 3 \/ 4 \|  \|/);
-  assert.match(comment, /https:\/\/example\.test\/one/);
-  assert.match(comment, /Another Flow \| 0 \| 1 \| 0 \| 0 \/ 1 \|  \|/);
-  assert.match(comment, /https:\/\/example\.test\/two/);
+  assert.match(comment, /## 🔍 FlowDelta — 2 flows changed/);
+  assert.match(comment, /\| Flow \| Nodes \(\+\/-\/~\) \| Edges \(\+\/-\) \| Flow Attributes \(\+\/-\/~\) \| Diff \|/);
+  assert.match(comment, /TA \\| Case \\| InsertAuroraTag \| \+1 \/ −0 \/ ~2 \| \+3 \/ −4 \| \+0 \/ −0 \/ ~0 \| \[View\]\(https:\/\/example\.test\/one\) \|/);
+  assert.match(comment, /Another Flow \| \+0 \/ −1 \/ ~0 \| \+0 \/ −1 \| \+0 \/ −0 \/ ~0 \| \[View\]\(https:\/\/example\.test\/two\) \|/);
   assert.match(comment, /Commit: `abcdef1`/);
 });
 
@@ -45,7 +43,7 @@ test("buildComment renders the empty-state message when there are no changed flo
   assert.match(comment, /No Flow changes in this MR/);
 });
 
-test("buildComment renders flow-level changes when nodes and edges are unchanged", () => {
+test("buildComment shows a Flow Attributes count when nodes and edges are unchanged", () => {
   const comment = buildComment([
     {
       flowName: "Header Only",
@@ -55,25 +53,19 @@ test("buildComment renders flow-level changes when nodes and edges are unchanged
     },
   ]);
 
-  assert.match(comment, /Header Only/);
-  assert.match(comment, /Deactivated \(Active -> Draft\)/);
+  assert.match(comment, /Header Only \| \+0 \/ −0 \/ ~0 \| \+0 \/ −0 \| \+0 \/ −0 \/ ~1 \| \[View\]\(https:\/\/example\.test\/header\) \|/);
 });
 
-test("buildComment humanizes non-status flow-level changes", () => {
+test("buildComment defaults the Flow Attributes count to 0 when there are no flow-level changes", () => {
   const comment = buildComment([
     {
-      flowName: "Header Only",
-      summary: { addedNodes: 0, removedNodes: 0, modifiedNodes: 0, addedEdges: 0, removedEdges: 0, changedFlowAttributes: 2 },
-      flowChanges: [
-        { path: "apiVersion", before: "58.0", after: "59.0" },
-        { path: "runInMode", before: "DefaultMode", after: "SystemModeWithoutSharing" },
-      ],
-      artifactUrl: "https://example.test/header",
+      flowName: "Nodes Only",
+      summary: { addedNodes: 1, removedNodes: 0, modifiedNodes: 0, addedEdges: 0, removedEdges: 0, changedFlowAttributes: 0 },
+      artifactUrl: "https://example.test/nodes-only",
     },
   ]);
 
-  assert.match(comment, /Api Version, Run In Mode/);
-  assert.ok(!comment.includes("apiVersion"));
+  assert.match(comment, /Nodes Only \| \+1 \/ −0 \/ ~0 \| \+0 \/ −0 \| \+0 \/ −0 \/ ~0 \| \[View\]\(https:\/\/example\.test\/nodes-only\) \|/);
 });
 
 test("isZeroSummary treats flow-level attributes as changes", () => {

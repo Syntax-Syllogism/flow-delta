@@ -343,7 +343,8 @@ test("FlexiPage reporter comments on a template-only change", () => {
   assert.equal(isZeroPageSummary(summary), false);
   const comment = buildFlexiPageComment([{ pageName:"Contact Record Page", summary, pageChanges:[{ path:"template", before:"old", after:"new" }], artifactUrl:"artifact.html" }]);
   assert.match(comment, /Components \(\+\/–\/~\)/);
-  assert.match(comment, /Template: old → new/);
+  assert.match(comment, /Page Attributes \(\+\/-\/~\)/);
+  assert.match(comment, /Contact Record Page \| \+0 \/ −0 \/ ~0 \| \+0 \/ −0 \/ ~0 \| \+0 \/ −0 \/ ~1 \| \[View\]\(artifact\.html\) \|/);
 });
 
 test("FlexiPage CLI file mode writes an offline HTML and JSON artifact", async () => {

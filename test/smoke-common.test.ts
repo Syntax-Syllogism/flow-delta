@@ -5,7 +5,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { buildRepoGitIgnore, checkoutOrCreateBranch, collectFlexiPageFixturePairs, renameFlexiPageMetadata, renameFlowMetadata, resolveNpmCommand, resolveNpmInvocation } from "../scripts/smoke-common.ts";
+import { writeFileSync } from "node:fs";
+import { buildRepoGitIgnore, checkoutOrCreateBranch, collectFlexiPageFixturePairs, renameFlexiPageMetadata, renameFlowMetadata, resolveNpmCommand, resolveNpmInvocation, stageAndCommit } from "../scripts/smoke-common.ts";
 
 test("renameFlowMetadata changes only the Flow identity labels", () => {
   const xml = readFileSync(join(process.cwd(), "fixtures", "diff", "add_node", "after.flow-meta.xml"), "utf8");
@@ -71,6 +72,24 @@ test("checkoutOrCreateBranch creates the requested branch when it is missing", (
 
   const branch = execFileSync("git", ["-C", repoDir, "branch", "--show-current"], { encoding: "utf8" }).trim();
   assert.equal(branch, "main");
+});
+
+test("stageAndCommit skips committing when the working tree is already clean", () => {
+  const repoDir = mkdtempSync(join(tmpdir(), "flow-delta-smoke-git-"));
+  execFileSync("git", ["-C", repoDir, "init", "-b", "master"], { stdio: "ignore" });
+  execFileSync("git", ["-C", repoDir, "config", "user.name", "FlowDelta Smoke"], { stdio: "ignore" });
+  execFileSync("git", ["-C", repoDir, "config", "user.email", "flowdelta-smoke@example.com"], { stdio: "ignore" });
+  writeFileSync(join(repoDir, "seed.txt"), "seed\n", "utf8");
+  stageAndCommit(repoDir, "smoke: seed fixture befores (initial)");
+
+  const beforeLog = execFileSync("git", ["-C", repoDir, "log", "--oneline"], { encoding: "utf8" }).trim();
+  assert.equal(beforeLog.split("\n").length, 1);
+
+  // Same content, nothing new to stage: must not throw despite a clean tree.
+  assert.doesNotThrow(() => stageAndCommit(repoDir, "smoke: seed fixture befores (repeat)"));
+
+  const afterLog = execFileSync("git", ["-C", repoDir, "log", "--oneline"], { encoding: "utf8" }).trim();
+  assert.equal(afterLog.split("\n").length, 1, "no new commit should be created when nothing changed");
 });
 
 test("buildRepoGitIgnore works when the sample ignore template is absent", () => {

@@ -236,6 +236,14 @@ function escapeRegExp(value: string): string {
 
 export function stageAndCommit(repoDir: string, message: string): void {
   execFileSync("git", ["-C", repoDir, "add", "-A"], { stdio: "inherit" });
+  const status = execFileSync("git", ["-C", repoDir, "status", "--porcelain"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (status.trim().length === 0) {
+    console.log(`Nothing to commit for "${message}"; skipping.`);
+    return;
+  }
   execFileSync("git", ["-C", repoDir, "commit", "-m", message], { stdio: "inherit" });
 }
 

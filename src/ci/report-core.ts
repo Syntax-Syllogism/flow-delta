@@ -2,7 +2,6 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { FlowDiff } from "../diff/diff-model.ts";
 import type { PageDiff } from "../flexipage/diff-page.ts";
-import { humanizePath } from "../render/snapshot-panel.ts";
 import { safeFileName } from "../util/file-name.ts";
 
 export const DEFAULT_MARKER = "<!-- FlowDelta:report -->";
@@ -34,14 +33,13 @@ export interface ReportNote {
 export function buildComment(results: FlowResult[], opts: { marker?: string; commitSha?: string } = {}): string {
   return buildProductComment(results, {
     marker: DEFAULT_MARKER,
-    heading: (count) => `## 🔍 FlowDelta — ${count} flow(s) changed`,
+    heading: (count) => `## 🔍 FlowDelta — ${count} ${pluralize(count, "flow")} changed`,
     empty: "_No Flow changes in this MR._",
-    columns: "| Flow | +nodes | -nodes | ~nodes | +/-edges | Flow | Diff |",
-    separator: "| --- | ---: | ---: | ---: | ---: | --- | --- |",
+    columns: "| Flow | Nodes (+/-/~) | Edges (+/-) | Flow Attributes (+/-/~) | Diff |",
+    separator: "| --- | ---: | ---: | ---: | --- |",
     sortName: (result) => result.flowName,
     row: (result) => {
-      const flowSummary = escapeTableCell(formatFlowChanges(result.flowChanges));
-      return `| ${escapeTableCell(result.flowName)} | ${result.summary.addedNodes} | ${result.summary.removedNodes} | ${result.summary.modifiedNodes} | ${result.summary.addedEdges} / ${result.summary.removedEdges} | ${flowSummary} | [Open interactive diff](${result.artifactUrl}) |`;
+      return `| ${escapeTableCell(result.flowName)} | +${result.summary.addedNodes} / −${result.summary.removedNodes} / ~${result.summary.modifiedNodes} | +${result.summary.addedEdges} / −${result.summary.removedEdges} | +0 / −0 / ~${result.summary.changedFlowAttributes} | [View](${result.artifactUrl}) |`;
     },
   }, opts);
 }
@@ -151,21 +149,15 @@ export interface FlexiPageResultWithStem extends Omit<FlexiPageResult, "artifact
 export function buildFlexiPageComment(results: FlexiPageResult[], opts: { marker?: string; commitSha?: string } = {}): string {
   return buildProductComment(results, {
     marker: FLEXIPAGE_MARKER,
-    heading: (count) => `## 🔍 FlexiPageDelta — ${count} page(s) changed`,
+    heading: (count) => `## 🔍 FlexiPageDelta — ${count} ${pluralize(count, "page")} changed`,
     empty: "_No FlexiPage changes in this MR._",
-    columns: "| Page | Components (+/–/~) | Regions (+/–/~) | Page attributes | Diff |",
-    separator: "| --- | ---: | ---: | --- | --- |",
+    columns: "| Page | Components (+/–/~) | Regions (+/–/~) | Page Attributes (+/-/~) | Diff |",
+    separator: "| --- | ---: | ---: | ---: | --- |",
     sortName: (result) => result.pageName,
     row: (result) => {
-      const callout = result.pageChanges?.find((change) => change.path === "template");
-      const attributes = callout ? `Template: ${formatValue(callout.before)} → ${formatValue(callout.after)}` : String(result.summary.changedPageAttributes);
-      return `| ${escapeTableCell(result.pageName)} | +${result.summary.addedComponents} / −${result.summary.removedComponents} / ~${result.summary.modifiedComponents} | +${result.summary.addedRegions} / −${result.summary.removedRegions} / ~${result.summary.modifiedRegions} | ${escapeTableCell(attributes)} | [Open interactive diff](${result.artifactUrl}) |`;
+      return `| ${escapeTableCell(result.pageName)} | +${result.summary.addedComponents} / −${result.summary.removedComponents} / ~${result.summary.modifiedComponents} | +${result.summary.addedRegions} / −${result.summary.removedRegions} / ~${result.summary.modifiedRegions} | +0 / −0 / ~${result.summary.changedPageAttributes} | [View](${result.artifactUrl}) |`;
     },
   }, opts);
-}
-
-function formatValue(value: unknown): string {
-  return value === undefined ? "(missing)" : String(value);
 }
 
 export function findStickyNote(notes: ReportNote[], marker: string, authorId?: number): ReportNote | undefined {
@@ -180,23 +172,7 @@ export function escapeTableCell(value: string): string {
   return value.replaceAll("|", "\\|").replaceAll("`", "\\`").replace(/\r?\n/g, "<br>");
 }
 
-function formatFlowChanges(flowChanges: FlowDiff["flowChanges"]): string {
-  if (!flowChanges || flowChanges.length === 0) {
-    return "";
-  }
-  const status = flowChanges.find((change) => change.path === "status");
-  if (status) {
-    return formatStatusChange(status.before, status.after);
-  }
-  return flowChanges.map((change) => humanizePath(change.path)).join(", ");
+function pluralize(count: number, singular: string): string {
+  return count === 1 ? singular : `${singular}s`;
 }
 
-function formatStatusChange(before: unknown, after: unknown): string {
-  if (before === "Active" && after !== "Active") {
-    return `Deactivated (${String(before)} -> ${String(after)})`;
-  }
-  if (before !== "Active" && after === "Active") {
-    return `Activated (${String(before)} -> ${String(after)})`;
-  }
-  return `Status: ${String(before)} -> ${String(after)}`;
-}

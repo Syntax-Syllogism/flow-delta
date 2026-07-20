@@ -8,6 +8,8 @@ FlowDelta is a TypeScript CLI tool that compares Salesforce Flow metadata and pr
 - npm (bundled with Node)
 - git
 - A Salesforce org with Flow metadata (for real-world testing)
+- Salesforce CLI (`sf`) and an authenticated org alias (only for org mode or
+  live org smoke checks)
 
 ## Local setup
 
@@ -27,6 +29,7 @@ The test suite is the fastest way to verify your setup works:
 npm run typecheck       # Typecheck source, tests, and the worker example
 npm test                # Full suite (parser + semantic diff + render + CLI + GitLab)
 npm run test:parser     # Parser regression suite only (fast)
+npm run test:org        # Offline org-mode runner and picker coverage
 ```
 
 Tests use Node's built-in test runner and complete in under 10 seconds.
@@ -43,6 +46,9 @@ npx tsx src/cli.ts --old path/to/before.flow-meta.xml --new path/to/after.flow-m
 
 # Git-mode comparison
 npx tsx src/cli.ts --repo /path/to/sfdx-repo --from main --to feature-branch --path 'force-app/**/*.flow-meta.xml' --out ./output
+
+# Org-mode comparison (requires sf authentication; pin versions for scripts)
+npx tsx src/cli.ts --org my-org --flow My_Flow --from-version 1 --to-version 2 --out ./output --json
 ```
 
 For published binary usage, see [docs/cli.md](cli.md).
@@ -68,7 +74,7 @@ render both sets, omit the selector. Open the selected artifacts in a browser to
 ```
 src/
   parser/               # Vendored Apache-2.0 parser from google-flow-lens (DO NOT EDIT)
-  io/                   # File and git I/O (read-flow.ts)
+  io/                   # File, git, and Salesforce org I/O
   model/                # Graph model types and canonicalization (graph-model.ts, build-model.ts)
   diff/                 # Deep diff and model comparison (deep-diff.ts, diff-model.ts)
   render/               # HTML rendering and layout (render-html.ts, layout.ts, section-schemas.ts)
@@ -78,11 +84,12 @@ src/
 
 test/
   semantic-diff.test.ts # Main test suite with fixtures
+  org-flow.test.ts      # Offline org-mode runner, picker, and error tests
   parser.test.ts        # Parser regression suite
   report-core.test.ts   # Shared reporting-core tests + package/bin/build checks
   gitlab-report.test.ts # GitLab reporter tests
   github-report.test.ts # GitHub reporter tests
-  smoke-gitlab.test.ts  # GitLab smoke-harness scaffold tests
+  smoke-common.test.ts  # Shared smoke-harness scaffold tests
   smoke-github.test.ts  # GitHub smoke-harness workflow tests
 
 fixtures/

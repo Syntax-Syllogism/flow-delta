@@ -12,7 +12,7 @@ Complete guides for using, understanding, and extending FlowDelta.
 
 ## Using FlowDelta
 
-- [CLI usage](cli.md) — File mode and git mode, command-line options, output formats
+- [CLI usage](cli.md) — File, git, and Salesforce org modes, command-line options, output formats
 - [CI Integration](ci.md) — Running in GitLab/GitHub pipelines, MR/PR reporting, sticky comments, private-repo artifact viewing
 
 ## Understanding the system
@@ -39,7 +39,7 @@ Complete guides for using, understanding, and extending FlowDelta.
 
 ### I want to...
 
-**Compare flows locally**
+**Compare flows locally or from Salesforce**
 → [Getting Started](getting-started.md) → [CLI usage](cli.md)
 
 **Set up CI reporting in GitLab or GitHub**

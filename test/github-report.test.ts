@@ -240,7 +240,7 @@ test("main() posts a comment for an attribute-only diff (no node/edge changes)",
 
   const posted = requests.find((request) => request.method === "POST");
   assert.ok(posted);
-  assert.match(JSON.parse(posted?.body ?? "{}").body, /Deactivated \(Active -> Draft\)/);
+  assert.match(JSON.parse(posted?.body ?? "{}").body, /\+0 \/ −0 \/ ~1 \| \[View\]/);
 });
 
 test("main() links a provided artifact URL manifest entry when available", async () => {

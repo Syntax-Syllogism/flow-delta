@@ -1003,6 +1003,7 @@ test("CLI file mode writes diff.json and html artifacts", async () => {
   assert.equal(htmlFiles.length, 1);
   assert.deepEqual(logs, [
     "TA | Case | InsertAuroraTag: nodes 0 added, 0 deleted, 1 modified; edges 0 added, 0 deleted",
+    `Artifacts written to ${outDir}`,
   ]);
 
   const diffJson = JSON.parse(readFileSync(join(outDir, diffFiles[0]), "utf8"));
@@ -1032,8 +1033,9 @@ test("CLI file mode reports flow-level attribute-only changes", async () => {
     console.log = originalConsoleLog;
   }
 
-  assert.equal(logs.length, 1);
+  assert.equal(logs.length, 2);
   assert.match(logs[0], /flow attributes: 1 changed \(status\)$/);
+  assert.equal(logs[1], `Artifacts written to ${outDir}`);
   const diffFile = readdirSync(outDir).find((name) => name.endsWith(".diff.json"));
   assert.ok(diffFile);
   const diffJson = JSON.parse(readFileSync(join(outDir, diffFile), "utf8"));

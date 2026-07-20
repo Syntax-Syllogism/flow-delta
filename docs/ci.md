@@ -85,11 +85,34 @@ update it:
 <!-- FlowDelta:report -->
 ```
 
-It then renders a short summary header, one row per changed flow, and a link to
-the interactive HTML artifact for that flow. The table includes node counts,
-edge counts, and a compact `Flow` column for flow-level attribute changes such as
-`Deactivated (Active -> Draft)` or `Api Version, Run In Mode`. The artifact URL
-points at the job artifact browse route under `CI_PROJECT_URL`.
+It then renders a short summary header, one row per changed flow, and a `View`
+link to the interactive HTML artifact for that flow. The table columns are:
+
+```md
+| Flow | Nodes (+/-/~) | Edges (+/-) | Flow Attributes (+/-/~) | Diff |
+```
+
+Node counts cover added, removed, and modified nodes. Edge counts cover added
+and removed edges (edges have no modified state). Flow Attributes is a
+`+0 / -0 / ~N` count of flow-root property changes (e.g. `status`,
+`apiVersion`, `runInMode`) — additions/removals don't apply to existing
+header fields, so those are always `0`. The artifact URL points at the job
+artifact browse route under `CI_PROJECT_URL`.
+
+To preview this markdown for a given before/after XML pair without running the
+full smoke harness (no tarball build, no sample repo, no push), use
+[`scripts/preview-comment.ts`](../scripts/preview-comment.ts):
+
+```bash
+npm run preview:comment -- --product flow \
+  --old fixtures/diff/add_node/before.flow-meta.xml \
+  --new fixtures/diff/add_node/after.flow-meta.xml
+```
+
+Pass `--product flexipage` with `*.flexipage-meta.xml` files for the
+FlexiPageDelta comment instead. Repeat `--old`/`--new` in pairs to render
+multiple rows in one comment; `--commit-sha` and `--artifact-url-base` are
+optional.
 
 When no `.diff.json` files contain a non-zero summary, the reporter exits without
 creating a comment. `summary.changedFlowAttributes` participates in that decision,
@@ -269,7 +292,7 @@ FlexiPage comments use the marker `<!-- FlexiPageDelta:report -->` and a table
 with these columns:
 
 ```md
-| Page | Components (+/–/~) | Regions (+/–/~) | Page attributes | Diff |
+| Page | Components (+/–/~) | Regions (+/–/~) | Page Attributes (+/-/~) | Diff |
 ```
 
 Component counts cover added, removed, and modified items. Region counts cover

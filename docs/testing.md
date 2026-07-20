@@ -7,6 +7,7 @@ through `tsx`.
 npm run typecheck    # source, DOM-harness tests, and Cloudflare worker example
 npm test            # parser suite + semantic diff / render / CLI + CI reporter coverage
 npm run test:parser # parser regression suite only
+npm run test:org    # offline Salesforce org-mode runner, picker, and error coverage
 ```
 
 `npm run typecheck` runs the real TypeScript compiler in three scoped projects:
@@ -22,10 +23,13 @@ types. The command's exit code is the gate; it runs before build and tests in
 - `test/parser.test.ts` — the vendored parser's own suite, ported to `node:test`
   (proves the Apache-2.0 parser behaves identically under Node). See
   [vendoring.md](vendoring.md).
+- `test/org-flow.test.ts` — offline org-mode coverage: Tooling version parsing,
+  exact retrieve-path resolution, token-leak protection, picker formatting and
+  defaults, dispatch, error mapping, and non-TTY behavior.
 - `test/semantic-diff.test.ts` — everything we built: canonicalization,
   flow-header extraction, `deepDiff` paths, node/edge/header classification,
-  edge-id rules, the HTML render, the CLI in both modes, and the real before/after
-  fixture assertions.
+  edge-id rules, the HTML render, the CLI in file, git, and org modes, and the
+  real before/after fixture assertions.
 - `test/report-core.test.ts` — the platform-agnostic reporting core shared by
   both products and CI platforms (`buildComment`, the vocabulary-driven builder,
   `isZeroSummary`, `findStickyNote`), plus the package/bin/build smoke checks
@@ -37,8 +41,9 @@ types. The command's exit code is the gate; it runs before build and tests in
   PATCH/POST, no `/user` call), and `main()` orchestration (PR-number
   resolution from `GITHUB_EVENT_PATH`/`--pr`, no-op paths, attribute-only
   diffs). See [ci.md](ci.md) for the reporting flows themselves.
-- `test/smoke-gitlab.test.ts` — unit coverage for the GitLab smoke harness's
-  shared scaffold helpers (e.g. `renameFlowMetadata`).
+- `test/smoke-common.test.ts` — unit coverage for the shared smoke-harness
+  scaffold helpers used by both the GitLab and GitHub smoke scripts (e.g.
+  `renameFlowMetadata`, `stageAndCommit`).
 - `test/smoke-github.test.ts` — GitHub smoke entrypoint and generated workflow
   coverage, including both Flow and FlexiPage diff/report pipelines.
 
@@ -116,6 +121,11 @@ Capture the expected counts from the validated CLI output (`--json` summary)
 rather than guessing.
 
 ## Manual / visual smoke
+
+The automated org-mode suite is offline and never contacts Salesforce. A live
+org smoke remains manual: with `sf` authenticated, list a multi-version Flow,
+retrieve two versions, and confirm the generated artifact in the reported
+output directory. This check is intentionally not part of `npm test`.
 
 `npm run render:fixtures -- flow` writes Flow artifacts to
 `flow-delta-out/fixtures/`; `npm run render:fixtures -- flexipage` writes

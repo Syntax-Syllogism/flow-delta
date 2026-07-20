@@ -76,9 +76,9 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     const tarballPath = buildAndPackLocal(ROOT);
 
     prepareRepoScaffold(options.repoDir);
-    copyFileSync(tarballPath, join(options.repoDir, SMOKE_TARBALL_NAME));
     ensureGitRepo(options.repoDir, options.baseBranch);
     ensureRemote(options.repoDir, options.remote, options.remoteUrl);
+    copyFileSync(tarballPath, join(options.repoDir, SMOKE_TARBALL_NAME));
 
     const smokeRunId = timestamp();
     const smokeBranch = `${options.branchPrefix}-${smokeRunId}`;
@@ -125,7 +125,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 function resolveOptions(values: Record<string, string | boolean | undefined>): SmokeOptions {
   return {
     repoDir: resolve(stringValue(values["repo-dir"] ?? process.env.FLOW_DELTA_SMOKE_REPO_DIR ?? DEFAULT_REPO_DIR, "repo dir")),
-    remote: stringValue(values.remote ?? process.env.FLOW_DELTA_SMOKE_REMOTE ?? "origin", "remote"),
+    remote: stringValue(values.remote ?? process.env.FLOW_DELTA_SMOKE_REMOTE ?? "gitlab", "remote"),
     remoteUrl: stringValueOptional(values["remote-url"] ?? process.env.FLOW_DELTA_SMOKE_REMOTE_URL),
     baseBranch: stringValue(values["base-branch"] ?? process.env.FLOW_DELTA_SMOKE_BASE_BRANCH ?? DEFAULT_BASE_BRANCH, "base branch"),
     branchPrefix: stringValue(values["branch-prefix"] ?? process.env.FLOW_DELTA_SMOKE_BRANCH_PREFIX ?? DEFAULT_BRANCH_PREFIX, "branch prefix"),
@@ -143,7 +143,7 @@ Required:
 
 Optional:
   --repo-dir        local sample-project directory (default: ${DEFAULT_REPO_DIR})
-  --remote          git remote name to push to (default: origin)
+  --remote          git remote name to push to (default: gitlab)
   --remote-url      add or update this remote URL before pushing
   --base-branch     base branch name (default: ${DEFAULT_BASE_BRANCH})
   --branch-prefix   smoke branch prefix (default: ${DEFAULT_BRANCH_PREFIX})
@@ -241,15 +241,7 @@ function resolveGlabCommand(): string {
   if (explicit) {
     return explicit;
   }
-
-  try {
-    return execFileSync("bash", ["-lc", "command -v glab"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }).trim();
-  } catch {
-    throw new Error("Could not find glab. Set GLAB_BIN or ensure glab is available on PATH.");
-  }
+  return "glab";
 }
 
 if (isMainModule(import.meta.url)) {
