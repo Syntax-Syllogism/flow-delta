@@ -16,7 +16,7 @@ XML (old/new) -> xml2js parser -> PageModel -> PageDiff -> outline/wireframe HTM
 
 | Module | Responsibility |
 | --- | --- |
-| `src/io/read-metadata.ts` | Read XML from a local path or `git show <ref>:<path>`. |
+| `src/io/read-metadata.ts` / `src/io/discover-git-metadata.ts` | Shared local/Git metadata reading and path discovery; see [metadata-io.md](metadata-io.md). |
 | `src/flexipage/parse.ts` | Parse FlexiPage XML, preserve recursive property structure, and canonicalize nested facet identities. |
 | `src/flexipage/page-model.ts` | Define page headers, ordered regions, identifier-aware components/fields, and recursive property values. |
 | `src/flexipage/diff-page.ts` | Match unique canonical region paths and identifier-aware items with LCS; attach breadcrumbs and visibility notes. |
@@ -28,10 +28,10 @@ XML (old/new) -> xml2js parser -> PageModel -> PageDiff -> outline/wireframe HTM
 
 The shared `deepDiff` implementation supplies generic `{path, before, after}`
 property changes. `report-core.ts` uses a vocabulary-driven comment builder for
-both products. `render/shell.ts` is the current shell implementation consumed
-by the FlexiPage outline and wireframe views; Flow's established renderer still
-contains its existing inline chrome. Full migration of Flow onto the shell is
-deferred until a separate layout-refactor task.
+both products. `render/shell.ts` is the shared offline artifact shell consumed
+by both the FlexiPage outline renderer and Flow's graph renderer. It owns the
+common theme, filter, and detail-panel chrome; each renderer retains its own
+canvas and product-specific client behavior.
 
 ## Model and identity rules
 

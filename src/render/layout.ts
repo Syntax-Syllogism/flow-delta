@@ -12,6 +12,19 @@ export interface LayoutSection {
   bendPoints?: LayoutPoint[];
 }
 
+export interface LayoutNodeGeometry {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface LayoutEdgeGeometry {
+  id: string;
+  sections: LayoutSection[];
+}
+
 export interface LayoutedNode extends NodeDiff {
   x: number;
   y: number;
@@ -37,8 +50,8 @@ export interface LayoutedFlow {
 }
 
 export interface LayoutView {
-  nodes: LayoutedNode[];
-  edges: LayoutedEdge[];
+  nodes: LayoutNodeGeometry[];
+  edges: LayoutEdgeGeometry[];
   width: number;
   height: number;
 }
@@ -55,11 +68,13 @@ export async function layoutDiff(diff: FlowDiff): Promise<LayoutedFlow> {
     (node) => node.status !== "added",
     (edge) => edge.status !== "added",
   );
+  const unionNodeGeometry = new Map(union.nodes.map((node) => [node.id, node]));
+  const unionEdgeGeometry = new Map(union.edges.map((edge) => [edge.id, edge]));
 
   return {
     diff,
-    nodes: union.nodes,
-    edges: union.edges,
+    nodes: diff.nodes.map((node) => withNodeGeometry(node, unionNodeGeometry.get(node.id))),
+    edges: diff.edges.map((edge) => withEdgeGeometry(edge, unionEdgeGeometry.get(edge.id))),
     width: union.width,
     height: union.height,
     views: {
@@ -114,7 +129,7 @@ async function layoutView(
   const positionedNodes = nodes.map((node) => {
     const positioned = nodeMap.get(node.id);
     return {
-      ...node,
+      id: node.id,
       x: positioned?.x ?? 0,
       y: positioned?.y ?? 0,
       width: positioned?.width ?? estimateWidth(node.label),
@@ -123,7 +138,7 @@ async function layoutView(
   });
 
   const positionedEdges = edges.map((edge) => ({
-    ...edge,
+    id: edge.id,
     sections: normalizeSections(edgeMap.get(edge.id)?.sections),
   }));
 
@@ -151,8 +166,25 @@ function normalizeSections(sections: LayoutSection[] | undefined): LayoutSection
   }));
 }
 
-function measureBounds(nodes: LayoutedNode[]): { width: number; height: number } {
+function measureBounds(nodes: LayoutNodeGeometry[]): { width: number; height: number } {
   const maxX = nodes.reduce((acc, node) => Math.max(acc, node.x + node.width), 0);
   const maxY = nodes.reduce((acc, node) => Math.max(acc, node.y + node.height), 0);
   return { width: maxX + 40, height: maxY + 40 };
+}
+
+function withNodeGeometry(node: NodeDiff, geometry: LayoutNodeGeometry | undefined): LayoutedNode {
+  return {
+    ...node,
+    x: geometry?.x ?? 0,
+    y: geometry?.y ?? 0,
+    width: geometry?.width ?? estimateWidth(node.label),
+    height: geometry?.height ?? 48,
+  };
+}
+
+function withEdgeGeometry(edge: EdgeDiff, geometry: LayoutEdgeGeometry | undefined): LayoutedEdge {
+  return {
+    ...edge,
+    sections: geometry?.sections ?? [],
+  };
 }

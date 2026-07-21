@@ -162,10 +162,11 @@ This should not happen; the [canonicalization rules](architecture.md#invariants-
    - Look for JavaScript errors (red text)
    - The HTML is self-contained; all JS is inline, so network errors are unlikely
 
-3. **Verify the JSON payload:**
-   - The HTML embeds the `diff.json` as a JavaScript constant
+3. **Verify the embedded client payload:**
+   - The HTML embeds a client-oriented DTO as the `DATA` JavaScript constant;
+     it is separate from the optional neighboring `*.diff.json` export
    - Open the source (Ctrl+U or right-click → View Page Source)
-   - Search for `const diffData =` and check if the JSON looks valid
+   - Search for `const DATA =` and check if the JSON looks valid
    - If corrupted, the renderer won't have data to display
 
 4. **Test with a fixture:**
@@ -190,8 +191,8 @@ This should not happen; the [canonicalization rules](architecture.md#invariants-
 
 2. **Verify the layout was computed:**
    - The renderer precomputes layouts for `union`, `before`, and `after` views
-   - Open the HTML source and search for `"union"`, `"before"`, `"after"` in the JSON
-   - All three should be present
+   - Open the HTML source and search for `"union"`, `"before"`, `"after"` in the embedded DTO
+   - All three baked views should be present
 
 3. **Check the filtered graph:**
    - The `Changes only` filter hides unchanged nodes and edges
@@ -210,7 +211,8 @@ This should not happen; the [canonicalization rules](architecture.md#invariants-
    - If the graph is large (100+ nodes), layout may be dense; try zooming out
 
 2. **Verify the graph structure:**
-   - Open the `diff.json` and count nodes and edges
+   - Open the `*.diff.json` export and count nodes and edges; the HTML's embedded DTO
+     contains the same semantic identities plus geometry and rendered detail HTML
    - A large flow may have 100+ nodes and 150+ edges
    - ELK may produce overlapping positions for complex graphs (this is a known limitation)
 

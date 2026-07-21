@@ -1,9 +1,24 @@
 # Rendering
 
 FlowDelta's renderer turns a `FlowDiff` into a single self-contained HTML
-artifact plus the embedded `diff.json` payload. The generated page is fully
+artifact plus an embedded client-oriented data payload. The generated page is fully
 offline: CSS, SVG, and client-side JS are all inline, and the browser does not
 fetch external assets.
+
+## Embedded client payload
+
+The HTML embeds one escaped JSON DTO for browser behavior. It contains:
+
+- semantic node identity, label, status, and server-rendered `detailHtml`;
+- semantic edge identity, source, target, and status; and
+- geometry-only `union`, `after`, and `before` layouts, including their bounds.
+
+The browser does not receive raw before/after snapshots or section-schema
+definitions. Section schemas are applied during rendering, and the resulting
+detail HTML is inserted into the panel when a node is selected. The separate
+`*.diff.json` file, when requested with `--json`, remains the full machine-readable
+`FlowDiff` for CI reporters and debugging; it is not the payload embedded in the
+HTML artifact.
 
 ## Flow-level changes
 
@@ -40,8 +55,8 @@ The HTML artifact includes four view presets:
 - `Changes only` — only added, deleted, and modified nodes plus their incident
   edges.
 
-The filter is client-side only. Clicking a node still opens its delta panel in
-every mode.
+The filter is client-side only. Clicking or keyboard-activating a node still
+opens its delta panel in every mode.
 
 ## Theme control
 
@@ -53,6 +68,11 @@ Theme selection is client-side only and is persisted in `localStorage` under
 `flow-delta-theme`. Missing, invalid, or inaccessible storage falls back to
 `System`. The theme bootstrap script, CSS, and controls are all inline, so the
 artifact remains fully offline and does not fetch external assets.
+
+The shared artifact shell in `src/render/shell.ts` owns the theme bootstrap,
+theme buttons, persistence, and the common filter/panel chrome for both
+FlowDelta and FlexiPageDelta. Each renderer supplies only its canvas content,
+product-specific styles, panel content, and client behavior.
 
 ## Layout strategy
 
@@ -123,8 +143,12 @@ Changes that don't match any section schema are grouped by:
 ## Key code paths
 
 - `src/render/layout.ts` — layout baking and bounds measurement.
-- `src/render/render-html.ts` — HTML shell, filter controls, client-side view
-  switching, flow-level banner, and the node detail panel.
+- `src/render/artifact-client-data.ts` — the browser DTO boundary: semantic
+  node/edge data, pre-rendered detail HTML, and geometry-only baked views.
+- `src/render/shell.ts` — shared offline document shell, theme persistence,
+  filter dispatch, panel chrome, and optional Outline/Wireframe switching.
+- `src/render/render-html.ts` — Flow SVG canvas, client-side graph/filter
+  behavior, flow-level banner, and semantic node detail content.
 - `src/render/section-schemas.ts` — type-specific property grouping schemas.
 
 ## Manual smoke
@@ -184,20 +208,18 @@ Back control returns to the digest. The pill stops event propagation, so item
 rows in the same cell remain independent click targets and the Outline view is
 not involved.
 
-FlexiPage artifacts use the current `src/render/shell.ts` for inline theme
-controls, four view filters, the resizable/collapsible detail panel, and the
-offline document shell. Clicking a component or field row renders generic
-property delta lines and its resolved breadcrumb. Dynamic Forms property
+Both products use `src/render/shell.ts` for inline theme controls, four view
+filters, the resizable/collapsible detail panel, and the offline document
+shell. FlexiPage's `src/flexipage/render-outline.ts` supplies the outline,
+wireframe, and generic component/field detail behavior. Clicking a component or
+field row renders generic property delta lines and its resolved breadcrumb.
+Dynamic Forms property
 changes are rendered from structured values, including criterion-level
 `visibilityRule` changes; added or removed fields with a rule carry a styled
 `has visibility rule` note. Rows retain their breadcrumb in `data-item-path`
 for the detail interaction without printing the full ancestry inline. A
 template change is promoted to a page-level callout; there is no placeholder
 next-steps copy in the generated artifact.
-
-The Flow renderer continues to use its established inline shell. Migrating it
-onto `render/shell.ts` is deferred until a separate layout-refactor task so
-the existing Flow artifact remains stable.
 
 See [flexipage.md](flexipage.md) for the full FlexiPage model, CLI, fixture,
 and scope documentation.

@@ -3,7 +3,6 @@ import { FlowParser } from "../src/parser/flow_parser.ts";
 import { buildModel } from "../src/model/build-model.ts";
 import { extractFlowHeader } from "../src/model/flow-header.ts";
 import { diffModel } from "../src/diff/diff-model.ts";
-import { readFlowFromFile } from "../src/io/read-flow.ts";
 import { readMetadataFromFile } from "../src/io/read-metadata.ts";
 import { parseFlexiPage } from "../src/flexipage/parse.ts";
 import { diffPage } from "../src/flexipage/diff-page.ts";
@@ -78,7 +77,7 @@ async function buildFlowResults(olds: string[], news: string[], artifactUrlBase:
 }
 
 async function buildFlowModelWithHeader(path: string) {
-  const xml = readFlowFromFile(path);
+  const xml = readMetadataFromFile(path);
   const model = buildModel(await new FlowParser(xml).generateFlowDefinition());
   model.header = await extractFlowHeader(xml);
   return model;

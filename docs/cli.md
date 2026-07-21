@@ -52,6 +52,11 @@ npx @syntax-syllogism/flow-delta \
   `git diff --name-only --diff-filter=ACMRD <from> <to> -- <pathspec>`, so only
   flows that actually changed are rendered.
 
+Both products use the shared metadata/Git input boundary described in
+[metadata-io.md](metadata-io.md). It normalizes Git path separators, removes
+duplicates, and returns stable sorted paths; product-specific flag validation
+and default patterns remain in each CLI.
+
 The four core git-mode flags are required; `--changed-only` is optional.
 
 ## Org mode: compare two versions from Salesforce

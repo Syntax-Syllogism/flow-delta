@@ -1,6 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { execFileSync } from "node:child_process";
 import { parseArgs } from "node:util";
 import { FlowParser } from "./parser/flow_parser.ts";
 import { buildModel } from "./model/build-model.ts";
@@ -9,7 +8,8 @@ import { extractFlowHeader } from "./model/flow-header.ts";
 import { diffModel } from "./diff/diff-model.ts";
 import { layoutDiff } from "./render/layout.ts";
 import { renderHtml } from "./render/render-html.ts";
-import { readFlowFromFile, readFlowFromGit } from "./io/read-flow.ts";
+import { discoverGitMetadataFiles } from "./io/discover-git-metadata.ts";
+import { readMetadataFromFile, readMetadataFromGit } from "./io/read-metadata.ts";
 import {
   listFlowVersions,
   retrieveFlowVersions,
@@ -239,8 +239,8 @@ export async function runOrgMode(
 }
 
 async function runFileMode(oldPath: string, newPath: string, outDir: string, writeJson: boolean): Promise<void> {
-  const oldXml = readFlowFromFile(oldPath);
-  const newXml = readFlowFromFile(newPath);
+  const oldXml = readMetadataFromFile(oldPath);
+  const newXml = readMetadataFromFile(newPath);
   const oldModel = await buildModelWithHeader(oldXml);
   const newModel = await buildModelWithHeader(newXml);
   await writeArtifacts(oldModel, newModel, outDir, writeJson);
@@ -255,13 +255,19 @@ async function runGitMode(
   writeJson: boolean,
   changedOnly: boolean,
 ): Promise<void> {
-  const files = discoverGitFiles(repo, from, to, pattern, changedOnly);
+  const files = discoverGitMetadataFiles({
+    repo,
+    fromRef: from,
+    toRef: to,
+    pattern,
+    changedOnly,
+  });
   let hadFailure = false;
 
   for (const filePath of files) {
     try {
-      const oldXml = readFlowFromGit(repo, from, filePath);
-      const newXml = readFlowFromGit(repo, to, filePath);
+      const oldXml = readMetadataFromGit(repo, from, filePath);
+      const newXml = readMetadataFromGit(repo, to, filePath);
       const oldModel = oldXml ? await buildModelWithHeader(oldXml) : buildEmptyModel();
       const newModel = newXml ? await buildModelWithHeader(newXml) : buildEmptyModel();
       await writeArtifacts(oldModel, newModel, outDir, writeJson, filePath);
@@ -323,78 +329,6 @@ function formatFlowAttributeSummary(flowChanges: ReturnType<typeof diffModel>["f
   return `; flow attributes: ${flowChanges.length} changed (${flowChanges.map((change) => change.path).join(", ")})`;
 }
 
-function discoverGitFiles(repo: string, from: string, to: string, pattern: string, changedOnly: boolean): string[] {
-  const matcher = createPathMatcher(pattern);
-  if (!changedOnly) {
-    const fromFiles = listGitTree(repo, from);
-    const toFiles = listGitTree(repo, to);
-    const files = [...new Set([...fromFiles, ...toFiles])];
-    return files.filter((file) => matcher(file)).sort();
-  }
-
-  return listChangedGitFiles(repo, from, to, pattern).filter((file) => matcher(file)).sort();
-}
-
-function listGitTree(repo: string, ref: string): string[] {
-  return listGitFiles(repo, ["ls-tree", "-r", "--name-only", ref]);
-}
-
-function listChangedGitFiles(repo: string, from: string, to: string, pattern: string): string[] {
-  return listGitFiles(repo, ["diff", "--name-only", "--diff-filter=ACMRD", from, to, "--", pattern]);
-}
-
-function listGitFiles(repo: string, args: string[]): string[] {
-  return splitLines(
-    execFileSync("git", ["-C", repo, ...args], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    }),
-  );
-}
-
-function splitLines(output: string): string[] {
-  return output.split("\n").map((line) => line.trim()).filter(Boolean);
-}
-
-function createPathMatcher(pattern: string): (path: string) => boolean {
-  if (!hasGlob(pattern)) {
-    const normalized = pattern.replaceAll("\\", "/");
-    return (path) => path === normalized;
-  }
-  const regex = globToRegExp(pattern.replaceAll("\\", "/"));
-  return (path) => regex.test(path);
-}
-
-function hasGlob(value: string): boolean {
-  return /[*?[\]]/.test(value);
-}
-
-function globToRegExp(pattern: string): RegExp {
-  let source = "^";
-  for (let index = 0; index < pattern.length; index += 1) {
-    const char = pattern[index];
-    if (char === "*") {
-      if (pattern[index + 1] === "*") {
-        source += ".*";
-        index += 1;
-      } else {
-        source += "[^/]*";
-      }
-      continue;
-    }
-    if (char === "?") {
-      source += "[^/]";
-      continue;
-    }
-    if ("\\^$+?.()|{}[]".includes(char)) {
-      source += `\\${char}`;
-      continue;
-    }
-    source += char;
-  }
-  source += "$";
-  return new RegExp(source);
-}
 if (isMainModule(import.meta.url)) {
   void main();
 }

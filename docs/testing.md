@@ -30,6 +30,9 @@ types. The command's exit code is the gate; it runs before build and tests in
   flow-header extraction, `deepDiff` paths, node/edge/header classification,
   edge-id rules, the HTML render, the CLI in file, git, and org modes, and the
   real before/after fixture assertions.
+- `test/metadata-io.test.ts` — shared metadata/Git IO contract coverage:
+  literal and supported glob matching, separator normalization,
+  union/changed-only discovery, deterministic paths, and Git error handling.
 - `test/report-core.test.ts` — the platform-agnostic reporting core shared by
   both products and CI platforms (`buildComment`, the vocabulary-driven builder,
   `isZeroSummary`, `findStickyNote`), plus the package/bin/build smoke checks
@@ -53,12 +56,17 @@ types. The command's exit code is the gate; it runs before build and tests in
 behavior. `renderDom(html, storage?)` parses a complete rendered Flow or
 FlexiPage artifact with `happy-dom`, enables inline JavaScript evaluation, seeds
 `localStorage` before the document is parsed, waits for the document to settle,
-and returns the live `window` and `document`. Tests should interact with the
-returned DOM and storage rather than extracting or matching the generated
-script text.
+and returns the live `window` and `document`. Both renderer suites assert the
+shared shell contract (four filters, three theme choices, panel controls,
+offline output, and theme-key continuity) in addition to product-specific
+behavior. Tests should interact with the returned DOM and storage rather than
+extracting or matching the generated script text.
 
 The harness is test-only: `happy-dom` is a development dependency, and the
-rendered artifacts remain self-contained and offline. It is used by both
+rendered artifacts remain self-contained and offline. Load-time client script
+errors fail `renderDom`; its `errors` collection also exposes errors raised by
+later interactions so tests can assert the rendered client remains clean. It is
+used by both
 `test/semantic-diff.test.ts` and `test/flexipage-delta.test.ts` for filters,
 theme and view persistence, detail-panel selection, keyboard activation, and
 stored/invalid preference handling. The pointer-driven panel resizer is

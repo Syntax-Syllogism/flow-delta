@@ -14,6 +14,7 @@ import { TEMPLATE_GEOMETRY, getTemplateGeometry, type TemplateGeometry } from ".
 import { main as flexiPageCliMain } from "../src/flexipage-cli.ts";
 import { VIEW_STORAGE_KEY, THEME_STORAGE_KEY } from "../src/render/shell.ts";
 import { renderDom } from "./dom-harness.ts";
+import { assertChromeContract } from "./render-shell-contract.ts";
 
 const page = (body: string, template = "recordHomeTemplateDesktop") => `<FlexiPage><masterLabel>Contact Record Page</masterLabel><type>RecordPage</type><sobjectType>Contact</sobjectType><template><name>${template}</name></template>${body}</FlexiPage>`;
 const region = (name: string, type: string, items: string, mode = "Replace") => `<flexiPageRegions><name>${name}</name><type>${type}</type><mode>${mode}</mode>${items}</flexiPageRegions>`;
@@ -96,19 +97,16 @@ test("outline is offline, filterable, and nested", async () => {
   const diff = diffPage(await parseFlexiPage(oldXml), await parseFlexiPage(newXml));
   const html = renderOutline(diff);
   assert.match(html, /force:detailPanel/);
-  assert.match(html, /data-view-mode="changes"/);
-  assert.match(html, /data-theme-choice="dark"/);
-  assert.match(html, /panel-resizer/);
+  assertChromeContract(html);
   assert.match(html, /Template changed/);
   assert.doesNotMatch(html, /Next steps: reorder detection and richer per-component detail/);
-  assert.doesNotMatch(html, /https?:\/\//);
 });
 
 test("wireframe renders registry placement, status rows, and defaults to wireframe", async () => {
   const oldXml = page(region("header", "Region", component("Header")) + region("main", "Region", component("Main")) + region("sidebar", "Region", component("Sidebar")));
   const newXml = page(region("header", "Region", component("Header")) + region("main", "Region", component("Main") + component("Added")) + region("sidebar", "Region", component("Sidebar")));
   const html = renderOutline(diffPage(await parseFlexiPage(oldXml), await parseFlexiPage(newXml)), { template: "recordHomeTemplateDesktop" });
-  assert.match(html, /class="view-button" data-view-mode="wireframe"/);
+  assert.match(html, /class="view-button" data-canvas-view="wireframe"/);
   assert.match(html, /data-slot="header"/);
   assert.match(html, /grid-template-columns:67fr 33fr/);
   assert.match(html, /data-status="added"[^>]*data-item-id="main:after:1"/);
@@ -201,10 +199,10 @@ test("FlexiPage view and theme preferences execute, persist, and reject poisoned
   try {
     assert.equal(seeded.document.documentElement.dataset.view, "outline");
     assert.equal(seeded.document.documentElement.dataset.theme, "dark");
-    assert.equal((seeded.document.querySelector('[data-view-mode="outline"]') as HTMLButtonElement | null)?.classList.contains("active"), true);
+  assert.equal((seeded.document.querySelector('[data-canvas-view="outline"]') as HTMLButtonElement | null)?.classList.contains("active"), true);
     assert.equal((seeded.document.querySelector('[data-theme-choice="dark"]') as HTMLButtonElement | null)?.getAttribute("aria-pressed"), "true");
 
-    (seeded.document.querySelector('[data-view-mode="wireframe"]') as HTMLButtonElement | null)?.click();
+  (seeded.document.querySelector('[data-canvas-view="wireframe"]') as HTMLButtonElement | null)?.click();
     assert.equal(seeded.document.documentElement.dataset.view, "wireframe");
     assert.equal(seeded.window.localStorage.getItem(VIEW_STORAGE_KEY), "wireframe");
     (seeded.document.querySelector('[data-theme-choice="light"]') as HTMLButtonElement | null)?.click();
@@ -309,7 +307,7 @@ test("wireframe keeps empty slots and appends removed regions after a template c
   const oldXml = page(region("header", "Region", component("Header")) + region("main", "Region", component("Main")) + region("sidebar", "Region", component("RemovedSidebar")), "recordHomeTemplateDesktop");
   const newXml = page(region("header", "Region", component("Header")) + region("main", "Region", component("Main")), "recordHomeSingleColTemplateDesktop");
   const html = renderOutline(diffPage(await parseFlexiPage(oldXml), await parseFlexiPage(newXml)), { template: "recordHomeSingleColTemplateDesktop" });
-  assert.match(html, /class="view-button" data-view-mode="wireframe"/);
+  assert.match(html, /class="view-button" data-canvas-view="wireframe"/);
   assert.match(html, /Template changed/);
   assert.match(html, /Removed \(not in current template\)/);
   assert.match(html, /RemovedSidebar/);
@@ -601,7 +599,7 @@ test("unreferenced GUID facets canonicalize by content", async () => {
   assert.equal(diff.summary.removedRegions, 0);
 });
 
-test("CLI git mode matches file-mode diff output", async () => {
+test("CLI git mode applies the default FlexiPage path pattern", async () => {
   const repo = mkdtempSync(join(tmpdir(), "flexipage-delta-git-"));
   const out = mkdtempSync(join(tmpdir(), "flexipage-delta-out-"));
   const relative = "force-app/main/default/flexipages/Contact.flexipage-meta.xml";
@@ -610,18 +608,19 @@ test("CLI git mode matches file-mode diff output", async () => {
   const newXml = page(region("main", "Region", component("A") + component("B")));
   mkdirSync(join(repo, "force-app", "main", "default", "flexipages"), { recursive:true });
   writeFileSync(absolute, oldXml, "utf8");
-  git(repo, ["init", "-q"]); git(repo, ["config", "user.email", "codex@example.com"]); git(repo, ["config", "user.name", "Codex"]); git(repo, ["add", "."]); git(repo, ["commit", "-m", "old"]);
+  writeFileSync(join(repo, "force-app/main/default/flexipages/ignored.xml"), "not a FlexiPage", "utf8");
+  git(repo, ["init", "-q"]); git(repo, ["config", "user.email", "test@example.com"]); git(repo, ["config", "user.name", "test"]); git(repo, ["add", "."]); git(repo, ["commit", "-m", "old"]);
   const from = git(repo, ["rev-parse", "HEAD"]);
   writeFileSync(absolute, newXml, "utf8"); git(repo, ["add", "."]); git(repo, ["commit", "-m", "new"]);
   const to = git(repo, ["rev-parse", "HEAD"]);
-  await flexiPageCliMain(["--from", from, "--to", to, "--repo", repo, "--path", "force-app/**/*.flexipage-meta.xml", "--changed-only", "--out", out, "--json"]);
+  await flexiPageCliMain(["--from", from, "--to", to, "--repo", repo, "--changed-only", "--out", out, "--json"]);
   const diffFile = readdirSync(out).find((file) => file.endsWith(".diff.json"));
   assert.ok(diffFile);
   assert.deepEqual(JSON.parse(readFileSync(join(out, diffFile!), "utf8")), diffPage(await parseFlexiPage(oldXml), await parseFlexiPage(newXml)));
 });
 
 function git(repo: string, args: string[]): string {
-  return execFileSync("git", ["-C", repo, ...args], { encoding:"utf8", env:{ ...process.env, GIT_AUTHOR_NAME:"Codex", GIT_AUTHOR_EMAIL:"codex@example.com", GIT_COMMITTER_NAME:"Codex", GIT_COMMITTER_EMAIL:"codex@example.com" } }).trim();
+  return execFileSync("git", ["-C", repo, ...args], { encoding:"utf8", env:{ ...process.env, GIT_AUTHOR_NAME:"test", GIT_AUTHOR_EMAIL:"test@example.com", GIT_COMMITTER_NAME:"test", GIT_COMMITTER_EMAIL:"test@example.com" } }).trim();
 }
 
 function geometrySlots(geometry: TemplateGeometry): string[] {

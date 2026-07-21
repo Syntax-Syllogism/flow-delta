@@ -56,7 +56,6 @@ export function renderOutline(diff: PageDiff, options: RenderOptions = {}): stri
   const clientScript = `const DATA = ${json};
     const rows = [...document.querySelectorAll('.outline-row')];
     const regions = [...document.querySelectorAll('[data-region-status]')];
-    const filters = [...document.querySelectorAll('.filter-button')];
     const panelTitle = document.getElementById('panel-title');
     const panelBadge = document.getElementById('panel-badge');
     const panelBody = document.getElementById('panel-body');
@@ -64,11 +63,10 @@ export function renderOutline(diff: PageDiff, options: RenderOptions = {}): stri
     let activeDigestRegion;
     function changed(el) { return el.dataset.regionStatus !== 'unchanged' || el.querySelector('.outline-row:not(.unchanged)') !== null; }
     function applyView(mode) {
-      filters.forEach((button) => button.classList.toggle('active', button.dataset.viewMode === mode));
       rows.forEach((row) => { const status = row.dataset.status; row.hidden = mode === 'after' ? status === 'deleted' : mode === 'before' ? status === 'added' : mode === 'changes' ? status === 'unchanged' : false; });
       regions.forEach((region) => { const wireframeCell = region.classList.contains('wireframe-cell'); region.hidden = mode === 'after' ? region.dataset.regionStatus === 'deleted' : mode === 'before' ? region.dataset.regionStatus === 'added' : mode === 'changes' ? !wireframeCell && !changed(region) : false; });
     }
-    filters.forEach((button) => button.addEventListener('click', () => applyView(button.dataset.viewMode)));
+    document.addEventListener('flowdelta:view-mode', (event) => applyView(event.detail));
     function text(value) { return value === undefined ? '(missing)' : typeof value === 'object' ? JSON.stringify(value) : String(value); }
     function escape(value) { return text(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
     function renderValue(before, after) { if (before === undefined) return '<span class="val after">' + escape(after) + '</span>'; if (after === undefined) return '<span class="val before">' + escape(before) + '</span>'; return '<span class="val before">' + escape(before) + '</span><span class="arrow">→</span><span class="val after">' + escape(after) + '</span>'; }
@@ -79,13 +77,7 @@ export function renderOutline(diff: PageDiff, options: RenderOptions = {}): stri
     rows.forEach((row) => { row.addEventListener('click', () => selectRow(row)); row.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectRow(row); } }); });
     document.querySelectorAll('.wireframe-rollup').forEach((button) => button.addEventListener('click', (event) => { event.stopPropagation(); showDigest(button.dataset.rollupRegion); }));
     panelBack.addEventListener('click', () => { if (activeDigestRegion) showDigest(activeDigestRegion); });
-    const themeButtons = [...document.querySelectorAll('.theme-button')];
-    function applyTheme(theme) { document.documentElement.dataset.theme = theme; themeButtons.forEach((button) => button.setAttribute('aria-pressed', button.dataset.themeChoice === theme ? 'true' : 'false')); }
-    function storedTheme() { try { const value = localStorage.getItem(${JSON.stringify("flow-delta-theme")}); return ['system','light','dark'].includes(value) ? value : 'system'; } catch { return 'system'; } }
-    themeButtons.forEach((button) => button.addEventListener('click', () => { const theme = button.dataset.themeChoice; applyTheme(theme); try { localStorage.setItem(${JSON.stringify("flow-delta-theme")}, theme); } catch {} }));
-    applyTheme(storedTheme()); applyView('all');
-    const panelToggle = document.getElementById('panel-toggle'); const panelReopen = document.getElementById('panel-reopen'); panelToggle.addEventListener('click', () => { document.body.classList.add('panel-collapsed'); panelToggle.setAttribute('aria-expanded','false'); }); panelReopen.addEventListener('click', () => { document.body.classList.remove('panel-collapsed'); panelToggle.setAttribute('aria-expanded','true'); });
-    const resizer = document.getElementById('panel-resizer'); let resizeStart; resizer.addEventListener('pointerdown', (event) => { resizeStart = { x:event.clientX, width:document.getElementById('detail-panel').getBoundingClientRect().width }; resizer.setPointerCapture(event.pointerId); }); resizer.addEventListener('pointermove', (event) => { if (!resizeStart) return; document.documentElement.style.setProperty('--panel-width', Math.max(300, resizeStart.width - (event.clientX - resizeStart.x)) + 'px'); }); resizer.addEventListener('pointerup', () => { resizeStart = undefined; });`;
+    applyView('all');`;
   const wireframe = renderWireframe(diff, getTemplateGeometry(options.template), rollups);
   return renderShell({ title: diff.pageName, productName: "FlexiPageDelta", metaHtml, bannerHtml, contentHtml: content, wireframeHtml: wireframe ?? undefined, defaultView: wireframe ? "wireframe" : "outline", clientScript });
 }

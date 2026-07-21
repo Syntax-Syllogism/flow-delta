@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { execFileSync } from "node:child_process";
 import { parseArgs } from "node:util";
+import { discoverGitMetadataFiles } from "./io/discover-git-metadata.ts";
 import { readMetadataFromFile, readMetadataFromGit } from "./io/read-metadata.ts";
 import { safeFileName } from "./util/file-name.ts";
 import { isMainModule } from "./util/is-main-module.ts";
@@ -66,7 +66,13 @@ async function runFileMode(oldPath: string, newPath: string, outDir: string, wri
 
 async function runGitMode(repo: string, from: string, to: string, pattern: string, outDir: string, writeJson: boolean, changedOnly: boolean): Promise<void> {
   let failed = false;
-  for (const filePath of discoverGitFiles(repo, from, to, pattern, changedOnly)) {
+  for (const filePath of discoverGitMetadataFiles({
+    repo,
+    fromRef: from,
+    toRef: to,
+    pattern,
+    changedOnly,
+  })) {
     try {
       const oldXml = readMetadataFromGit(repo, from, filePath);
       const newXml = readMetadataFromGit(repo, to, filePath);
@@ -89,29 +95,6 @@ async function writeArtifacts(oldModel: PageModel, newModel: PageModel, outDir: 
   writeFileSync(join(outDir, `${stem}.html`), renderOutline(diff, { template: newModel.header.template }), "utf8");
   if (writeJson) writeFileSync(join(outDir, `${stem}.diff.json`), JSON.stringify(diff, null, 2), "utf8");
   console.log(`${diff.pageName}: components +${diff.summary.addedComponents}/−${diff.summary.removedComponents}/~${diff.summary.modifiedComponents}; regions +${diff.summary.addedRegions}/−${diff.summary.removedRegions}/~${diff.summary.modifiedRegions}; page attributes ${diff.summary.changedPageAttributes}`);
-}
-
-function discoverGitFiles(repo: string, from: string, to: string, pattern: string, changedOnly: boolean): string[] {
-  const files = changedOnly
-    ? gitFiles(repo, ["diff", "--name-only", "--diff-filter=ACMRD", from, to, "--", pattern])
-    : [...new Set([...gitFiles(repo, ["ls-tree", "-r", "--name-only", from]), ...gitFiles(repo, ["ls-tree", "-r", "--name-only", to])])];
-  const matcher = globToRegExp(pattern.replaceAll("\\", "/"));
-  return files.filter((file) => matcher.test(file)).sort();
-}
-
-function gitFiles(repo: string, args: string[]): string[] {
-  return execFileSync("git", ["-C", repo, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).split("\n").map((line) => line.trim()).filter(Boolean);
-}
-
-function globToRegExp(pattern: string): RegExp {
-  let source = "^";
-  for (let index = 0; index < pattern.length; index += 1) {
-    const char = pattern[index];
-    if (char === "*") { if (pattern[index + 1] === "*") { source += ".*"; index += 1; } else source += "[^/]*"; continue; }
-    if (char === "?") { source += "[^/]"; continue; }
-    source += "\\^$+?.()|{}[]".includes(char) ? `\\${char}` : char;
-  }
-  return new RegExp(`${source}$`);
 }
 
 if (isMainModule(import.meta.url)) void main();

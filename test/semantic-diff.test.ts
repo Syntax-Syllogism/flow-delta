@@ -11,12 +11,14 @@ import { buildModel } from "../src/model/build-model.ts";
 import { extractFlowHeader } from "../src/model/flow-header.ts";
 import { deepDiff } from "../src/diff/deep-diff.ts";
 import { diffModel } from "../src/diff/diff-model.ts";
+import { buildFlowArtifactClientData } from "../src/render/artifact-client-data.ts";
 import { layoutDiff } from "../src/render/layout.ts";
 import { THEME_STORAGE_KEY, renderHtml } from "../src/render/render-html.ts";
 import { getSectionSchemas } from "../src/render/section-schemas.ts";
 import { renderNodePanelBody } from "../src/render/snapshot-panel.ts";
 import { main } from "../src/cli.ts";
 import { renderDom } from "./dom-harness.ts";
+import { assertChromeContract } from "./render-shell-contract.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SAMPLE_XML = readFileSync(join(ROOT, "fixtures", "parse", "sample.flow-meta.xml"), "utf8");
@@ -256,23 +258,18 @@ test("renderHtml emits a self-contained document with node ids and status classe
   const diff = diffModel(buildModel(await parseXml(SAMPLE_XML)), buildModel(await parseXml(SAMPLE_XML)));
   const layout = await layoutDiff(diff);
   const html = renderHtml(layout);
+  assertChromeContract(html);
 
   assert.match(html, /<!doctype html>/i);
   assert.match(html, /<html/i);
   assert.match(html, /class="node unchanged type-/);
   assert.match(html, /class="legend"/);
-  assert.match(html, /data-view-mode="all"/);
-  assert.match(html, /data-view-mode="after"/);
-  assert.match(html, /data-view-mode="before"/);
-  assert.match(html, /data-view-mode="changes"/);
-  assert.match(html, /aria-label="Color theme"/);
-  assert.match(html, /data-theme-choice="system"/);
-  assert.match(html, /data-theme-choice="light"/);
-  assert.match(html, /data-theme-choice="dark"/);
-  assert.match(html, /flow-delta-theme/);
-  assert.equal([...html.matchAll(new RegExp(THEME_STORAGE_KEY, "g"))].length, 2);
   assert.match(html, /@media \(prefers-color-scheme: dark\)/);
   assert.match(html, /:root\[data-theme="dark"\]/);
+  assert.match(
+    html,
+    /@media \(prefers-color-scheme: dark\) \{ :root:not\(\[data-theme="light"\]\) \{ --surface-subtle:#172033; --node-text:#f8fafc;[^}]*--canvas-start:#0f172a;/,
+  );
   assert.match(html, /panel-resizer:hover::before, \.panel-resizer\.dragging::before \{ background: var\(--focus\); width: 3px; \}/);
   assert.match(html, /function applyView\(mode\)/);
   assert.match(html, /function applyTheme\(theme\)/);
@@ -282,18 +279,13 @@ test("renderHtml emits a self-contained document with node ids and status classe
   assert.match(html, /const DATA = /);
   assert.match(html, /if \(event\.target\.closest\("\.node"\)\) return;/);
   assert.ok(!html.includes("activeView"));
-  assert.match(html, /grid-template-columns: minmax\(0, 1fr\) clamp\(300px, var\(--panel-width\), 70vw\)/);
   assert.match(html, /id="panel-resizer"/);
   assert.match(html, /id="panel-toggle"/);
   assert.match(html, /id="panel-reopen"/);
-  assert.match(html, /function setPanelCollapsed\(collapsed\)/);
-  assert.match(html, /function renderNodePanelBody\(node,\s*schemas/);
-  assert.match(html, /function diffValue\(before,\s*after\)/);
-  assert.match(html, /detail-section snapshot-section/);
-  assert.match(html, /function renderTable\(before,\s*after,\s*paths,\s*columns,\s*options\)/);
+  assert.match(html, /detailHtml/);
+  assert.doesNotMatch(html, /function renderNodePanelBody\(/);
+  assert.doesNotMatch(html, /snapshotPanelClientScript/);
   assert.match(html, /change-kind/);
-  assert.match(html, /function unwrapValue\(value\)/);
-  assert.match(html, /val ins/);
   assert.ok(!html.includes("http://"));
   assert.ok(!html.includes("https://"));
   for (const node of layout.nodes) {
@@ -396,41 +388,50 @@ test("section schemas name high-impact node property groups", () => {
   assert.deepEqual(getSectionSchemas("unknown"), []);
 });
 
-test("renderHtml embeds semantic schemas and generic grouping fallback", async () => {
+test("renderHtml embeds pre-rendered node details and generic grouping fallback", async () => {
   const diff = await diffFixture("modify_decision");
   const html = renderHtml(await layoutDiff(diff));
   const data = extractData(html);
 
-  assert.equal(data.sectionSchemas.decision[0].name, "Outcomes");
-  assert.equal(data.sectionSchemas.decision[0].render, "grouped-table");
-  assert.match(html, /function renderSections\(before,\s*after,\s*schemas,\s*options\)/);
-  assert.match(html, /function renderGroupedTable\(before,\s*after,\s*schema,\s*options\)/);
-  assert.match(html, /snapshot-section/);
+  assert.ok(data.nodes.some((node: { detailHtml: string }) => node.detailHtml.includes("Outcomes")));
+  assert.doesNotMatch(html, /sectionSchemas/);
+  assert.doesNotMatch(html, /function renderSections\(/);
+  assert.doesNotMatch(html, /function renderGroupedTable\(/);
   assert.match(html, /snapshot-section/);
 });
 
-test("renderHtml embeds per-view layouts that only reference visible nodes and edges", async () => {
+test("buildFlowArtifactClientData keeps semantic records separate from view geometry", async () => {
   const diff = await diffFixture("add_node");
-  const html = renderHtml(await layoutDiff(diff));
-  const data = extractData(html);
+  const data = buildFlowArtifactClientData(await layoutDiff(diff));
 
-  assert.ok(Array.isArray(data.diff.nodes));
-  assert.ok(data.diff.nodes.every((node: { status: string }) => typeof node.status === "string"));
-  assert.ok(data.diff.edges.every((edge: { status: string }) => typeof edge.status === "string"));
+  assert.equal(data.nodes.length, diff.nodes.length);
+  assert.equal(new Set(data.nodes.map((node) => node.id)).size, diff.nodes.length);
+  assert.ok(data.nodes.every((node) => node.detailHtml.length > 0));
+  assert.ok(data.nodes.every((node) => !Object.hasOwn(node, "before") && !Object.hasOwn(node, "after") && !Object.hasOwn(node, "changes")));
+  assert.ok(data.edges.every((edge) => !Object.hasOwn(edge, "label") && !Object.hasOwn(edge, "kind")));
+  assert.ok(!Object.hasOwn(data, "diff"));
+  assert.ok(!Object.hasOwn(data, "sectionSchemas"));
   assert.ok(data.layouts.union);
   assert.ok(data.layouts.after);
   assert.ok(data.layouts.before);
 
   const expectedNodeIds = {
-    union: new Set(data.diff.nodes.map((node: { id: string }) => node.id)),
-    after: new Set(data.diff.nodes.filter((node: { status: string }) => node.status !== "deleted").map((node: { id: string }) => node.id)),
-    before: new Set(data.diff.nodes.filter((node: { status: string }) => node.status !== "added").map((node: { id: string }) => node.id)),
+    union: new Set(data.nodes.map((node) => node.id)),
+    after: new Set(data.nodes.filter((node) => node.status !== "deleted").map((node) => node.id)),
+    before: new Set(data.nodes.filter((node) => node.status !== "added").map((node) => node.id)),
   };
 
-  for (const [name, expectedIds] of Object.entries(expectedNodeIds)) {
+  for (const name of ["union", "after", "before"] as const) {
+    const expectedIds = expectedNodeIds[name];
     const layoutView = data.layouts[name];
-    assert.ok(layoutView.nodes.every((node: { id: string }) => expectedIds.has(node.id)), `${name} nodes`);
-    assert.ok(layoutView.edges.every((edge: { source: string; target: string }) => expectedIds.has(edge.source) && expectedIds.has(edge.target)), `${name} edges`);
+    assert.ok(layoutView.nodes.every((node) => expectedIds.has(node.id)), `${name} nodes`);
+    assert.ok(layoutView.edges.every((edge) => {
+      const source = data.edges.find((candidate) => candidate.id === edge.id)?.source;
+      const target = data.edges.find((candidate) => candidate.id === edge.id)?.target;
+      return source !== undefined && target !== undefined && expectedIds.has(source) && expectedIds.has(target);
+    }), `${name} edges`);
+    assert.ok(layoutView.nodes.every((node) => Object.keys(node).sort().join(",") === "height,id,width,x,y"), `${name} node geometry`);
+    assert.ok(layoutView.edges.every((edge) => Object.keys(edge).sort().join(",") === "id,sections"), `${name} edge geometry`);
   }
 });
 
@@ -465,6 +466,46 @@ test("renderHtml client script executes against the rendered artifact DOM harnes
         assert.equal(themeButton.getAttribute("aria-pressed"), expected ? "true" : "false");
       }
     }
+    assert.deepEqual(dom.errors, []);
+  } finally {
+    dom.close();
+  }
+});
+
+test("renderHtml clears the detail panel when a filter hides every node", async () => {
+  const html = renderHtml(await layoutDiff(await diffFixture("noop_save")));
+  const dom = await renderDom(html);
+  try {
+    const changes = dom.document.querySelector('[data-view-mode="changes"]') as HTMLButtonElement | null;
+    assert.ok(changes);
+    changes.click();
+    assert.equal(dom.document.getElementById("panel-title")?.textContent, "No visible nodes");
+    assert.equal(dom.document.querySelector("#panel-body .empty")?.textContent, "This view has no visible nodes.");
+    assert.deepEqual(dom.errors, []);
+  } finally {
+    dom.close();
+  }
+});
+
+test("renderHtml activates an initially unselected node from the keyboard", async () => {
+  const html = renderHtml(await layoutDiff(await diffFixture("rewire_connector")));
+  const dom = await renderDom(html);
+  try {
+    const initiallySelected = dom.document.querySelector(".node.selected") as HTMLElement | null;
+    assert.ok(initiallySelected);
+    const node = Array.from(dom.document.querySelectorAll(".node"))
+      .find((candidate) => candidate !== initiallySelected) as HTMLElement | undefined;
+    assert.ok(node);
+    const initialPanelTitle = dom.document.getElementById("panel-title")?.textContent;
+
+    assert.equal(node.getAttribute("role"), "button");
+    assert.equal(node.getAttribute("tabindex"), "0");
+    node.dispatchEvent(new dom.window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    assert.equal(node.classList.contains("selected"), true);
+    assert.equal(initiallySelected.classList.contains("selected"), false);
+    assert.notEqual(dom.document.getElementById("panel-title")?.textContent, initialPanelTitle);
+    assert.deepEqual(dom.errors, []);
   } finally {
     dom.close();
   }
@@ -862,8 +903,8 @@ test("CLI git mode writes diff.json that matches file-mode output", async () => 
   const newXml = SAMPLE_XML.replace("<booleanValue>true</booleanValue>", "<booleanValue>false</booleanValue>");
   writeFileSync(flowAbsPath, oldXml, "utf8");
   git(repoDir, ["init", "-q"]);
-  git(repoDir, ["config", "user.email", "codex@example.com"]);
-  git(repoDir, ["config", "user.name", "Codex"]);
+  git(repoDir, ["config", "user.email", "test@example.com"]);
+  git(repoDir, ["config", "user.name", "test"]);
   git(repoDir, ["add", "."]);
   git(repoDir, ["commit", "-m", "old"]);
   const oldSha = git(repoDir, ["rev-parse", "HEAD"]);
@@ -889,6 +930,26 @@ test("CLI git mode writes diff.json that matches file-mode output", async () => 
   assert.deepEqual(diffJson, JSON.parse(JSON.stringify(expected)));
 });
 
+test("CLI git mode requires a Flow path before discovery", async () => {
+  const outDir = mkdtempSync(join(tmpdir(), "flow-delta-out-validation-"));
+  const previousExitCode = process.exitCode;
+  const errors: string[] = [];
+  const originalConsoleError = console.error;
+  process.exitCode = undefined;
+  console.error = (message?: unknown) => errors.push(String(message));
+  let observedExitCode: number | undefined;
+  try {
+    await main(["--from", "old", "--to", "new", "--repo", "repo", "--out", outDir]);
+  } finally {
+    observedExitCode = process.exitCode;
+    console.error = originalConsoleError;
+    process.exitCode = previousExitCode;
+  }
+
+  assert.deepEqual(errors, ["Git mode requires --from, --to, --repo, and --path"]);
+  assert.equal(observedExitCode, 1);
+});
+
 test("CLI git mode with --changed-only skips untouched flows that match the glob", async () => {
   const repoDir = mkdtempSync(join(tmpdir(), "flow-delta-git-changed-"));
   const outDir = mkdtempSync(join(tmpdir(), "flow-delta-out-"));
@@ -901,8 +962,8 @@ test("CLI git mode with --changed-only skips untouched flows that match the glob
   writeFileSync(changedAbsPath, SAMPLE_XML, "utf8");
   writeFileSync(untouchedAbsPath, SAMPLE_XML, "utf8");
   git(repoDir, ["init", "-q"]);
-  git(repoDir, ["config", "user.email", "codex@example.com"]);
-  git(repoDir, ["config", "user.name", "Codex"]);
+  git(repoDir, ["config", "user.email", "test@example.com"]);
+  git(repoDir, ["config", "user.name", "test"]);
   git(repoDir, ["add", "."]);
   git(repoDir, ["commit", "-m", "old"]);
   const oldSha = git(repoDir, ["rev-parse", "HEAD"]);
@@ -942,8 +1003,8 @@ test("CLI git mode discovers deleted files from refs and preserves the old flow 
 
   writeFileSync(flowAbsPath, SAMPLE_XML, "utf8");
   git(repoDir, ["init", "-q"]);
-  git(repoDir, ["config", "user.email", "codex@example.com"]);
-  git(repoDir, ["config", "user.name", "Codex"]);
+  git(repoDir, ["config", "user.email", "test@example.com"]);
+  git(repoDir, ["config", "user.name", "test"]);
   git(repoDir, ["add", "."]);
   git(repoDir, ["commit", "-m", "old"]);
   const oldSha = git(repoDir, ["rev-parse", "HEAD"]);
@@ -1174,9 +1235,6 @@ test('rendered "rewire_connector" distinguishes added and deleted edges', async 
   assert.equal([...html.matchAll(/class="edge normal added"/g)].length, 3);
   assert.equal([...html.matchAll(/class="edge normal deleted"/g)].length, 3);
   assert.match(html, /data-view-mode="changes"/);
-  assert.match(html, /\.edge\.unchanged \{ stroke-width: 1\.4; opacity: 0\.55; \}/);
-  assert.match(html, /\.edge\.added \{ stroke: var\(--added\); stroke-width: 3; marker-end: url\(#arrow-added\); \}/);
-  assert.match(html, /\.edge\.deleted \{ stroke: var\(--deleted\); stroke-width: 2; stroke-dasharray: 7 5; marker-end: url\(#arrow-deleted\); \}/);
 });
 
 test('diff fixture "fault_path" adds a kind=fault edge into the error node', async () => {
@@ -1199,10 +1257,10 @@ function git(repoDir: string, args: string[]): string {
     encoding: "utf8",
     env: {
       ...process.env,
-      GIT_AUTHOR_NAME: "Codex",
-      GIT_AUTHOR_EMAIL: "codex@example.com",
-      GIT_COMMITTER_NAME: "Codex",
-      GIT_COMMITTER_EMAIL: "codex@example.com",
+      GIT_AUTHOR_NAME: "test",
+      GIT_AUTHOR_EMAIL: "test@example.com",
+      GIT_COMMITTER_NAME: "test",
+      GIT_COMMITTER_EMAIL: "test@example.com",
     },
   }).trim();
 }

@@ -6,7 +6,7 @@ The pipeline is a straight line:
 ```
 XML (old) ─┐
            ├─► parser ─► GraphModel ─┐
-XML (new) ─┘     └─► header ──────────┤─► FlowDiff ─► layout ─► HTML + diff.json
+XML (new) ─┘     └─► header ──────────┤─► FlowDiff ─► layout ─► HTML + optional diff.json
                           (build-model)         (diff-model)  (render)
 ```
 
@@ -25,7 +25,9 @@ diff; only logic changes should surface.
 | Module                                          | Responsibility                                                                                                                                                                                                                                                 |
 | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `parser/flow_parser.ts`, `parser/flow_types.ts` | **Vendored** parser (Apache-2.0). Parses `.flow-meta.xml` into a `ParsedFlow` with typed node collections, a `nameToNode` map, and `transitions` (BFS from start). Do not edit — see [vendoring.md](vendoring.md).                                             |
-| `io/read-flow.ts`                               | Reads flow XML from a file path or from a git ref (`git show <ref>:<path>`). Returns `null` when a path is absent at a ref (added/deleted flow).                                                                                                               |
+| `io/read-metadata.ts`                           | Neutral synchronous XML reader for local paths and Git refs. Returns `null` when a metadata path is absent at a ref (added/deleted metadata). See [metadata-io.md](metadata-io.md).                                                                                |
+| `io/git.ts`                                     | Injectable `GitRunner`, default `execFileSync("git", ...)` adapter, and missing-at-ref error classification. See [metadata-io.md](metadata-io.md).                                                                                                         |
+| `io/discover-git-metadata.ts`                   | Shared full-tree/changed-only Git discovery, separator normalization, supported literal/glob matching, and sorted de-duplicated output. See [metadata-io.md](metadata-io.md).                                                                                |
 | `io/read-flow-from-org.ts`                      | Lists Flow versions through the Salesforce CLI Tooling API and retrieves selected historical versions as metadata XML through one temporary project scaffold, without handling credentials.                                                     |
 | `model/graph-model.ts`                          | Our normalized types: `GraphNode`, `GraphEdge`, `GraphModel`, `NodeType`. `GraphModel.header` carries curated flow-root attributes when raw XML is available.                                                                                                  |
 | `model/flow-header.ts`                          | Thin, non-vendored extractor for selected `<Flow>` root scalars (`status`, `processType`, `runInMode`, `apiVersion`, `triggerOrder`, `description`, `interviewLabel`, `isTemplate`). Parses raw XML with `xml2js` and leaves malformed/headerless XML as `{}`. |
@@ -34,7 +36,7 @@ diff; only logic changes should surface.
 | `diff/diff-model.ts`                            | `GraphModel × GraphModel → FlowDiff`. Classifies nodes/edges added/deleted/modified/unchanged, diffs both-present flow headers, and attaches per-property deltas.                                                                                              |
 | `render/layout.ts`                              | Deterministic graph layout via `elkjs` (layered, top-down). Positions are computed at build time and baked into the artifact.                                                                                                                                  |
 | `render/section-schemas.ts`                     | Type-specific property grouping schemas. Declare how each node type's changes should be organized into semantic sections (e.g., "Outcomes" for decisions) and rendered (lines, table, or grouped-table).                                                       |
-| `render/render-html.ts`                         | `LayoutedFlow → self-contained HTML` (inline SVG + vanilla JS pan/zoom + click-for-delta panel + interactive view filters). Uses section schemas to organize property changes semantically. No network/runtime deps. See [render.md](render.md).               |
+| `render/render-html.ts`                         | Flow-specific SVG canvas and semantic detail content supplied to the shared shell. Embeds a compact client DTO with pre-rendered detail HTML and geometry-only layouts; uses section schemas while rendering. No network/runtime deps. See [render.md](render.md).               |
 | `ci/report-core.ts`                             | Product/platform-agnostic reporting core: vocabulary-driven comment rendering, result loading, zero-summary checks, sticky-note helpers, artifact URLs, and path/table utilities. See [ci.md](ci.md) and [flexipage.md](flexipage.md).                                                                        |
 | `ci/gitlab-report.ts`                           | Consumes `*.diff.json` (via `report-core`), builds the sticky GitLab MR comment, and upserts it via the GitLab API. See [ci.md](ci.md).                                                                                                                        |
 | `ci/github-report.ts`                           | Same shared core, GitHub-shaped: upserts a sticky PR comment via the issue-comments API (marker-only match, no `/user` call). See [ci.md](ci.md).                                                                                                              |
@@ -44,10 +46,9 @@ FlexiPage modules:
 
 | Module | Responsibility |
 | --- | --- |
-| `io/read-metadata.ts` | Neutral local-file and git-ref XML reader used by the FlexiPage CLI. |
 | `flexipage/parse.ts` / `page-model.ts` | XML parser, recursive property normalization, transitive stable facet-path canonicalization, and ordered-tree types. |
 | `flexipage/diff-page.ts` | Collision-free canonical-region matching, identifier-aware LCS item matching, breadcrumbs, and header/region metadata diffs. |
-| `flexipage/render-outline.ts` / `render/shell.ts` | Offline nested outline, shared artifact shell, filters, theme controls, detail panel, and wireframe rollup/digest client state. |
+| `flexipage/render-outline.ts` / `render/render-html.ts` / `render/shell.ts` | The two renderers supply product-specific canvases and client state to one offline artifact shell; the shell owns filters, theme controls, panel chrome, and wireframe view switching. |
 | `flexipage/render-wireframe.ts` / `template-geometry.ts` | Registry-driven template placement, nested stacks, slot reconciliation, removed/unplaced content handling, and top-level change rollups. |
 | `flexipage-cli.ts` | File/git orchestration for `flexipage-delta`. |
 
@@ -60,6 +61,21 @@ Delivery extras:
 - `examples/gitlab-ci.yml` and `examples/github-actions.yml` are the documented
   job/workflow recipes for MR and PR pipelines, respectively.
 - [`publishing.md`](publishing.md) covers the npm package shape and release checks.
+
+## Shared artifact shell
+
+`src/render/shell.ts` is the single source of truth for the generated document
+chrome used by both products. It owns the doctype, inline theme bootstrap and
+theme persistence (`flow-delta-theme`), the four filter controls and their
+`flowdelta:view-mode` event contract, the collapsible/resizable detail-panel
+chrome, and the optional Outline/Wireframe preference (`flow-delta-view`).
+The shell contains no Flow- or FlexiPage-specific canvas logic.
+
+`src/render/render-html.ts` provides the Flow SVG, graph interaction client,
+semantic panel content, flow-level banner, and Flow-specific styles. The
+FlexiPage outline renderer provides its outline/wireframe content and semantic
+panel client. Both renderers therefore share the same offline shell while
+retaining independent canvas behavior.
 
 ## Invariants that must hold
 
@@ -122,6 +138,12 @@ mapping; it is uniform across all element types.
 `render-html.ts` emits a single HTML file with inline SVG, CSS, and JS — **no**
 external URLs (asserted in tests). Layout is precomputed; the browser only needs
 to pan/zoom and populate the side panel.
+
+The HTML embeds a client-oriented DTO rather than the full `FlowDiff`: semantic
+node and edge status/identity, server-rendered node detail HTML, and the baked
+geometry for the `union`, `after`, and `before` views. The optional neighboring
+`*.diff.json` export remains the machine-readable full `FlowDiff` used by CI
+reporters and debugging tools.
 
 ## Known scope boundaries
 

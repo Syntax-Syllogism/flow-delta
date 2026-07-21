@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.7.1] - 2026-07-20
+
+### Added
+- Share metadata and Git IO across CLIs
+- Reduce Flow artifact client payload
+
+### Fixed
+- System theme handling
+- Restore Flow node keyboard activation
+- Align Flow shell with client DTO
+
 ## [0.7.0] - 2026-07-19
 
 ### Added

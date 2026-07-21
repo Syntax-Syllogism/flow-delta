@@ -13,6 +13,7 @@ Complete guides for using, understanding, and extending FlowDelta.
 ## Using FlowDelta
 
 - [CLI usage](cli.md) — File, git, and Salesforce org modes, command-line options, output formats
+- [Shared metadata/Git IO](metadata-io.md) — Local/Git reader and discovery contracts used by both CLIs
 - [CI Integration](ci.md) — Running in GitLab/GitHub pipelines, MR/PR reporting, sticky comments, private-repo artifact viewing
 
 ## Understanding the system
@@ -69,7 +70,7 @@ Complete guides for using, understanding, and extending FlowDelta.
 | Module | Doc |
 |--------|-----|
 | `src/parser/` | [Vendoring Policy](vendoring.md) (read-only, Apache-2.0) |
-| `src/io/` | [CLI usage](cli.md) |
+| `src/io/` | [Shared metadata/Git IO](metadata-io.md), [CLI usage](cli.md) |
 | `src/model/` | [Data Model Reference](data-model.md), [Architecture](architecture.md) |
 | `src/diff/` | [Architecture](architecture.md) |
 | `src/render/` | [Rendering](render.md), [Section Schema Authoring](section-schemas.md) |
@@ -103,6 +104,7 @@ docs/
   section-schemas.md       — Semantic property organization
   extending-node-types.md  — Adding new element type support
   cli.md                   — Command-line interface
+  metadata-io.md           — Shared metadata and Git input boundary
   ci.md                    — GitLab + GitHub CI integration
   testing.md               — Test layout & fixture authoring
   publishing.md            — Build & npm release
