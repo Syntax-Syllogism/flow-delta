@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.0] - 2026-08-04
 
+### Added
+
+- FlexiPage component detail schemas for high-signal property changes
+- FlexiPage facet canonicalization with stable paths and unique names
+- FlowDelta documentation site
+
 ### Changed
 
-- Internal maintenance and tooling updates
+- Internal release tooling and repository guidance updates
 
 ## [0.7.1] - 2026-07-20
 
