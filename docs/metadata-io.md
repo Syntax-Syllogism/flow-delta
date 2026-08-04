@@ -1,3 +1,8 @@
+---
+title: Shared metadata and Git input
+description: Local and Git metadata discovery contracts for both CLIs.
+---
+
 # Shared metadata and Git input
 
 FlowDelta and FlexiPageDelta keep their product policies and semantic pipelines

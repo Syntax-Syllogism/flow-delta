@@ -1,3 +1,8 @@
+---
+title: Getting Started
+description: Install FlowDelta and run local, Git, or org comparisons.
+---
+
 # Getting Started
 
 FlowDelta is a TypeScript CLI tool that compares Salesforce Flow metadata and produces visual diffs. This guide helps you set up the project locally and run it for the first time.
@@ -152,7 +157,7 @@ See [docs/debugging.md](debugging.md) for more troubleshooting tips.
 - Read [docs/architecture.md](architecture.md) for the conceptual pipeline
 - Read [docs/render.md](render.md) to understand the interactive HTML features
 - Explore the test fixtures in `fixtures/diff/` to see real-world change patterns
-- Check [CONTRIBUTING.md](../CONTRIBUTING.md) for code style and PR expectations
+- Check [CONTRIBUTING.md](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/CONTRIBUTING.md) for code style and PR expectations
 
 ## Questions?
 

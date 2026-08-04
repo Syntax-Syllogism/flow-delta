@@ -1,3 +1,8 @@
+---
+title: Data Model Reference
+description: Core FlowDelta types and their role in the pipeline.
+---
+
 # Data Model Reference
 
 FlowDelta transforms Salesforce Flow metadata through several normalized types. Understanding these structures is essential for extending the system or debugging diff issues.

@@ -1,6 +1,6 @@
 {
   "name": "@syntax-syllogism/flow-delta",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "type": "module",
   "description": "Semantic visual diff for Salesforce Flows",
   "license": "MIT",
@@ -30,7 +30,7 @@
     "smoke:gitlab": "node --import tsx scripts/smoke-gitlab.ts",
     "smoke:github": "node --import tsx scripts/smoke-github.ts",
     "preview:comment": "node --import tsx scripts/preview-comment.ts",
-    "test": "node --import tsx --test test/parser.test.ts test/org-flow.test.ts test/semantic-diff.test.ts test/metadata-io.test.ts test/report-core.test.ts test/gitlab-report.test.ts test/github-report.test.ts test/smoke-common.test.ts test/smoke-github.test.ts test/r2-publish.test.ts test/cloudflare-worker.test.ts test/flexipage-delta.test.ts",
+    "test": "node --import tsx --test test/parser.test.ts test/org-flow.test.ts test/semantic-diff.test.ts test/metadata-io.test.ts test/report-core.test.ts test/gitlab-report.test.ts test/github-report.test.ts test/smoke-common.test.ts test/smoke-github.test.ts test/r2-publish.test.ts test/cloudflare-worker.test.ts test/flexipage-canonicalize.test.ts test/flexipage-delta.test.ts",
     "test:parser": "node --import tsx --test test/parser.test.ts",
     "test:org": "node --import tsx --test test/org-flow.test.ts",
     "prepublishOnly": "npm run typecheck && npm run build && npm test",
@@ -46,7 +46,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "elkjs": "^0.11.1",
+    "elkjs": "^0.12.0",
     "xml2js": "^0.6.2"
   },
   "bin": {

@@ -1,5 +1,5 @@
 # --- PUBLIC repo .gitignore. ---
-# bin/publish.sh copies this over .gitignore on the orphan `release` branch,
+# The publish CLI swaps this over .gitignore on the orphan `release` branch,
 # then `git rm --cached` removes any tracked file matched here. Everything
 # below is therefore EXCLUDED from the public repository.
 #
@@ -29,6 +29,13 @@ yarn-error.log
 .idea/
 .history/
 
+# flow-delta generated artifacts and Salesforce state
+flow-delta-out/
+flexipage-delta-out/
+sample-project/
+sample-flexipage-project/
+.sfdx
+
 # === private-only: AI / agent tooling ===
 AGENTS.md
 CLAUDE.md
@@ -52,3 +59,4 @@ docs/smoke-reports/
 .gitignore.public
 bin/publish.sh
 bin/changelog-prompt.txt
+release.config.mjs

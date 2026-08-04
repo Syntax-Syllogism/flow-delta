@@ -1,3 +1,8 @@
+---
+title: CLI usage
+description: File, Git, and Salesforce org comparison modes.
+---
+
 # CLI usage
 
 FlowDelta ships a packaged CLI as the `flow-delta` binary, published as

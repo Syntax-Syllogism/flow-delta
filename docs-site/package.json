@@ -1,0 +1,22 @@
+{
+  "name": "flow-delta-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "npm run build:site && npm test",
+    "build:site": "node scripts/build.mjs",
+    "preview": "astro preview",
+    "test": "node test/docs-site.test.mjs"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "^7.2.2",
+    "@astrojs/starlight": "^0.41.4",
+    "@syntax-syllogism/docs-theme": "^0.2.0",
+    "astro": "^7.1.3",
+    "starlight-links-validator": "^0.25.2"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

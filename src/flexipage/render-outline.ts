@@ -1,5 +1,6 @@
 import type { PropertyChange } from "../diff/deep-diff.ts";
 import { renderShell } from "../render/shell.ts";
+import { resolveComponentChanges } from "./component-schemas.ts";
 import type { ItemDiff, PageDiff, RegionDiff } from "./diff-page.ts";
 import { escapeHtml, itemFacetRefs, renderItem } from "./render-helpers.ts";
 import { getWireframeRollups, regionChangeId, renderWireframe } from "./render-wireframe.ts";
@@ -41,15 +42,15 @@ export function renderOutline(diff: PageDiff, options: RenderOptions = {}): stri
   const templateChange = diff.pageChanges?.find((change) => change.path === "template");
   const bannerHtml = templateChange ? `<div class="banner">Template changed: ${renderInlineValue(templateChange.before)} → ${renderInlineValue(templateChange.after)}</div>` : "";
   const data = Object.fromEntries([
-    ...diff.regions.flatMap((region) => region.items.map((item) => [item.id, item] as const)),
-    ...diff.regions.flatMap((region) => region.changes?.length ? [[regionChangeId(region), {
+    ...diff.regions.flatMap((region) => region.items.map((item) => [item.id, enrichPanelItem(item)] as const)),
+    ...diff.regions.flatMap((region) => region.changes?.length ? [[regionChangeId(region), enrichPanelItem({
       id: regionChangeId(region),
       path: region.path,
       kind: "region",
       status: region.status,
       componentName: region.name.split(" › ").at(-1)?.match(/\(([^()]+)\)$/)?.[1] ?? region.name.split(" › ").at(-1) ?? region.name,
       changes: region.changes,
-    }] as const] : []),
+    })] as const] : []),
   ]);
   const rollups = getWireframeRollups(diff);
   const json = JSON.stringify({ items: data, rollups }).replace(/</g, "\\u003c");
@@ -70,16 +71,36 @@ export function renderOutline(diff: PageDiff, options: RenderOptions = {}): stri
     function text(value) { return value === undefined ? '(missing)' : typeof value === 'object' ? JSON.stringify(value) : String(value); }
     function escape(value) { return text(value).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
     function renderValue(before, after) { if (before === undefined) return '<span class="val after">' + escape(after) + '</span>'; if (after === undefined) return '<span class="val before">' + escape(before) + '</span>'; return '<span class="val before">' + escape(before) + '</span><span class="arrow">→</span><span class="val after">' + escape(after) + '</span>'; }
-    function selectItem(id, fromDigest = false) { const item = DATA.items[id]; if (!item) return; if (!fromDigest) { activeDigestRegion = undefined; panelBack.hidden = true; } else { panelBack.hidden = false; panelBack.textContent = 'Back to ' + activeDigestRegion + ' changes'; } const title = item.componentName || item.fieldItem || 'Item'; panelTitle.textContent = title; panelBadge.hidden = false; panelBadge.textContent = item.status; panelBadge.className = 'panel-badge ' + item.status; const location = item.path ? '<div class="item-path">' + escape(item.path) + '</div>' : ''; const notes = item.notes?.length ? '<ul class="item-notes">' + item.notes.map((note) => '<li>' + escape(note) + '</li>').join('') + '</ul>' : ''; if (!item.changes || item.changes.length === 0) { if (item.status === 'unchanged' && !notes) { panelBody.className = 'empty'; panelBody.textContent = 'No property changes.'; } else { panelBody.className = 'empty'; panelBody.innerHTML = location + notes + '<div>' + (item.status === 'unchanged' ? 'No property changes.' : 'No property details available.') + '</div>'; } return; } panelBody.className = ''; panelBody.innerHTML = location + notes + '<ul class="changes">' + item.changes.map((change) => '<li><span class="change-path">' + escape(change.path) + '</span>' + renderValue(change.before, change.after) + '</li>').join('') + '</ul>'; }
+    function renderChange(change) { return '<li><span class="change-path">' + escape(change.label || change.path) + '</span>' + renderValue(change.before, change.after) + '</li>'; }
+    function renderChanges(item) { if (!item.changeSections) return '<ul class="changes">' + item.changes.map(renderChange).join('') + '</ul>'; return '<div class="component-change-groups">' + item.changeSections.map((section) => '<section class="component-change-group"><h3>' + escape(section.name) + '</h3><ul class="changes">' + section.changes.map(renderChange).join('') + '</ul></section>').join('') + '</div>'; }
+    function selectItem(id, fromDigest = false) { const item = DATA.items[id]; if (!item) return; if (!fromDigest) { activeDigestRegion = undefined; panelBack.hidden = true; } else { panelBack.hidden = false; panelBack.textContent = 'Back to ' + activeDigestRegion + ' changes'; } const title = item.componentLabel || item.componentName || item.fieldItem || 'Item'; panelTitle.textContent = title; panelBadge.hidden = false; panelBadge.textContent = item.status; panelBadge.className = 'panel-badge ' + item.status; const location = item.path ? '<div class="item-path">' + escape(item.path) + '</div>' : ''; const notes = item.notes?.length ? '<ul class="item-notes">' + item.notes.map((note) => '<li>' + escape(note) + '</li>').join('') + '</ul>' : ''; if (!item.changes || item.changes.length === 0) { if (item.status === 'unchanged' && !notes) { panelBody.className = 'empty'; panelBody.textContent = 'No property changes.'; } else { panelBody.className = 'empty'; panelBody.innerHTML = location + notes + '<div>' + (item.status === 'unchanged' ? 'No property changes.' : 'No property details available.') + '</div>'; } return; } panelBody.className = ''; panelBody.innerHTML = location + notes + renderChanges(item); }
     function selectRow(row) { selectItem(row.dataset.itemId); }
-    function digestEntry(id) { const item = DATA.items[id]; if (!item) return ''; const label = item.componentName || item.fieldItem || 'Item'; return '<button class="digest-entry ' + item.status + '" type="button" data-digest-item-id="' + escape(id) + '"><span class="status-badge ' + item.status + '">' + escape(item.status) + '</span><span>' + escape(label) + '</span></button>'; }
+    function digestEntry(id) { const item = DATA.items[id]; if (!item) return ''; const label = item.componentLabel || item.componentName || item.fieldItem || 'Item'; return '<button class="digest-entry ' + item.status + '" type="button" data-digest-item-id="' + escape(id) + '"><span class="status-badge ' + item.status + '">' + escape(item.status) + '</span><span>' + escape(label) + '</span></button>'; }
     function showDigest(regionName) { const rollup = DATA.rollups[regionName]; if (!rollup) return; document.body.classList.remove('panel-collapsed'); document.getElementById('panel-toggle')?.setAttribute('aria-expanded','true'); activeDigestRegion = regionName; panelTitle.textContent = regionName + ' changes'; panelBadge.hidden = true; panelBack.hidden = true; panelBody.className = ''; panelBody.innerHTML = '<div class="digest">' + rollup.groups.map((group) => '<section class="digest-group"><div class="digest-group-head"><span>' + escape(group.label) + '</span><span class="digest-group-count">' + group.itemIds.length + ' ' + (group.itemIds.length === 1 ? 'change' : 'changes') + '</span></div>' + group.itemIds.map(digestEntry).join('') + '</section>').join('') + '</div>'; panelBody.querySelectorAll('[data-digest-item-id]').forEach((entry) => entry.addEventListener('click', () => selectItem(entry.dataset.digestItemId, true))); }
     rows.forEach((row) => { row.addEventListener('click', () => selectRow(row)); row.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectRow(row); } }); });
     document.querySelectorAll('.wireframe-rollup').forEach((button) => button.addEventListener('click', (event) => { event.stopPropagation(); showDigest(button.dataset.rollupRegion); }));
     panelBack.addEventListener('click', () => { if (activeDigestRegion) showDigest(activeDigestRegion); });
     applyView('all');`;
   const wireframe = renderWireframe(diff, getTemplateGeometry(options.template), rollups);
-  return renderShell({ title: diff.pageName, productName: "FlexiPageDelta", metaHtml, bannerHtml, contentHtml: content, wireframeHtml: wireframe ?? undefined, defaultView: wireframe ? "wireframe" : "outline", clientScript });
+  return renderShell({
+    title: diff.pageName,
+    productName: "FlexiPageDelta",
+    metaHtml,
+    bannerHtml,
+    contentHtml: content,
+    wireframeHtml: wireframe ?? undefined,
+    defaultView: wireframe ? "wireframe" : "outline",
+    stylesHtml: ".component-change-groups{display:grid;gap:14px}.component-change-group{margin:0}.component-change-group h3{margin:0 0 7px;font-size:13px;color:var(--text)}",
+    clientScript,
+  });
+}
+
+function enrichPanelItem<T extends { componentName?: string; changes?: PropertyChange[] }>(item: T): T & Record<string, unknown> {
+  if (!item.componentName || !item.changes) return item;
+  const resolved = resolveComponentChanges(item.componentName, item.changes);
+  return resolved
+    ? { ...item, componentLabel: resolved.componentLabel, changeSections: resolved.sections }
+    : item;
 }
 
 function renderInlineValue(value: unknown): string {

@@ -1,3 +1,8 @@
+---
+title: Debugging and Troubleshooting
+description: Diagnose parse errors, unexpected diffs, and layout issues.
+---
+
 # Debugging and Troubleshooting
 
 This guide helps you troubleshoot common issues when comparing flows, understanding diffs, and extending FlowDelta.

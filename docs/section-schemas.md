@@ -1,3 +1,8 @@
+---
+title: Section Schema Authoring Guide
+description: Define semantic property groups for Flow element diffs.
+---
+
 # Section Schema Authoring Guide
 
 The semantic property panel in the interactive diff organizes property changes into sections. This guide explains how to define, customize, and extend section schemas for new or modified node types.

@@ -1,3 +1,8 @@
+---
+title: Vendored parser (Apache-2.0)
+description: Provenance and maintenance policy for the vendored Flow parser.
+---
+
 # Vendored parser (Apache-2.0)
 
 FlowDelta does not parse Flow XML itself. The parser is **vendored** from
@@ -47,8 +52,8 @@ To stay compliant with Apache-2.0 when redistributing (including npm publish),
 all of the following must travel together:
 
 - `src/parser/*` original Apache-2.0 headers (do not strip): §4(c).
-- [`LICENSE-APACHE`](../LICENSE-APACHE), the full Apache-2.0 text: §4(a).
-- [`NOTICE`](../NOTICE), attribution + upstream commit: §4(d).
+- [`LICENSE-APACHE`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/LICENSE-APACHE), the full Apache-2.0 text: §4(a).
+- [`NOTICE`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/NOTICE), attribution + upstream commit: §4(d).
 
 The parser is vendored verbatim, so there are no "modified file" notices to add
 under §4(b); if that ever changes, mark the modified files prominently.

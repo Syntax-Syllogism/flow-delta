@@ -1,3 +1,8 @@
+---
+title: Rendering
+description: Interactive FlowDelta artifacts, layouts, and detail panels.
+---
+
 # Rendering
 
 FlowDelta's renderer turns a `FlowDiff` into a single self-contained HTML
@@ -211,8 +216,13 @@ not involved.
 Both products use `src/render/shell.ts` for inline theme controls, four view
 filters, the resizable/collapsible detail panel, and the offline document
 shell. FlexiPage's `src/flexipage/render-outline.ts` supplies the outline,
-wireframe, and generic component/field detail behavior. Clicking a component or
-field row renders generic property delta lines and its resolved breadcrumb.
+wireframe, and component/field detail behavior. Its
+`src/flexipage/component-schemas.ts` registry gives high-signal component types
+friendly titles and grouped property labels; unknown components retain generic
+property delta lines, and uncovered properties on known components appear under
+`Other` with `humanizePath` labels. Schema enrichment is presentation-only: the
+`PageDiff` model and emitted `*.diff.json` remain semantic data without render
+fields. Clicking a component or field row also shows its resolved breadcrumb.
 Dynamic Forms property
 changes are rendered from structured values, including criterion-level
 `visibilityRule` changes; added or removed fields with a rule carry a styled

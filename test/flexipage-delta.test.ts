@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { test } from "node:test";
 import type { Element, HTMLButtonElement, HTMLElement } from "happy-dom";
 import { buildFlexiPageComment, isZeroPageSummary } from "../src/ci/report-core.ts";
+import { resolveComponentChanges } from "../src/flexipage/component-schemas.ts";
 import { diffPage, type PageDiff } from "../src/flexipage/diff-page.ts";
 import { parseFlexiPage } from "../src/flexipage/parse.ts";
 import { renderOutline } from "../src/flexipage/render-outline.ts";
@@ -82,6 +83,102 @@ test("component properties and root scalars produce semantic deltas", async () =
   assert.deepEqual(diff.regions[0].items[0].changes, [{ path: "numVisibleActions", before: "3", after: "5" }]);
   assert.deepEqual(diff.pageChanges, [{ path: "template", before: "recordHomeTemplateDesktop", after: "recordHomeWithSubheaderTemplateDesktop" }]);
   assert.equal(diff.summary.changedPageAttributes, 1);
+});
+
+test("component schemas group and label flow interview changes without changing the diff", async () => {
+  const oldXml = page(region("main", "Region", component(
+    "flowruntime:interview",
+    property("flowName", "OldFlow") + property("flowArguments", "old arguments") + property("mysterySetting", "before"),
+  )));
+  const newXml = page(region("main", "Region", component(
+    "flowruntime:interview",
+    property("flowName", "NewFlow") + property("flowArguments", "new arguments") + property("mysterySetting", "after"),
+  )));
+  const diff = diffPage(await parseFlexiPage(oldXml), await parseFlexiPage(newXml));
+  assert.deepEqual(diff.regions[0].items[0].changes, [
+    { path: "flowArguments", before: "old arguments", after: "new arguments" },
+    { path: "flowName", before: "OldFlow", after: "NewFlow" },
+    { path: "mysterySetting", before: "before", after: "after" },
+  ]);
+  assert.doesNotMatch(JSON.stringify(diff), /componentLabel|changeSections/);
+
+  const dom = await renderDom(renderOutline(diff));
+  try {
+    (dom.document.querySelector('[data-item-id="main:0"]') as HTMLElement | null)?.click();
+    assert.equal(dom.document.getElementById("panel-title")?.textContent, "Flow Interview");
+    const panel = dom.document.getElementById("panel-body");
+    assert.equal(panel?.querySelectorAll(".component-change-group").length, 3);
+    assert.match(panel?.textContent ?? "", /Flow/);
+    assert.match(panel?.textContent ?? "", /Input Variables/);
+    assert.match(panel?.textContent ?? "", /Other/);
+    assert.match(panel?.textContent ?? "", /NewFlow/);
+    assert.match(panel?.textContent ?? "", /Mystery Setting/);
+    assert.doesNotMatch(renderOutline(diff), /https?:\/\//);
+  } finally {
+    dom.close();
+  }
+});
+
+test("unknown components retain the generic property-line fallback", async () => {
+  const oldXml = page(region("main", "Region", component("custom:widget", property("mysterySetting", "before"))));
+  const newXml = page(region("main", "Region", component("custom:widget", property("mysterySetting", "after"))));
+  const diff = diffPage(await parseFlexiPage(oldXml), await parseFlexiPage(newXml));
+  const dom = await renderDom(renderOutline(diff));
+  try {
+    (dom.document.querySelector('[data-item-id="main:0"]') as HTMLElement | null)?.click();
+    const panel = dom.document.getElementById("panel-body");
+    assert.equal(dom.document.getElementById("panel-title")?.textContent, "custom:widget");
+    assert.equal(panel?.querySelectorAll(".component-change-group").length, 0);
+    assert.equal(panel?.querySelector(".change-path")?.textContent, "mysterySetting");
+    assert.match(panel?.textContent ?? "", /before/);
+    assert.match(panel?.textContent ?? "", /after/);
+  } finally {
+    dom.close();
+  }
+});
+
+test("component schema registry covers the high-signal FlexiPage types", async () => {
+  const cases = [
+    ["force:relatedListSingleContainer", "rowsToDisplay", "Rows to Display", "Display"],
+    ["force:relatedListContainer", "relatedListName", "Related List", "Related List"],
+    ["force:highlightsPanel", "numVisibleActions", "Visible Actions", "Display"],
+    ["flexipage:tab", "title", "Title", "Tab"],
+    ["flexipage:tabset", "tabs", "Tabs", "Tabs"],
+  ] as const;
+  for (const [componentName, path, label, group] of cases) {
+    const resolved = resolveComponentChanges(componentName, [{ path, before: "before", after: "after" }]);
+    assert.ok(resolved);
+    assert.equal(resolved.sections[0]?.name, group);
+    assert.equal(resolved.sections[0]?.changes[0]?.label, label);
+  }
+  const other = resolveComponentChanges("force:highlightsPanel", [{ path: "unknownProperty", before: 1, after: 2 }]);
+  assert.equal(other?.sections.at(-1)?.name, "Other");
+  assert.equal(other?.sections.at(-1)?.changes[0]?.label, "Unknown Property");
+
+  for (const componentName of ["toString", "constructor"]) {
+    assert.equal(resolveComponentChanges(componentName, [{ path: "value", before: 1, after: 2 }]), undefined);
+    const oldXml = page(region("main", "Region", component(componentName, property("value", "before"))));
+    const newXml = page(region("main", "Region", component(componentName, property("value", "after"))));
+    const oldModel = await parseFlexiPage(oldXml);
+    const newModel = await parseFlexiPage(newXml);
+    assert.doesNotThrow(() => renderOutline(diffPage(oldModel, newModel)));
+  }
+});
+
+test("CLI emits byte-identical semantic diff JSON for schematized properties", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "flexipage-delta-json-"));
+  const out = join(dir, "out");
+  const oldPath = join(dir, "before.flexipage-meta.xml");
+  const newPath = join(dir, "after.flexipage-meta.xml");
+  const oldXml = page(region("main", "Region", component("flowruntime:interview", property("flowName", "OldFlow"))));
+  const newXml = page(region("main", "Region", component("flowruntime:interview", property("flowName", "NewFlow"))));
+  writeFileSync(oldPath, oldXml, "utf8");
+  writeFileSync(newPath, newXml, "utf8");
+  const expected = diffPage(await parseFlexiPage(oldXml), await parseFlexiPage(newXml));
+  await flexiPageCliMain(["--old", oldPath, "--new", newPath, "--out", out, "--json"]);
+  const jsonFile = readdirSync(out).find((file) => file.endsWith(".diff.json"));
+  assert.ok(jsonFile);
+  assert.equal(readFileSync(join(out, jsonFile!), "utf8"), JSON.stringify(expected, null, 2));
 });
 
 test("outline is offline, filterable, and nested", async () => {

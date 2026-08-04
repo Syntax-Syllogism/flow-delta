@@ -1,10 +1,15 @@
+---
+title: Publishing and packaging
+description: Build, package, and release FlowDelta to npm.
+---
+
 # Publishing and packaging
 
 FlowDelta publishes as the npm package `@syntax-syllogism/flow-delta`.
 
 ## Build
 
-`npm run build` runs [`scripts/build.mjs`](../scripts/build.mjs), which bundles
+`npm run build` runs [`scripts/build.mjs`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/scripts/build.mjs), which bundles
 the six CLI/reporting entrypoints into:
 
 - `dist/cli.js`
@@ -55,6 +60,9 @@ npm pack --json
 `npm run typecheck` is also wired into repository CI and `prepublishOnly`,
 before the build and test steps. The packed tarball should include the six
 `dist` entrypoints plus the licensing files above.
+
+The release CLI keeps the pinned source links in these docs aligned with the
+new release tag as part of the release commit.
 
 The Apache-2.0 vendored parser requires `NOTICE` and `LICENSE-APACHE` to travel
 with the npm package. See [vendoring.md](vendoring.md) for the license

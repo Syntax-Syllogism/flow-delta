@@ -1,3 +1,8 @@
+---
+title: Architecture
+description: FlowDelta pipeline, module responsibilities, and invariants.
+---
+
 # Architecture
 
 FlowDelta converts two versions of a Salesforce Flow into a semantic, visual diff.
@@ -46,9 +51,12 @@ FlexiPage modules:
 
 | Module | Responsibility |
 | --- | --- |
-| `flexipage/parse.ts` / `page-model.ts` | XML parser, recursive property normalization, transitive stable facet-path canonicalization, and ordered-tree types. |
+| `flexipage/parse.ts` | XML adapter that builds a raw `PageModel` and composes canonicalization. |
+| `flexipage/canonicalize-page.ts` | Pure domain transformation for transitive stable facet-path canonicalization, GUID-free identity, and unique region names. |
+| `flexipage/page-model.ts` | Ordered-tree types for page headers, regions, items, and recursive property values. |
 | `flexipage/diff-page.ts` | Collision-free canonical-region matching, identifier-aware LCS item matching, breadcrumbs, and header/region metadata diffs. |
-| `flexipage/render-outline.ts` / `render/render-html.ts` / `render/shell.ts` | The two renderers supply product-specific canvases and client state to one offline artifact shell; the shell owns filters, theme controls, panel chrome, and wireframe view switching. |
+| `flexipage/component-schemas.ts` | Hand-curated component-name registry that resolves high-signal FlexiPage property changes into labeled groups, with humanized and generic fallbacks. |
+| `flexipage/render-outline.ts` / `render/render-html.ts` / `render/shell.ts` | The two renderers supply product-specific canvases and client state to one offline artifact shell; the shell owns filters, theme controls, panel chrome, and wireframe view switching. FlexiPage schema enrichment is presentation-only and stays out of `PageDiff`/`diff.json`. |
 | `flexipage/render-wireframe.ts` / `template-geometry.ts` | Registry-driven template placement, nested stacks, slot reconciliation, removed/unplaced content handling, and top-level change rollups. |
 | `flexipage-cli.ts` | File/git orchestration for `flexipage-delta`. |
 

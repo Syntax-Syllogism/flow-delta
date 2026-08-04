@@ -1,3 +1,8 @@
+---
+title: Extending FlowDelta for New Salesforce Node Types
+description: Add semantic support for Salesforce Flow element types.
+---
+
 # Extending FlowDelta for New Salesforce Node Types
 
 When Salesforce ships a new Flow element type (or an existing type gains new properties), this guide explains how to extend FlowDelta to support it.

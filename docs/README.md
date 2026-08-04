@@ -1,3 +1,8 @@
+---
+title: FlowDelta Documentation
+description: Complete guides for using, understanding, and extending FlowDelta.
+---
+
 # FlowDelta Documentation
 
 Complete guides for using, understanding, and extending FlowDelta.
@@ -22,6 +27,7 @@ Complete guides for using, understanding, and extending FlowDelta.
 - **[Salesforce Flow XML Primer](salesforce-flow-primer.md)** — XML structure, element types, connectors, and how FlowDelta parses them
 - [Architecture](architecture.md) — Module responsibilities, canonicalization rules, invariants that must hold
 - [Rendering](render.md) — Interactive HTML features, section schemas, layout strategy, side panel organization
+- [FlexiPageDelta](flexipage.md) — Semantic diffs and wireframes for Salesforce Lightning pages
 
 ## Extending and customizing
 
@@ -35,6 +41,7 @@ Complete guides for using, understanding, and extending FlowDelta.
 - [Getting Started](getting-started.md) — Local setup, running tests, common workflows
 - [Debugging & Troubleshooting](debugging.md) — Parse errors, unexpected diffs, layout issues, and troubleshooting strategies
 - [Vendoring Policy](vendoring.md) — The Apache-2.0 parser, provenance, do-not-edit rules, licensing
+- [Documentation site](docs-site.md) — Local preview, link authoring, and release publication
 
 ## Navigation by task
 
@@ -44,8 +51,8 @@ Complete guides for using, understanding, and extending FlowDelta.
 → [Getting Started](getting-started.md) → [CLI usage](cli.md)
 
 **Set up CI reporting in GitLab or GitHub**
-→ [CI Integration](ci.md) + [examples/gitlab-ci.yml](../examples/gitlab-ci.yml) /
-[examples/github-actions.yml](../examples/github-actions.yml)
+→ [CI Integration](ci.md) + [examples/gitlab-ci.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/examples/gitlab-ci.yml) /
+[examples/github-actions.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/examples/github-actions.yml)
 
 **Understand why a diff looks wrong**
 → [Debugging & Troubleshooting](debugging.md) → [Data Model Reference](data-model.md)
@@ -64,6 +71,9 @@ Complete guides for using, understanding, and extending FlowDelta.
 
 **Release a new version**
 → [Publishing](publishing.md)
+
+**Build or update the documentation site**
+→ [Documentation site](docs-site.md)
 
 ## Module reference
 
@@ -106,7 +116,9 @@ docs/
   cli.md                   — Command-line interface
   metadata-io.md           — Shared metadata and Git input boundary
   ci.md                    — GitLab + GitHub CI integration
+  flexipage.md             — Lightning page semantic diff and wireframe pipeline
   testing.md               — Test layout & fixture authoring
+  docs-site.md             — Documentation authoring, local build, and publication
   publishing.md            — Build & npm release
   vendoring.md             — Parser policy & licensing
   debugging.md             — Troubleshooting strategies
@@ -115,14 +127,14 @@ docs/
 ## Conventions
 
 - **File paths** are relative to the project root: `src/cli.ts`, `test/semantic-diff.test.ts`
-- **Code examples** use `npm` and `npm run` scripts; see [package.json](../package.json)
+- **Code examples** use `npm` and `npm run` scripts; see [package.json](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/package.json)
 - **Terminals** show bash/sh syntax; Windows users should use PowerShell or Git Bash
 - **Links** to source code assume you've cloned the repo and have it open
 
 ## Contributing
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for code style, PR expectations, and the development workflow.
+See [CONTRIBUTING.md](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/CONTRIBUTING.md) for code style, PR expectations, and the development workflow.
 
 ## License
 
-FlowDelta code is MIT. The vendored parser is Apache-2.0. See [LICENSE](../LICENSE) and [LICENSE-APACHE](../LICENSE-APACHE).
+FlowDelta code is MIT. The vendored parser is Apache-2.0. See [LICENSE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/LICENSE) and [LICENSE-APACHE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/LICENSE-APACHE).

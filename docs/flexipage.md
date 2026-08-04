@@ -1,3 +1,8 @@
+---
+title: FlexiPageDelta
+description: Semantic diffs and wireframes for Salesforce Lightning pages.
+---
+
 # FlexiPageDelta
 
 FlexiPageDelta is the sibling metadata-diff tool for Salesforce
@@ -17,9 +22,11 @@ XML (old/new) -> xml2js parser -> PageModel -> PageDiff -> outline/wireframe HTM
 | Module | Responsibility |
 | --- | --- |
 | `src/io/read-metadata.ts` / `src/io/discover-git-metadata.ts` | Shared local/Git metadata reading and path discovery; see [metadata-io.md](metadata-io.md). |
-| `src/flexipage/parse.ts` | Parse FlexiPage XML, preserve recursive property structure, and canonicalize nested facet identities. |
+| `src/flexipage/parse.ts` | Parse FlexiPage XML into a raw `PageModel` and compose the model transformation. |
+| `src/flexipage/canonicalize-page.ts` | Canonicalize nested facet identities as a pure model transformation, including stable paths, orphan hashes, rewritten references, and unique names. |
 | `src/flexipage/page-model.ts` | Define page headers, ordered regions, identifier-aware components/fields, and recursive property values. |
 | `src/flexipage/diff-page.ts` | Match unique canonical region paths and identifier-aware items with LCS; attach breadcrumbs and visibility notes. |
+| `src/flexipage/component-schemas.ts` | Resolve high-signal component property changes into ordered, friendly groups for the detail panel; unknown components and uncovered properties retain generic fallbacks. |
 | `src/flexipage/render-outline.ts` | Render the hierarchical, self-contained outline artifact, select wireframe geometry, and drive the shared rollup digest panel. |
 | `src/flexipage/render-wireframe.ts` | Render registry-driven slot placement, nested stacks, removal/orphan appendices, and top-level change rollup pills. |
 | `src/flexipage/template-geometry.ts` | Store and validate the curated template geometry registry. |
@@ -142,6 +149,23 @@ detail entries. The Back control returns to the digest. The pill is a separate
 button with propagation stopped, so item-row clicks inside the cell continue to
 open their own details and the interaction never switches to Outline.
 
+### Component detail schemas
+
+The detail panel applies the hand-curated registry in
+`src/flexipage/component-schemas.ts` to modified components. The current schemas
+cover `flowruntime:interview`, related-list containers
+(`force:relatedListSingleContainer` and `force:relatedListContainer`),
+`force:highlightsPanel`, `flexipage:tab`, and `flexipage:tabset`. They provide a
+friendly component title plus ordered groups such as `Flow`, `Input Variables`,
+`Related List`, `Display`, `Sorting`, `Tab`, and `Tabs`.
+
+Properties not explicitly covered on a known component remain visible in an
+`Other` group and use `humanizePath` labels. Components without a schema keep the
+original flat `{path, before → after}` lines. Schema resolution enriches only the
+embedded HTML panel data; `PageDiff`, summaries, and emitted `.diff.json` files
+remain unchanged. The registry is offline and safe to extend by adding another
+component entry.
+
 ### Template wireframe
 
 `src/flexipage/template-geometry.ts` contains curated geometry for the
@@ -195,13 +219,19 @@ Run the focused suite with:
 node --import tsx --test test/flexipage-delta.test.ts
 ```
 
+The pure canonicalization boundary is also directly tested with hand-built
+`PageModel` values, without routing through `xml2js`:
+
+```bash
+node --import tsx --test test/flexipage-canonicalize.test.ts
+```
+
 Run the full project suite with `npm test` and build all six published
 entrypoints with `npm run build`.
 
 ## Current boundaries
 
 The current implementation intentionally defers within-region move detection,
-per-component semantic schemas/friendly property labels, faithful side-by-side
-before/after template geometry, and a unified extension-dispatching front end.
-These are follow-up improvements, not parser or diff correctness requirements
-for the current sibling tool.
+faithful side-by-side before/after template geometry, and a unified
+extension-dispatching front end. These are follow-up improvements, not parser or
+diff correctness requirements for the current sibling tool.

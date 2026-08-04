@@ -1,0 +1,17 @@
+name: Docs site
+
+on:
+  push:
+    branches: [master, release]
+    paths: ['docs/**', 'docs-site/**', '.github/workflows/docs.yml']
+  workflow_dispatch:
+
+jobs:
+  docs:
+    if: github.repository == 'Syntax-Syllogism/flow-delta' && github.ref == 'refs/heads/release'
+    uses: Syntax-Syllogism/workflows/.github/workflows/docs-publish.yml@workflows/v1
+    with:
+      tool_slug: 'flow-delta'
+      public_repo: 'Syntax-Syllogism/flow-delta'
+      site_repo: 'Syntax-Syllogism/Syntax-Syllogism.github.io'
+    secrets: inherit

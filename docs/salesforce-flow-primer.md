@@ -1,3 +1,8 @@
+---
+title: Salesforce Flow XML Primer
+description: Flow metadata structure, elements, connectors, and parsing.
+---
+
 # Salesforce Flow XML Primer
 
 FlowDelta parses `.flow-meta.xml` files, which are the metadata representation of Salesforce Flows. This primer explains the XML structure so you can understand what FlowDelta is parsing and comparing.

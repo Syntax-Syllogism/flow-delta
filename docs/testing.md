@@ -1,3 +1,8 @@
+---
+title: Testing
+description: Test suites, fixtures, and rendered-artifact checks.
+---
+
 # Testing
 
 Tests use the Node built-in runner (`node:test` + `node:assert/strict`) executed
