@@ -11,7 +11,7 @@ builds one sticky Markdown comment, and updates the existing MR note in place.
 
 ## Sample pipeline
 
-[`examples/gitlab-ci.yml`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/examples/gitlab-ci.yml) shows the supported
+[`examples/gitlab-ci.yml`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/examples/gitlab-ci.yml) shows the supported
 recipe:
 
 - run on merge-request pipelines only,
@@ -50,7 +50,7 @@ To confirm which pipeline style a project uses, print the variables in the job:
 `$CI_MERGE_REQUEST_SOURCE_BRANCH_SHA` is non-empty (and differs from
 `$CI_COMMIT_SHA`) exactly when merged results or merge trains are in play.
 
-The smoke harness in [`scripts/smoke-gitlab.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/scripts/smoke-gitlab.ts)
+The smoke harness in [`scripts/smoke-gitlab.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/scripts/smoke-gitlab.ts)
 uses the same shape to seed a dedicated sample repo, push a base `master`
 branch plus a smoke/e2e feature branch, and open the MR automatically. It uses
 `git` plus [`glab`](https://docs.gitlab.com/cli/), so make sure `glab auth
@@ -106,7 +106,7 @@ artifact browse route under `CI_PROJECT_URL`.
 
 To preview this markdown for a given before/after XML pair without running the
 full smoke harness (no tarball build, no sample repo, no push), use
-[`scripts/preview-comment.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/scripts/preview-comment.ts):
+[`scripts/preview-comment.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/scripts/preview-comment.ts):
 
 ```bash
 npm run preview:comment -- --product flow \
@@ -143,7 +143,7 @@ API calls and the artifact-URL scheme.
 
 ### Sample workflow
 
-[`examples/github-actions.yml`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/examples/github-actions.yml) shows the
+[`examples/github-actions.yml`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/examples/github-actions.yml) shows the
 supported recipe:
 
 - run on `pull_request`,
@@ -257,14 +257,14 @@ ${ARTIFACT_BASE_URL}/${GITHUB_REPOSITORY}/${PR}/${GITHUB_SHA}/${stem}.html?exp=<
 ```
 
 The HMAC is SHA-256 over `${key}:${exp}` using `ARTIFACT_HMAC_KEY`. The Worker
-template in [`examples/cloudflare-worker/`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/examples/cloudflare-worker/)
+template in [`examples/cloudflare-worker/`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/examples/cloudflare-worker/)
 recomputes that signature, rejects expired or tampered links, reads the object
 through its R2 binding, and streams it with `content-type: text/html`.
 
 One-time setup:
 
 1. Install and authenticate Wrangler: `npm i -g wrangler && wrangler login`.
-2. Copy [`examples/cloudflare-worker/`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/examples/cloudflare-worker/), set
+2. Copy [`examples/cloudflare-worker/`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/examples/cloudflare-worker/), set
    `bucket_name` in `wrangler.toml`, and deploy it.
 3. Set the Worker secret: `wrangler secret put ARTIFACT_HMAC_KEY`.
 4. Add GitHub secrets `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`,
@@ -276,7 +276,7 @@ The example workflow publishes by key
 reruns and stale PRs do not collide. It always keeps the baseline
 `actions/upload-artifact` step as the zero-infra fallback.
 
-The GitHub smoke harness in [`scripts/smoke-github.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.0/scripts/smoke-github.ts)
+The GitHub smoke harness in [`scripts/smoke-github.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/scripts/smoke-github.ts)
 creates or reuses `Syntax-Syllogism/flow-delta-example`, seeds fixture befores on
 `main`, pushes fixture afters to a smoke branch, writes the Worker-backed
 workflow, and opens the PR with `gh pr create`. It assumes the repo secrets and

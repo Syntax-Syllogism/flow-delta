@@ -1,6 +1,6 @@
 {
   "name": "@syntax-syllogism/flow-delta",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "type": "module",
   "description": "Semantic visual diff for Salesforce Flows",
   "license": "MIT",

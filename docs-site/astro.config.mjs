@@ -28,6 +28,7 @@ export default defineConfig({
         base: BASE,
         toolSlug: 'flow-delta',
         publicRepo: 'Syntax-Syllogism/flow-delta',
+        accent: 'blue',
       }),
       sidebar: [
         {

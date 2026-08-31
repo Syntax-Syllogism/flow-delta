@@ -19,6 +19,11 @@ concurrency:
 jobs:
   publish:
     name: Publish npm package
+    # The release branch is pushed to both the private origin and the public
+    # mirror, so without this guard the private repository also tries to
+    # publish and fails on every release — it has no trusted-publisher claim,
+    # and the version has already been taken by the mirror's successful run.
+    if: github.repository == 'Syntax-Syllogism/flow-delta'
     runs-on: ubuntu-latest
 
     steps:
