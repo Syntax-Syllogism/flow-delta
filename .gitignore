@@ -47,6 +47,8 @@ GEMINI.md
 .cursor/
 .rtk/
 .rtk
+loop.config.mjs
+.loop/
 
 # === private-only: working material ===
 notes/

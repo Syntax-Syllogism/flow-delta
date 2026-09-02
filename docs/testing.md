@@ -33,8 +33,8 @@ types. The command's exit code is the gate; it runs before build and tests in
   defaults, dispatch, error mapping, and non-TTY behavior.
 - `test/semantic-diff.test.ts` — everything we built: canonicalization,
   flow-header extraction, `deepDiff` paths, node/edge/header classification,
-  edge-id rules, the HTML render, the CLI in file, git, and org modes, and the
-  real before/after fixture assertions.
+  edge-id rules, the HTML render, the CLI in file, git, org, and as-built
+  snapshot modes, and the real before/after fixture assertions.
 - `test/metadata-io.test.ts` — shared metadata/Git IO contract coverage:
   literal and supported glob matching, separator normalization,
   union/changed-only discovery, deterministic paths, and Git error handling.
@@ -92,6 +92,10 @@ interaction.
 asserted to produce zero node/edge changes — the headline canonicalization gate.
 `deactivate_flow` is the headline flow-level fixture: the graph is unchanged, but
 `status` moves from `Active` to `Draft` and `summary.changedFlowAttributes` is 1.
+
+`npm run render:fixtures -- flow` also renders each fixture's `after` file as an
+as-built snapshot, named `<fixture>.snapshot.html` with its optional JSON beside
+it.
 
 ### FlexiPage fixtures
 
@@ -159,6 +163,10 @@ form renders both sets. Open the selected artifacts and check:
 - Collapsing/reopening the panel via the toggle button.
 - Flow-level banners for `deactivate_flow` and `bump_api_version`; the graph
   should remain unchanged while the banner reports the root-attribute changes.
+
+For snapshot artifacts (`<fixture>.snapshot.html`), check the type-color legend
+and element inventory, absence of diff filters, neutral one-sided properties,
+flow facts, and the provenance footer.
 
 On `rewire_connector`, verify that `After` and `Before` each render as a coherent
 single-state graph. A fuller manual checklist and the fixture scenario matrix live

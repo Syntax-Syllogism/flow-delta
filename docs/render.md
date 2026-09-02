@@ -10,11 +10,21 @@ artifact plus an embedded client-oriented data payload. The generated page is fu
 offline: CSS, SVG, and client-side JS are all inline, and the browser does not
 fetch external assets.
 
+## As-built snapshots
+
+buildSnapshotDiff represents every graph node and edge with status present and
+keeps the current node properties in after. FlowDiff.mode selects the snapshot
+renderer path. Snapshot artifacts hide diff filters, show flow facts without
+before/after arrows, color nodes by element type, and include the source,
+version, generation time, and FlowDelta version in a provenance footer. The
+embedded client payload includes each node type so the panel badge can name the
+selected element (for example, Screen) rather than displaying a change status.
+
 ## Embedded client payload
 
 The HTML embeds one escaped JSON DTO for browser behavior. It contains:
 
-- semantic node identity, label, status, and server-rendered `detailHtml`;
+- semantic node identity, type, label, status, and server-rendered `detailHtml`;
 - semantic edge identity, source, target, and status; and
 - geometry-only `union`, `after`, and `before` layouts, including their bounds.
 
@@ -24,6 +34,11 @@ detail HTML is inserted into the panel when a node is selected. The separate
 `*.diff.json` file, when requested with `--json`, remains the full machine-readable
 `FlowDiff` for CI reporters and debugging; it is not the payload embedded in the
 HTML artifact.
+
+Snapshot detail panels treat `present` nodes as read-only current state: the
+node's `after` properties render as neutral one-sided values, semantic sections
+are available and initially open, and the panel badge uses the humanized
+element type instead of a change status.
 
 ## Flow-level changes
 
@@ -61,7 +76,7 @@ The HTML artifact includes four view presets:
   edges.
 
 The filter is client-side only. Clicking or keyboard-activating a node still
-opens its delta panel in every mode.
+opens its detail panel. Snapshot artifacts omit these comparison filters.
 
 ## Theme control
 

@@ -1,6 +1,6 @@
 ---
 title: CLI usage
-description: File, Git, and Salesforce org comparison modes.
+description: File, Git, Salesforce org comparison, and as-built snapshot modes.
 ---
 
 # CLI usage
@@ -22,8 +22,31 @@ From a source checkout, invoke the TypeScript entry point through the local
 runner: `node --import tsx src/cli.ts <options>` (or
 `npx --no-install tsx src/cli.ts <options>`).
 
-It operates in one of three mutually exclusive modes, selected by which flags
+It operates in one of four mutually exclusive modes, selected by which flags
 are present.
+
+## As-built mode: render one current Flow
+
+As-built mode creates a self-contained snapshot of a single Flow. It has no
+before/after comparison, so the artifact uses element-type colors, an element
+inventory, neutral read-only property panels, and a provenance footer.
+
+```bash
+# Local file
+npx @syntax-syllogism/flow-delta --as-built --file path/to/My_Flow.flow-meta.xml
+
+# Latest Active (or highest) org version, or a named version
+npx @syntax-syllogism/flow-delta --as-built --org my-org --flow My_Flow
+npx @syntax-syllogism/flow-delta --as-built --org my-org --flow My_Flow --flow-version 3
+
+# One git ref; --path may be a literal path or supported glob
+npx @syntax-syllogism/flow-delta --as-built --repo /path/to/repo --at v1.2 --path 'force-app/**/*.flow-meta.xml'
+```
+
+Exactly one of the three input forms is required. --json writes the
+machine-readable snapshot as <flowName>.diff.json, and --out selects the
+output directory. As-built mode cannot be combined with diff version flags or
+interactive/changed-only options.
 
 ## File mode: compare two local files
 
@@ -111,8 +134,10 @@ to Git Bash's `PATH` or run the command from PowerShell.
 
 Per flow, written to the out directory:
 
-- `<flowName>.html`: the self-contained interactive diff (open in a browser).
-- `<flowName>.diff.json`: the machine-readable `FlowDiff` (only with `--json`).
+- `<flowName>.html`: the self-contained interactive diff or snapshot (open in a
+  browser).
+- `<flowName>.diff.json`: the machine-readable `FlowDiff` (only with `--json`);
+  as-built output has `mode: "snapshot"` and `present` nodes/edges.
 
 The file stem is derived from the flow name via `safeFileName` (non-alphanumerics
 collapsed to `_`). For a **deleted** flow the *old* name is preserved.
@@ -121,6 +146,12 @@ A one-line summary is printed per flow:
 
 ```
 My_Flow: nodes 1 added, 0 deleted, 1 modified; edges 2 added, 0 deleted
+```
+
+As-built mode prints an inventory summary instead:
+
+```
+My_Flow: 12 elements, 11 connectors
 ```
 
 After the run, the CLI also prints the absolute output directory, for example

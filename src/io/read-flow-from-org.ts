@@ -300,8 +300,13 @@ export function retrieveFlowVersions(
   options: { keep?: boolean } = {},
   runner: SfRunner = defaultSfRunner,
 ): RetrievedFlowVersions {
-  if (versions.length !== 2 || new Set(versions).size !== 2 || versions.some((version) => !Number.isInteger(version))) {
-    throw new Error("Org mode requires two different integer flow versions.");
+  if (
+    versions.length < 1 ||
+    versions.length > 2 ||
+    new Set(versions).size !== versions.length ||
+    versions.some((version) => !Number.isInteger(version))
+  ) {
+    throw new Error("Org mode requires one or two different integer flow versions.");
   }
 
   const workDir = mkdtempSync(join(tmpdir(), "flow-delta-org-"));
@@ -333,4 +338,14 @@ export function retrieveFlowVersions(
     }
     throw error;
   }
+}
+
+export function retrieveSingleFlowVersion(
+  org: string,
+  developerName: string,
+  version: number,
+  options: { keep?: boolean } = {},
+  runner: SfRunner = defaultSfRunner,
+): RetrievedFlowVersions {
+  return retrieveFlowVersions(org, developerName, [version], options, runner);
 }

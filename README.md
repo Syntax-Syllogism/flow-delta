@@ -33,8 +33,13 @@ No install required:
 npx @syntax-syllogism/flow-delta --old before.flow-meta.xml --new after.flow-meta.xml --out ./flow-delta-out
 ```
 
-Open the generated `.html` file in a browser to see the interactive diff
-shown above.
+To render an interactive as-built snapshot:
+
+```bash
+npx @syntax-syllogism/flow-delta --as-built --file My_Flow.flow-meta.xml --out ./flow-delta-out
+```
+
+Open the generated `.html` file in a browser to see the interactive snapshot.
 
 Prefer a permanent install?
 
@@ -52,7 +57,7 @@ npx flexipage-delta --old before.flexipage-meta.xml --new after.flexipage-meta.x
 
 ## Usage
 
-See [docs/cli.md](docs/cli.md) for full file-mode and git-mode options.
+See [docs/cli.md](docs/cli.md) for full diff-mode and as-built snapshot options.
 
 For FlexiPage metadata, see [docs/flexipage.md](docs/flexipage.md) for the
 full CLI, outline/wireframe artifact, and CI reporting details:

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { discoverGitMetadataFiles } from "../src/io/discover-git-metadata.ts";
+import { discoverGitMetadataFiles, discoverGitMetadataFilesAtRef } from "../src/io/discover-git-metadata.ts";
 import type { GitRunner } from "../src/io/git.ts";
 import { readMetadataFromGit } from "../src/io/read-metadata.ts";
 
@@ -99,6 +99,17 @@ test("shared Git discovery uses changed-only diff output and normalizes its resu
   assert.deepEqual(calls, [
     ["diff", "--name-only", "--diff-filter=ACMRD", "old", "new", "--", "flows/*.flow-meta.xml"],
   ]);
+});
+
+test("shared Git discovery can match one ref without querying it twice", () => {
+  const calls: string[][] = [];
+  const files = discoverGitMetadataFilesAtRef("repo", "snapshot-ref", "flows/**/*.xml", (_repo, args) => {
+    calls.push([...args]);
+    return "flows/Z.xml\nflows/nested/A.xml\nflows/nested/A.xml\n";
+  });
+
+  assert.deepEqual(files, ["flows/nested/A.xml"]);
+  assert.deepEqual(calls, [["ls-tree", "-r", "--name-only", "snapshot-ref"]]);
 });
 
 test("shared metadata reader returns null for missing paths and propagates unrelated Git errors", () => {

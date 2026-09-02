@@ -1,7 +1,7 @@
 import type { SectionSchema } from "./section-schemas.ts";
 
 export interface SnapshotPanelNode {
-  status: "added" | "deleted" | "modified" | "unchanged";
+  status: "added" | "deleted" | "modified" | "unchanged" | "present";
   before?: Record<string, unknown>;
   after?: Record<string, unknown>;
 }
@@ -68,7 +68,7 @@ export function renderNodePanelBody(node: SnapshotPanelNode, schemas: SectionSch
     return "<div class='empty'>No property changes.</div>";
   }
 
-  const before = node.status === "added" ? undefined : node.before;
+  const before = node.status === "added" || node.status === "present" ? undefined : node.before;
   const after = node.status === "deleted" ? undefined : node.after;
   const options = { showUnchanged: node.status !== "modified", nodeStatus: node.status };
   const sections = renderSections(before, after, schemas || [], options);
@@ -77,7 +77,7 @@ export function renderNodePanelBody(node: SnapshotPanelNode, schemas: SectionSch
   }
 
   return sections.map((section, index) => {
-    const open = node.status === "modified" || index === 0 ? " open" : "";
+    const open = node.status === "modified" || node.status === "present" || index === 0 ? " open" : "";
     return "<details class='detail-section snapshot-section " + node.status + "'" + open + "><summary>"
       + escapeHtml(section.name) + " <span class='section-count'>(" + section.count + ")</span></summary>"
       + "<div class='section-body'>" + section.html + "</div></details>";
@@ -429,7 +429,7 @@ function renderValueCell(
   kind: "added" | "removed" | "modified" | "unchanged",
   nodeStatus: SnapshotPanelNode["status"],
 ): string {
-  if (nodeStatus === "added") return oneSidedVal(after !== undefined ? after : before);
+  if (nodeStatus === "added" || nodeStatus === "present") return oneSidedVal(after !== undefined ? after : before);
   if (nodeStatus === "deleted") return oneSidedVal(before !== undefined ? before : after);
   if (kind === "added") return insVal(after !== undefined ? after : before);
   if (kind === "removed") return delVal(before !== undefined ? before : after);
@@ -641,4 +641,3 @@ function escapeHtml(value: unknown): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
-

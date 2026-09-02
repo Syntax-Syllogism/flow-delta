@@ -18,8 +18,8 @@ GraphModel
     
     ↓ (diff-model.ts)
 FlowDiff
-    ├─ NodeDiff[] (added/deleted/modified/unchanged)
-    └─ EdgeDiff[] (added/deleted/unchanged)
+    ├─ NodeDiff[] (added/deleted/modified/unchanged/present)
+    └─ EdgeDiff[] (added/deleted/unchanged/present)
 ```
 
 ## GraphModel
@@ -110,9 +110,25 @@ interface FlowDiff {
     unchangedNodes: number;
     addedEdges: number;
     removedEdges: number;
+    changedFlowAttributes: number;
   };
   nodes: NodeDiff[];
   edges: EdgeDiff[];
+  mode?: "diff" | "snapshot";
+  snapshotMeta?: SnapshotMeta;
+}
+
+interface SnapshotMeta {
+  flowName?: string;
+  label: string;
+  status?: string;
+  processType?: string;
+  apiVersion?: string;
+  runInMode?: string;
+  versionNumber?: number;
+  source: string;
+  generatedAt: string;
+  toolVersion: string;
 }
 ```
 
@@ -125,18 +141,18 @@ interface NodeDiff {
   id: string;
   type: NodeType;
   label: string;
-  status: "added" | "deleted" | "modified" | "unchanged";
+  status: "added" | "deleted" | "modified" | "unchanged" | "present";
   
   changes?: PropertyChange[];
     // Per-property deltas. Only for "modified".
     // Example: { path: "rules[0].conditions[1].value", before: "x", after: "y" }
   
   before?: Record<string, unknown>;
-    // Full property snapshot from the old version (modified only)
+    // Full property snapshot from the old version (modified or deleted)
     // Renderer uses this for context (faint sibling columns in tables)
   
   after?: Record<string, unknown>;
-    // Full property snapshot from the new version (modified only)
+    // Full property snapshot from the new version (modified, added, or present)
 }
 
 interface PropertyChange {
@@ -145,6 +161,12 @@ interface PropertyChange {
   after: unknown;            // New value
 }
 ```
+
+`diffModel(oldModel, newModel)` produces comparison statuses. For an as-built
+artifact, `buildSnapshotDiff(model, snapshotMeta)` produces one `FlowDiff` with
+`mode: "snapshot"`, `present` status on every node and edge, and the current
+node properties in `after`. Snapshot summaries keep the comparison counters at
+zero; the renderer computes the element inventory from the node types.
 
 ### EdgeDiff
 
@@ -157,7 +179,7 @@ interface EdgeDiff {
   target: string;
   label?: string;
   kind: "normal" | "fault";
-  status: "added" | "deleted" | "unchanged";
+  status: "added" | "deleted" | "unchanged" | "present";
 }
 ```
 

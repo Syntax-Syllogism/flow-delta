@@ -2,7 +2,20 @@ import type { GraphEdge, GraphModel, GraphNode, NodeType } from "../model/graph-
 import { FLOW_HEADER_KEYS } from "../model/flow-header.ts";
 import { deepDiff, type PropertyChange } from "./deep-diff.ts";
 
-export type Status = "added" | "deleted" | "modified" | "unchanged";
+export type Status = "added" | "deleted" | "modified" | "unchanged" | "present";
+
+export interface SnapshotMeta {
+  flowName?: string;
+  label: string;
+  status?: string;
+  processType?: string;
+  apiVersion?: string;
+  runInMode?: string;
+  versionNumber?: number;
+  source: string;
+  generatedAt: string;
+  toolVersion: string;
+}
 
 export interface NodeDiff {
   id: string;
@@ -25,7 +38,7 @@ export interface EdgeDiff {
   target: string;
   label?: string;
   kind: "normal" | "fault";
-  status: "added" | "deleted" | "unchanged";
+  status: "added" | "deleted" | "unchanged" | "present";
 }
 
 export interface FlowDiff {
@@ -42,6 +55,8 @@ export interface FlowDiff {
   flowChanges?: PropertyChange[];
   nodes: NodeDiff[];
   edges: EdgeDiff[];
+  mode?: "diff" | "snapshot";
+  snapshotMeta?: SnapshotMeta;
 }
 
 export function diffModel(oldModel: GraphModel, newModel: GraphModel): FlowDiff {
@@ -73,6 +88,31 @@ export function diffModel(oldModel: GraphModel, newModel: GraphModel): FlowDiff 
     ...(flowChanges.length > 0 ? { flowChanges } : {}),
     nodes,
     edges,
+  };
+}
+
+export function buildSnapshotDiff(model: GraphModel, snapshotMeta: SnapshotMeta): FlowDiff {
+  return {
+    flowName: model.flowName,
+    summary: {
+      addedNodes: 0,
+      removedNodes: 0,
+      modifiedNodes: 0,
+      unchangedNodes: 0,
+      addedEdges: 0,
+      removedEdges: 0,
+      changedFlowAttributes: 0,
+    },
+    nodes: model.nodes.map((node) => ({
+      id: node.id,
+      type: node.type,
+      label: node.label,
+      status: "present",
+      after: node.properties,
+    })),
+    edges: model.edges.map((edge) => toEdgeDiff(edge, "present")),
+    mode: "snapshot",
+    snapshotMeta,
   };
 }
 

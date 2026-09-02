@@ -5,11 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.9.0] - 2026-09-02
+
+### Added
+- Add as-built flow snapshots
+
+### Fixed
+- Fix snapshot rendering issues
+
 ## [0.8.1] - 2026-08-31
 
 ### Changed
 
 - Updated documentation theme to 0.3.0 with blue accent styling
+
+### Added
+
+- As-built Flow snapshot artifacts from local files, Salesforce org versions,
+  and git refs
 
 ## [0.8.0] - 2026-08-04
 

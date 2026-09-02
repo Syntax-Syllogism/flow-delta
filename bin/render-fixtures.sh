@@ -94,6 +94,29 @@ render_flow() {
     "$out_dir"
 }
 
+render_flow_snapshots() {
+  local out_dir="${1:-$ROOT/flow-delta-out/fixtures}"
+  local fixture_dir="$ROOT/fixtures/diff"
+  mkdir -p "$out_dir"
+  local rendered=0
+  for dir in "$fixture_dir"/*/; do
+    [[ -d "$dir" ]] || continue
+    local name
+    name="$(basename "$dir")"
+    local after="$dir/after.flow-meta.xml"
+    [[ -f "$after" ]] || continue
+    local tmp="$out_dir/.$name-snapshot"
+    rm -rf "$tmp"
+    mkdir -p "$tmp"
+    npx tsx "$ROOT/src/cli.ts" --as-built --file "$after" --out "$tmp" --json
+    mv "$tmp"/*.html "$out_dir/$name.snapshot.html"
+    mv "$tmp"/*.diff.json "$out_dir/$name.snapshot.diff.json"
+    rm -rf "$tmp"
+    rendered=$((rendered + 1))
+  done
+  echo "Rendered $rendered Flow snapshot fixture(s) to: $out_dir"
+}
+
 render_flexipage() {
   local out_dir="${1:-$ROOT/flexipage-delta-out/fixtures}"
   render_fixture_set \
@@ -121,6 +144,7 @@ render_flexipage_template() {
 case "$mode" in
   flow)
     render_flow "$out_arg"
+    render_flow_snapshots "$out_arg"
     ;;
   flexipage)
     render_flexipage "$out_arg"
@@ -131,10 +155,12 @@ case "$mode" in
   all)
     if [[ -n "$out_arg" ]]; then
       render_flow "$out_arg/flow"
+      render_flow_snapshots "$out_arg/flow"
       render_flexipage "$out_arg/flexipage"
       render_flexipage_template "$out_arg/flexipage-template"
     else
       render_flow
+      render_flow_snapshots
       render_flexipage
       render_flexipage_template
     fi

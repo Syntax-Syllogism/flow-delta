@@ -13,11 +13,11 @@ Complete guides for using, understanding, and extending FlowDelta.
 
 1. [Getting Started](getting-started.md) — Set up locally, run tests, understand the codebase structure
 2. [Salesforce Flow Primer](salesforce-flow-primer.md) — What is a `.flow-meta.xml` file and how is it structured?
-3. [Architecture](architecture.md) — The pipeline: parser → model → diff → render
+3. [Architecture](architecture.md) — The pipeline: parser → model → diff/snapshot → render
 
 ## Using FlowDelta
 
-- [CLI usage](cli.md) — File, git, and Salesforce org modes, command-line options, output formats
+- [CLI usage](cli.md) — File, git, Salesforce org, and as-built snapshot modes, command-line options, output formats
 - [Shared metadata/Git IO](metadata-io.md) — Local/Git reader and discovery contracts used by both CLIs
 - [CI Integration](ci.md) — Running in GitLab/GitHub pipelines, MR/PR reporting, sticky comments, private-repo artifact viewing
 
@@ -50,9 +50,12 @@ Complete guides for using, understanding, and extending FlowDelta.
 **Compare flows locally or from Salesforce**
 → [Getting Started](getting-started.md) → [CLI usage](cli.md)
 
+**Render a current Flow as an as-built snapshot**
+→ [CLI usage](cli.md#as-built-mode-render-one-current-flow) → [Rendering](render.md#as-built-snapshots)
+
 **Set up CI reporting in GitLab or GitHub**
-→ [CI Integration](ci.md) + [examples/gitlab-ci.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/examples/gitlab-ci.yml) /
-[examples/github-actions.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/examples/github-actions.yml)
+→ [CI Integration](ci.md) + [examples/gitlab-ci.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/examples/gitlab-ci.yml) /
+[examples/github-actions.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/examples/github-actions.yml)
 
 **Understand why a diff looks wrong**
 → [Debugging & Troubleshooting](debugging.md) → [Data Model Reference](data-model.md)
@@ -95,7 +98,7 @@ Complete guides for using, understanding, and extending FlowDelta.
 
 **GraphModel** — Normalized representation after parsing: nodes + edges, with coordinates and connectors stripped. See [Data Model Reference](data-model.md).
 
-**FlowDiff** — The semantic diff output: added/deleted/modified nodes and edges with per-property changes. See [Data Model Reference](data-model.md).
+**FlowDiff** — The semantic output for a comparison or as-built snapshot: added/deleted/modified/unchanged or present nodes and edges with their properties. See [Data Model Reference](data-model.md).
 
 **Fixture** — A pair of before/after flows used to test and verify behavior. See [Testing](testing.md).
 
@@ -127,14 +130,14 @@ docs/
 ## Conventions
 
 - **File paths** are relative to the project root: `src/cli.ts`, `test/semantic-diff.test.ts`
-- **Code examples** use `npm` and `npm run` scripts; see [package.json](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/package.json)
+- **Code examples** use `npm` and `npm run` scripts; see [package.json](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/package.json)
 - **Terminals** show bash/sh syntax; Windows users should use PowerShell or Git Bash
 - **Links** to source code assume you've cloned the repo and have it open
 
 ## Contributing
 
-See [CONTRIBUTING.md](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/CONTRIBUTING.md) for code style, PR expectations, and the development workflow.
+See [CONTRIBUTING.md](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/CONTRIBUTING.md) for code style, PR expectations, and the development workflow.
 
 ## License
 
-FlowDelta code is MIT. The vendored parser is Apache-2.0. See [LICENSE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/LICENSE) and [LICENSE-APACHE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/LICENSE-APACHE).
+FlowDelta code is MIT. The vendored parser is Apache-2.0. See [LICENSE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/LICENSE) and [LICENSE-APACHE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/LICENSE-APACHE).

@@ -43,11 +43,20 @@ const FLOW_RENDER_STYLES = `
     .flow-tab { position:absolute; top:14px; left:14px; z-index:6; display:inline-flex; align-items:center; gap:7px; border:1px solid var(--border); background:var(--surface-muted); color:var(--muted); border-radius:7px; padding:7px 12px; font:inherit; font-size:12px; font-weight:600; line-height:1; box-shadow:0 1px 3px var(--shadow); cursor:pointer; } .flow-tab:hover { color:var(--text); border-color:var(--focus); background:var(--surface-selected); } .flow-tab:focus-visible { outline:2px solid var(--focus); outline-offset:2px; } .flow-tab .flow-tab-dot { width:6px; height:6px; border-radius:50%; background:var(--modified); flex:none; } .flow-tab.deactivated .flow-tab-dot { background:var(--deleted); } .flow-tab.activated .flow-tab-dot { background:var(--added); } .flow-tab .flow-tab-chev { font-size:9px; opacity:.75; transition:transform .12s ease; } .flow-tab[aria-expanded="true"] .flow-tab-chev { transform:rotate(180deg); }
     .flow-popover { position:absolute; top:14px; left:14px; z-index:6; width:min(300px,calc(100% - 28px)); background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:0 16px 40px -12px var(--shadow-strong); overflow:hidden; } .flow-popover[hidden] { display:none; } .flow-popover-head { padding:10px 12px; border-bottom:1px solid var(--border); background:var(--surface-muted); font-size:12px; font-weight:650; } .flow-popover-body { padding:12px; max-height:60vh; overflow:auto; } .flow-banner-callout { margin-bottom:8px; font-weight:750; } .flow-banner-callout.deactivated { color:var(--deleted); } .flow-banner-callout.activated { color:var(--added); } .flow-banner-callout.neutral { color:var(--modified); } .flow-banner-list { display:grid; gap:7px; } .flow-change-row { display:grid; grid-template-columns:minmax(90px,120px) minmax(0,1fr); align-items:start; gap:10px; } .flow-change-row + .flow-change-row { margin-top:7px; } .flow-change-label { color:var(--muted); font-size:12px; font-weight:700; } .flow-change-value { min-width: 0; max-height: 180px; overflow: auto; }
     .edge { fill:none; } .edge.unchanged { stroke-width:1.4; opacity:.55; } .edge.normal.unchanged { stroke:var(--edge); marker-end:url(#arrow-normal); } .edge.fault.unchanged { stroke:var(--fault); stroke-dasharray:6 4; marker-end:url(#arrow-fault); } .edge.added { stroke:var(--added); stroke-width:3; marker-end:url(#arrow-added); } .edge.deleted { stroke:var(--deleted); stroke-width:2; stroke-dasharray:7 5; marker-end:url(#arrow-deleted); } #arrow-normal path { fill:var(--edge); } #arrow-fault path { fill:var(--fault); } #arrow-added path { fill:var(--added); } #arrow-deleted path { fill:var(--deleted); }
+    .edge.present { stroke:var(--edge); stroke-width:1.8; marker-end:url(#arrow-normal); opacity:.9; } .edge.fault.present { stroke:var(--fault); stroke-dasharray:6 4; }
     .node rect { rx:11; ry:11; stroke-width:1.75; filter:drop-shadow(0 1px 2px var(--shadow)); } .node { cursor:pointer; } .node text { font-size:12px; fill:var(--node-text); pointer-events:none; } .node.added rect { fill:var(--added-fill); stroke:var(--added); } .node.deleted rect { fill:var(--deleted-fill); stroke:var(--deleted); } .node.modified rect { fill:var(--modified-fill); stroke:var(--modified); } .node.unchanged rect { fill:var(--unchanged-fill); stroke:var(--unchanged); } .node.selected rect { stroke-width:3; filter:drop-shadow(0 2px 6px var(--shadow-strong)); } .node-label { white-space:pre; } .node.type-start rect,.node.type-end rect { rx:24; ry:24; stroke-width:2.5; filter:drop-shadow(0 0 0 3px var(--shadow)) drop-shadow(0 1px 3px var(--shadow-strong)); } .node.type-recordLookup rect,.node.type-recordCreate rect,.node.type-recordUpdate rect,.node.type-recordDelete rect { rx:4; ry:4; } .node.type-screen rect { rx:6; ry:6; } .node.type-subflow rect { stroke-width:2.5; } .node.type-loop rect { stroke-dasharray:2 3; } .node.type-wait rect { stroke-dasharray:4 4; } .node.selected.type-start rect,.node.selected.type-end rect { stroke-width:3.5; filter:drop-shadow(0 0 0 5px var(--shadow-strong)) drop-shadow(0 2px 6px var(--shadow-strong)); }
+    :root { --type-screen:#2563eb; --type-screen-fill:#dbeafe; --type-decision:#d97706; --type-decision-fill:#fef3c7; --type-record:#0f766e; --type-record-fill:#ccfbf1; --type-loop:#7c3aed; --type-loop-fill:#ede9fe; --type-subflow:#475569; --type-subflow-fill:#e2e8f0; --type-assignment:#4f46e5; --type-assignment-fill:#e0e7ff; --type-action:#0891b2; --type-action-fill:#cffafe; --type-wait:#8b5cf6; --type-wait-fill:#ede9fe; --type-start:#16a34a; --type-start-fill:#dcfce7; --type-end:#dc2626; --type-end-fill:#fee2e2; --type-neutral:#64748b; --type-neutral-fill:#e2e8f0; }
+    :root[data-theme="dark"] { --type-screen:#60a5fa; --type-screen-fill:#172554; --type-decision:#fbbf24; --type-decision-fill:#422006; --type-record:#2dd4bf; --type-record-fill:#123b3a; --type-loop:#c4b5fd; --type-loop-fill:#2e1d55; --type-subflow:#cbd5e1; --type-subflow-fill:#273449; --type-assignment:#a5b4fc; --type-assignment-fill:#25205b; --type-action:#67e8f9; --type-action-fill:#123b49; --type-wait:#c4b5fd; --type-wait-fill:#2e1d55; --type-start:#4ade80; --type-start-fill:#123f2a; --type-end:#f87171; --type-end-fill:#4a1d23; --type-neutral:#94a3b8; --type-neutral-fill:#263241; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --type-screen:#60a5fa; --type-screen-fill:#172554; --type-decision:#fbbf24; --type-decision-fill:#422006; --type-record:#2dd4bf; --type-record-fill:#123b3a; --type-loop:#c4b5fd; --type-loop-fill:#2e1d55; --type-subflow:#cbd5e1; --type-subflow-fill:#273449; --type-assignment:#a5b4fc; --type-assignment-fill:#25205b; --type-action:#67e8f9; --type-action-fill:#123b49; --type-wait:#c4b5fd; --type-wait-fill:#2e1d55; --type-start:#4ade80; --type-start-fill:#123f2a; --type-end:#f87171; --type-end-fill:#4a1d23; --type-neutral:#94a3b8; --type-neutral-fill:#263241; } }
+    :root[data-mode="snapshot"] .node.present rect { stroke:var(--type-neutral); fill:var(--type-neutral-fill); }
+    :root[data-mode="snapshot"] .node.present.type-screen rect { stroke:var(--type-screen); fill:var(--type-screen-fill); } :root[data-mode="snapshot"] .node.present.type-decision rect { stroke:var(--type-decision); fill:var(--type-decision-fill); } :root[data-mode="snapshot"] .node.present.type-recordLookup rect,:root[data-mode="snapshot"] .node.present.type-recordCreate rect,:root[data-mode="snapshot"] .node.present.type-recordUpdate rect,:root[data-mode="snapshot"] .node.present.type-recordDelete rect { stroke:var(--type-record); fill:var(--type-record-fill); } :root[data-mode="snapshot"] .node.present.type-loop rect { stroke:var(--type-loop); fill:var(--type-loop-fill); } :root[data-mode="snapshot"] .node.present.type-subflow rect { stroke:var(--type-subflow); fill:var(--type-subflow-fill); } :root[data-mode="snapshot"] .node.present.type-assignment rect { stroke:var(--type-assignment); fill:var(--type-assignment-fill); } :root[data-mode="snapshot"] .node.present.type-actionCall rect,:root[data-mode="snapshot"] .node.present.type-apexPluginCall rect { stroke:var(--type-action); fill:var(--type-action-fill); } :root[data-mode="snapshot"] .node.present.type-wait rect { stroke:var(--type-wait); fill:var(--type-wait-fill); } :root[data-mode="snapshot"] .node.present.type-start rect { stroke:var(--type-start); fill:var(--type-start-fill); } :root[data-mode="snapshot"] .node.present.type-end rect { stroke:var(--type-end); fill:var(--type-end-fill); }
+    .snapshot-inventory { display:flex; align-items:center; gap:8px; flex-wrap:wrap; } .snapshot-inventory .stat { color:var(--text); } .snapshot-type-legend { display:flex; gap:12px; flex-wrap:wrap; } .snapshot-type-legend span { white-space:nowrap; } .snapshot-type-swatch { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:0; background:var(--type-neutral); } .snapshot-type-legend .type-screen .snapshot-type-swatch { background:var(--type-screen); } .snapshot-type-legend .type-decision .snapshot-type-swatch { background:var(--type-decision); } .snapshot-type-legend .type-record .snapshot-type-swatch { background:var(--type-record); } .snapshot-type-legend .type-loop .snapshot-type-swatch { background:var(--type-loop); } .snapshot-type-legend .type-subflow .snapshot-type-swatch { background:var(--type-subflow); } .snapshot-type-legend .type-assignment .snapshot-type-swatch { background:var(--type-assignment); } .snapshot-type-legend .type-action .snapshot-type-swatch { background:var(--type-action); } .snapshot-type-legend .type-wait .snapshot-type-swatch { background:var(--type-wait); } .snapshot-type-legend .type-start .snapshot-type-swatch { background:var(--type-start); } .snapshot-type-legend .type-end .snapshot-type-swatch { background:var(--type-end); }
+    .detail-section.snapshot-section.present { border-left-color:var(--type-neutral); } .detail-section.snapshot-section.present summary { background:color-mix(in srgb,var(--type-neutral-fill) 45%,transparent); } .panel.present .panel-badge { background:var(--type-neutral-fill); color:var(--type-neutral); }
     @media (max-width:1000px) { .panel { padding:16px; } }
 `;
 
 export function renderHtml(layout: LayoutedFlow): string {
+  const snapshotMode = layout.diff.mode === "snapshot";
   const data = buildFlowArtifactClientData(layout);
   const json = JSON.stringify(data).replace(/</g, "\\u003c");
   const s = layout.diff.summary;
@@ -56,13 +65,18 @@ export function renderHtml(layout: LayoutedFlow): string {
   const edgeStat = s.addedEdges + s.removedEdges > 0
     ? `<span class="sep">·</span><span class="stat edges">+${s.addedEdges}/−${s.removedEdges} edges</span>`
     : "";
-  const metaHtml = `${stat(s.addedNodes, "added", "added")}<span class="sep">·</span>`
-    + `${stat(s.removedNodes, "deleted", "deleted")}<span class="sep">·</span>`
-    + `${stat(s.modifiedNodes, "modified", "modified")}${edgeStat}`
-    + `<div class="legend"><span class="added">Added</span><span class="deleted">Deleted</span><span class="modified">Modified</span><span class="unchanged">Unchanged</span></div>`;
+  const metaHtml = snapshotMode
+    ? renderSnapshotMeta(layout)
+    : `${stat(s.addedNodes, "added", "added")}<span class="sep">·</span>`
+      + `${stat(s.removedNodes, "deleted", "deleted")}<span class="sep">·</span>`
+      + `${stat(s.modifiedNodes, "modified", "modified")}${edgeStat}`
+      + `<div class="legend"><span class="added">Added</span><span class="deleted">Deleted</span><span class="modified">Modified</span><span class="unchanged">Unchanged</span></div>`;
   const viewBox = fitViewBox(layout.width, layout.height);
-  const flowBannerHtml = renderFlowBanner(layout.diff.flowChanges);
-  const contentHtml = `<svg id="flow-svg" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Flow diff">
+  const flowBannerHtml = snapshotMode
+    ? renderSnapshotFacts(layout.diff.snapshotMeta)
+    : renderFlowBanner(layout.diff.flowChanges);
+  const svgAccessibleName = snapshotMode ? "Flow snapshot" : "Flow diff";
+  const contentHtml = `<svg id="flow-svg" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${svgAccessibleName}">
     <defs>
       <marker id="arrow-normal" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z"></path></marker>
       <marker id="arrow-fault" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z"></path></marker>
@@ -131,10 +145,12 @@ export function renderHtml(layout: LayoutedFlow): string {
     function fitViewBoxRect(bounds) { const width = Math.max(bounds.width, 720), height = Math.max(bounds.height, 540); return { x: round(bounds.x + (bounds.width - width) / 2), y: round(bounds.y + (bounds.height - height) / 2), width: round(width), height: round(height) }; }
     function updateViewBox(bounds) { const box = fitViewBoxRect(bounds); viewBox.x = box.x; viewBox.y = box.y; viewBox.width = box.width; viewBox.height = box.height; }
     function clearSelection(message) { selectedNodeId = null; document.querySelectorAll(".node").forEach((el) => el.classList.remove("selected")); panel.className = "panel"; panelTitle.textContent = "No visible nodes"; panelBadge.textContent = "Hidden"; panelBody.innerHTML = "<div class='empty'>" + escapeHtml(message) + "</div>"; }
-    function updatePanel(node) { panel.className = "panel " + node.status; panelTitle.textContent = node.label; panelBadge.textContent = node.status.toUpperCase(); panelBody.innerHTML = node.detailHtml; }
+    const snapshotMode = ${JSON.stringify(snapshotMode)};
+    function humanizeType(type) { return type.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (letter) => letter.toUpperCase()); }
+    function updatePanel(node) { panel.className = "panel " + node.status; panelTitle.textContent = node.label; panelBadge.textContent = snapshotMode ? humanizeType(node.type) : node.status.toUpperCase(); panelBody.innerHTML = node.detailHtml; }
 
     function selectNode(id) { selectedNodeId = id; document.querySelectorAll(".node").forEach((el) => el.classList.remove("selected")); const selected = [...document.querySelectorAll(".node")].find((el) => el.dataset.nodeId === id); if (selected) selected.classList.add("selected"); const node = nodesById.get(id); if (node) updatePanel(node); }
-    function pickInitialNode(visibleNodeIds) { return DATA.nodes.find((node) => visibleNodeIds.has(node.id) && node.status === "modified") || DATA.nodes.find((node) => visibleNodeIds.has(node.id) && node.status !== "unchanged") || DATA.nodes.find((node) => visibleNodeIds.has(node.id)) || null; }
+    function pickInitialNode(visibleNodeIds) { return snapshotMode ? DATA.nodes.find((node) => visibleNodeIds.has(node.id) && node.type === "start") || DATA.nodes.find((node) => visibleNodeIds.has(node.id)) || null : DATA.nodes.find((node) => visibleNodeIds.has(node.id) && node.status === "modified") || DATA.nodes.find((node) => visibleNodeIds.has(node.id) && node.status !== "unchanged") || DATA.nodes.find((node) => visibleNodeIds.has(node.id)) || null; }
     function applyView(mode) {
       const layout = mode === "all" || mode === "changes" ? DATA.layouts.union : DATA.layouts[mode];
       const nodeLayout = new Map(layout.nodes.map((node) => [node.id, node]));
@@ -174,12 +190,66 @@ export function renderHtml(layout: LayoutedFlow): string {
     bannerHtml: flowBannerHtml,
     contentHtml,
     stylesHtml: FLOW_RENDER_STYLES,
+    mode: snapshotMode ? "snapshot" : "diff",
+    showFilters: !snapshotMode,
+    footerHtml: snapshotMode ? renderProvenanceFooter(layout.diff.snapshotMeta) : undefined,
     panelTitle: "Select a node",
     panelBackHtml: "",
     panelBadgeHtml: `<div id="panel-badge" class="panel-badge">No selection</div>`,
     panelBodyHtml: `<div id="panel-body">Click a node to inspect its properties.</div>`,
     clientScript,
   });
+}
+
+const SNAPSHOT_TYPE_GROUPS = [
+  { key: "start", label: "Start", types: ["start"] },
+  { key: "end", label: "End", types: ["end"] },
+  { key: "screen", label: "Screens", types: ["screen"] },
+  { key: "decision", label: "Decisions", types: ["decision"] },
+  { key: "record", label: "Record operations", types: ["recordLookup", "recordCreate", "recordUpdate", "recordDelete"] },
+  { key: "loop", label: "Loops", types: ["loop"] },
+  { key: "subflow", label: "Subflows", types: ["subflow"] },
+  { key: "assignment", label: "Assignments", types: ["assignment"] },
+  { key: "action", label: "Actions", types: ["actionCall", "apexPluginCall"] },
+  { key: "wait", label: "Waits", types: ["wait"] },
+  { key: "other", label: "Other", types: ["step", "orchestratedStage", "transform", "collectionProcessor", "customError", "recordRollback", "unknown"] },
+] as const;
+
+function renderSnapshotMeta(layout: LayoutedFlow): string {
+  const counts = new Map<string, number>();
+  for (const node of layout.diff.nodes) counts.set(node.type, (counts.get(node.type) ?? 0) + 1);
+  const inventory = [
+    `<span class="stat">${layout.diff.nodes.length} ${layout.diff.nodes.length === 1 ? "element" : "elements"}</span>`,
+    ...SNAPSHOT_TYPE_GROUPS
+      .map((group) => ({ ...group, count: group.types.reduce((sum, type) => sum + (counts.get(type) ?? 0), 0) }))
+      .filter((group) => group.count > 0)
+      .map((group) => `<span class="stat">${group.count} ${escapeHtml(group.label.toLowerCase())}</span>`),
+    `<span class="stat">${layout.diff.edges.length} ${layout.diff.edges.length === 1 ? "connector" : "connectors"}</span>`,
+  ].join(`<span class="sep">·</span>`);
+  const legend = SNAPSHOT_TYPE_GROUPS
+    .map((group) => ({ ...group, count: group.types.reduce((sum, type) => sum + (counts.get(type) ?? 0), 0) }))
+    .filter((group) => group.count > 0)
+    .map((group) => `<span class="type-${group.key}"><span class="snapshot-type-swatch"></span>${escapeHtml(group.label)}</span>`)
+    .join("");
+  return `<div class="snapshot-inventory">${inventory}</div><div class="snapshot-type-legend">${legend}</div>`;
+}
+
+function renderSnapshotFacts(meta: LayoutedFlow["diff"]["snapshotMeta"]): string {
+  if (!meta) return "";
+  const facts = [
+    ["Label", meta.label],
+    ["Status", meta.status],
+    ["Process type", meta.processType],
+    ["API version", meta.apiVersion],
+    ["Run in mode", meta.runInMode],
+  ].filter((fact): fact is [string, string] => fact[1] !== undefined && fact[1] !== "");
+  return `<button type="button" id="flow-tab" class="flow-tab snapshot" aria-expanded="false" aria-controls="flow-popover"><span class="flow-tab-dot"></span>Flow facts<span class="flow-tab-chev">▾</span></button><div id="flow-popover" class="flow-popover" role="region" aria-label="Flow facts" hidden><div class="flow-popover-head">Flow facts</div><div class="flow-popover-body"><div class="flow-banner-list">${facts.map(([label, value]) => `<div class="flow-change-row"><div class="flow-change-label">${escapeHtml(label)}</div><div class="flow-change-value">${escapeHtml(value)}</div></div>`).join("")}</div></div></div>`;
+}
+
+function renderProvenanceFooter(meta: LayoutedFlow["diff"]["snapshotMeta"]): string {
+  if (!meta) return "";
+  const version = meta.versionNumber === undefined ? "" : ` · Version ${meta.versionNumber}`;
+  return `<footer class="provenance">${escapeHtml(meta.flowName ?? meta.label)}${version} · ${escapeHtml(meta.source)} · Generated ${escapeHtml(meta.generatedAt)} · FlowDelta ${escapeHtml(meta.toolVersion)}</footer>`;
 }
 
 function renderFlowBanner(changes: LayoutedFlow["diff"]["flowChanges"]): string {

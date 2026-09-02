@@ -1,18 +1,20 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { FlowParser } from "./parser/flow_parser.ts";
 import { buildModel } from "./model/build-model.ts";
 import type { GraphModel } from "./model/graph-model.ts";
 import { extractFlowHeader } from "./model/flow-header.ts";
-import { diffModel } from "./diff/diff-model.ts";
+import { buildSnapshotDiff, diffModel, type SnapshotMeta } from "./diff/diff-model.ts";
 import { layoutDiff } from "./render/layout.ts";
 import { renderHtml } from "./render/render-html.ts";
-import { discoverGitMetadataFiles } from "./io/discover-git-metadata.ts";
+import { discoverGitMetadataFiles, discoverGitMetadataFilesAtRef } from "./io/discover-git-metadata.ts";
 import { readMetadataFromFile, readMetadataFromGit } from "./io/read-metadata.ts";
 import {
   listFlowVersions,
+  retrieveSingleFlowVersion,
   retrieveFlowVersions,
+  type FlowVersion,
 } from "./io/read-flow-from-org.ts";
 import { pickFlowAndVersions } from "./cli-prompt.ts";
 import { ERROR_MESSAGES } from "./parser/flow_parser.ts";
@@ -33,6 +35,10 @@ export interface CliOptions {
   flow?: string;
   "from-version"?: string;
   "to-version"?: string;
+  "flow-version"?: string;
+  "as-built"?: boolean;
+  file?: string;
+  at?: string;
   interactive?: boolean;
   keep?: boolean;
 }
@@ -45,6 +51,9 @@ const CLI_USAGE = `Usage:
   flow-delta --old <old.flow-meta.xml> --new <new.flow-meta.xml> [--out dir] [--json]
   flow-delta --from <ref> --to <ref> --repo <path> --path <glob> [--changed-only] [--out dir] [--json]
   flow-delta --org <alias> [--flow <Name>] [--from-version <n> --to-version <n>] [--interactive] [--keep] [--out dir] [--json]
+  flow-delta --as-built --file <flow.flow-meta.xml> [--out dir] [--json]
+  flow-delta --as-built --org <alias> --flow <Name> [--flow-version <n>] [--out dir] [--json]
+  flow-delta --as-built --repo <path> --at <ref> --path <glob> [--out dir] [--json]
 `;
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
@@ -64,6 +73,10 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       flow: { type: "string" },
       "from-version": { type: "string" },
       "to-version": { type: "string" },
+      "flow-version": { type: "string" },
+      "as-built": { type: "boolean" },
+      file: { type: "string" },
+      at: { type: "string" },
       interactive: { type: "boolean" },
       keep: { type: "boolean" },
       help: { type: "boolean", short: "h" },
@@ -81,6 +94,13 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   mkdirSync(outDir, { recursive: true });
 
   try {
+    if (options["as-built"]) {
+      validateAsBuiltOptions(options);
+      await runAsBuiltMode(options, outDir, Boolean(options.json));
+      reportOutputLocation(outDir);
+      return;
+    }
+
     if (options.old || options.new) {
       if (!options.old || !options.new) {
         throw new Error("File mode requires both --old and --new");
@@ -136,6 +156,148 @@ function parseVersionOption(value: string | undefined, flag: string): number | u
     throw new Error(`${flag} must be a positive integer`);
   }
   return version;
+}
+
+function validateAsBuiltOptions(options: ParsedCliOptions): void {
+  const diffOnlyFlags = ["old", "new", "from", "to", "from-version", "to-version"] as const;
+  const conflicting = diffOnlyFlags.find((flag) => options[flag] !== undefined);
+  if (conflicting) {
+    throw new Error(`--as-built cannot be combined with --${conflicting}; choose snapshot input or diff mode.`);
+  }
+
+  const fileInput = options.file !== undefined;
+  const orgInput = options.org !== undefined || options.flow !== undefined || options["flow-version"] !== undefined;
+  const gitInput = options.repo !== undefined || options.at !== undefined || options.path !== undefined;
+  if ([fileInput, orgInput, gitInput].filter(Boolean).length !== 1) {
+    throw new Error("As-built mode requires exactly one input form: --file, --org with --flow, or --repo with --at and --path.");
+  }
+  if (fileInput && !options.file) {
+    throw new Error("As-built file mode requires --file <flow.flow-meta.xml>.");
+  }
+  if (orgInput && (!options.org || !options.flow)) {
+    throw new Error("As-built org mode requires --org <alias> and --flow <Name>.");
+  }
+  if (gitInput && (!options.repo || !options.at || !options.path)) {
+    throw new Error("As-built Git mode requires --repo, --at, and --path.");
+  }
+  if (options["changed-only"] || options.interactive || options.keep) {
+    throw new Error("--as-built does not support --changed-only, --interactive, or --keep.");
+  }
+}
+
+export interface SnapshotModeDependencies {
+  listFlowVersions: typeof listFlowVersions;
+  retrieveSingleFlowVersion: typeof retrieveSingleFlowVersion;
+  runSnapshotFileMode: SnapshotFileMode;
+}
+
+type SnapshotFileMode = (
+  filePath: string,
+  outDir: string,
+  writeJson: boolean,
+  source: string,
+  versionNumber?: number,
+) => Promise<void>;
+
+const defaultSnapshotModeDependencies: SnapshotModeDependencies = {
+  listFlowVersions,
+  retrieveSingleFlowVersion,
+  runSnapshotFileMode,
+};
+
+export async function runAsBuiltMode(
+  options: ParsedCliOptions,
+  outDir: string,
+  writeJson: boolean,
+  dependencies: SnapshotModeDependencies = defaultSnapshotModeDependencies,
+): Promise<void> {
+  if (options.file) {
+    await dependencies.runSnapshotFileMode(
+      options.file,
+      outDir,
+      writeJson,
+      `File ${resolve(options.file)}`,
+    );
+    return;
+  }
+
+  if (options.repo && options.at && options.path) {
+    await runAsBuiltGitMode(options.repo, options.at, options.path, outDir, writeJson);
+    return;
+  }
+
+  if (!options.org || !options.flow) {
+    throw new Error("As-built org mode requires --org <alias> and --flow <Name>.");
+  }
+  const versions = dependencies.listFlowVersions(options.org, options.flow);
+  if (versions.length === 0) {
+    throw new Error(`Flow ${options.flow} was not found in Salesforce org ${options.org}.`);
+  }
+  const requestedVersion = parseVersionOption(options["flow-version"], "--flow-version");
+  const selected = requestedVersion === undefined
+    ? selectLatestSnapshotVersion(versions)
+    : versions.find((version) => version.versionNumber === requestedVersion);
+  if (!selected) {
+    throw new Error(`Flow ${options.flow} version ${requestedVersion} was not found in Salesforce org ${options.org}.`);
+  }
+
+  console.error(`As-built mode: retrieving Flow ${selected.developerName} version ${selected.versionNumber} from Salesforce...`);
+  const retrieved = dependencies.retrieveSingleFlowVersion(
+    options.org,
+    selected.developerName,
+    selected.versionNumber,
+  );
+  try {
+    const path = retrieved.versions[0]?.path;
+    if (!path) {
+      throw new Error("The `sf` retrieve response did not include the requested Flow version.");
+    }
+    await dependencies.runSnapshotFileMode(
+      path,
+      outDir,
+      writeJson,
+      `Salesforce org ${options.org}`,
+      selected.versionNumber,
+    );
+  } finally {
+    retrieved.cleanup();
+  }
+}
+
+function selectLatestSnapshotVersion(versions: FlowVersion[]): FlowVersion | undefined {
+  const activeVersions = versions.filter((version) => version.status === "Active");
+  return [...(activeVersions.length > 0 ? activeVersions : versions)]
+    .sort((left, right) => right.versionNumber - left.versionNumber)[0];
+}
+
+async function runAsBuiltGitMode(
+  repo: string,
+  ref: string,
+  pattern: string,
+  outDir: string,
+  writeJson: boolean,
+): Promise<void> {
+  const files = discoverGitMetadataFilesAtRef(repo, ref, pattern);
+  if (files.length === 0) {
+    throw new Error(`No Flow metadata files matched ${pattern} at git ref ${ref}.`);
+  }
+  let hadFailure = false;
+  for (const filePath of files) {
+    try {
+      const xml = readMetadataFromGit(repo, ref, filePath);
+      if (!xml) continue;
+      await writeSnapshotXml(
+        xml,
+        outDir,
+        writeJson,
+        `Git ${ref}: ${filePath}`,
+      );
+    } catch (error) {
+      hadFailure = true;
+      console.error(`${filePath}: ${(error as Error).message}`);
+    }
+  }
+  if (hadFailure) process.exitCode = 1;
 }
 
 export interface OrgModeDependencies {
@@ -246,6 +408,39 @@ async function runFileMode(oldPath: string, newPath: string, outDir: string, wri
   await writeArtifacts(oldModel, newModel, outDir, writeJson);
 }
 
+async function runSnapshotFileMode(
+  filePath: string,
+  outDir: string,
+  writeJson: boolean,
+  source: string,
+  versionNumber?: number,
+): Promise<void> {
+  await writeSnapshotXml(readMetadataFromFile(filePath), outDir, writeJson, source, versionNumber);
+}
+
+async function writeSnapshotXml(
+  xml: string,
+  outDir: string,
+  writeJson: boolean,
+  source: string,
+  versionNumber?: number,
+): Promise<void> {
+  const model = await buildModelWithHeader(xml);
+  const snapshotMeta: SnapshotMeta = {
+    flowName: model.flowName,
+    label: model.label,
+    status: model.header?.status,
+    processType: model.header?.processType ?? model.processType,
+    apiVersion: model.header?.apiVersion,
+    runInMode: model.header?.runInMode,
+    versionNumber,
+    source,
+    generatedAt: new Date().toISOString(),
+    toolVersion: readToolVersion(),
+  };
+  await writeFlowArtifact(buildSnapshotDiff(model, snapshotMeta), outDir, writeJson);
+}
+
 async function runGitMode(
   repo: string,
   from: string,
@@ -309,7 +504,15 @@ async function writeArtifacts(
   writeJson: boolean,
   sourcePath?: string,
 ): Promise<void> {
-  const diff = diffModel(oldModel, newModel);
+  await writeFlowArtifact(diffModel(oldModel, newModel), outDir, writeJson, sourcePath);
+}
+
+async function writeFlowArtifact(
+  diff: ReturnType<typeof diffModel>,
+  outDir: string,
+  writeJson: boolean,
+  sourcePath?: string,
+): Promise<void> {
   const layout = await layoutDiff(diff);
   const html = renderHtml(layout);
   const fileStem = safeFileName(diff.flowName || sourcePath || "flow");
@@ -317,9 +520,23 @@ async function writeArtifacts(
   if (writeJson) {
     writeFileSync(join(outDir, `${fileStem}.diff.json`), JSON.stringify(diff, null, 2), "utf8");
   }
-  console.log(
-    `${diff.flowName}: nodes ${diff.summary.addedNodes} added, ${diff.summary.removedNodes} deleted, ${diff.summary.modifiedNodes} modified; edges ${diff.summary.addedEdges} added, ${diff.summary.removedEdges} deleted${formatFlowAttributeSummary(diff.flowChanges)}`,
-  );
+  console.log(formatArtifactSummary(diff));
+}
+
+function formatArtifactSummary(diff: ReturnType<typeof diffModel>): string {
+  if (diff.mode === "snapshot") {
+    return `${diff.flowName}: ${diff.nodes.length} ${diff.nodes.length === 1 ? "element" : "elements"}, ${diff.edges.length} ${diff.edges.length === 1 ? "connector" : "connectors"}`;
+  }
+  return `${diff.flowName}: nodes ${diff.summary.addedNodes} added, ${diff.summary.removedNodes} deleted, ${diff.summary.modifiedNodes} modified; edges ${diff.summary.addedEdges} added, ${diff.summary.removedEdges} deleted${formatFlowAttributeSummary(diff.flowChanges)}`;
+}
+
+function readToolVersion(): string {
+  try {
+    const packageData = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: unknown };
+    return typeof packageData.version === "string" ? packageData.version : "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 function formatFlowAttributeSummary(flowChanges: ReturnType<typeof diffModel>["flowChanges"]): string {

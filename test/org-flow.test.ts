@@ -5,6 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   listFlowVersions,
+  retrieveSingleFlowVersion,
   retrieveFlowVersions,
   runSfJson,
   type FlowVersion,
@@ -12,7 +13,7 @@ import {
 } from "../src/io/read-flow-from-org.ts";
 import { pickFlowAndVersions } from "../src/cli-prompt.ts";
 import { ERROR_MESSAGES } from "../src/parser/flow_parser.ts";
-import { runOrgMode, type OrgModeDependencies } from "../src/cli.ts";
+import { runAsBuiltMode, runOrgMode, type OrgModeDependencies, type SnapshotModeDependencies } from "../src/cli.ts";
 
 const versions = [
   {
@@ -87,6 +88,22 @@ test("uses exact retrieve file paths, including the suffix-stripped highest vers
   assert.equal(basename(retrieved.versions[1].path), "My_Flow.flow-meta.xml");
   retrieved.cleanup();
   assert.equal(existsSync(retrieved.workDir), false);
+});
+
+test("single-version retrieval reuses the highest-version filename fallback", () => {
+  let retrieveCwd = "";
+  const runner: SfRunner = (args, cwd) => {
+    retrieveCwd = cwd ?? "";
+    assert.deepEqual(args.filter((arg) => arg === "-m"), ["-m"]);
+    return JSON.stringify({
+      status: 0,
+      result: { files: [{ fullName: "My_Flow-2", filePath: "force-app/My_Flow.flow-meta.xml" }] },
+    });
+  };
+
+  const retrieved = retrieveSingleFlowVersion("dev", "My_Flow", 2, {}, runner);
+  assert.equal(retrieved.versions[0]?.path, resolve(retrieveCwd, "force-app/My_Flow.flow-meta.xml"));
+  retrieved.cleanup();
 });
 
 test("the sf JSON runner never writes token-bearing JSON to output", () => {
@@ -182,6 +199,24 @@ function fakeOrgModeDependencies(
     },
   };
 }
+
+test("as-built org mode selects the highest active version without prompting", async () => {
+  const calls: { version?: number; file?: string } = {};
+  const dependencies: SnapshotModeDependencies = {
+    listFlowVersions: () => [flowVersion(1), { ...flowVersion(2), status: "Obsolete" }, { ...flowVersion(3), status: "Active" }],
+    retrieveSingleFlowVersion: (_org, _developerName, version) => {
+      calls.version = version;
+      return { workDir: "C:/temp", versions: [{ versionNumber: version, path: "C:/temp/My_Flow.flow-meta.xml" }], cleanup: () => undefined };
+    },
+    runSnapshotFileMode: async (file) => {
+      calls.file = file;
+    },
+  };
+
+  await runAsBuiltMode({ org: "dev", flow: "My_Flow" }, "C:/out", false, dependencies);
+  assert.equal(calls.version, 3);
+  assert.equal(calls.file, "C:/temp/My_Flow.flow-meta.xml");
+});
 
 test("org mode dispatches pinned versions directly to file mode", async () => {
   const dependencies = fakeOrgModeDependencies([flowVersion(1), flowVersion(2)]);

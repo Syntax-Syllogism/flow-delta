@@ -5,7 +5,8 @@ description: FlowDelta pipeline, module responsibilities, and invariants.
 
 # Architecture
 
-FlowDelta converts two versions of a Salesforce Flow into a semantic, visual diff.
+FlowDelta converts Salesforce Flow metadata into either a semantic visual diff
+or an as-built snapshot.
 The pipeline is a straight line:
 
 ```
@@ -15,15 +16,20 @@ XML (new) ─┘     └─► header ──────────┤─► Fl
                           (build-model)         (diff-model)  (render)
 ```
 
+Snapshot mode uses one XML input and follows the same model → layout → HTML
+pipeline, with buildSnapshotDiff producing present nodes and edges before
+rendering.
+
 FlexiPageDelta is a sibling pipeline in the same package. It parses
 `.flexipage-meta.xml` directly with `xml2js`, builds an ordered `PageModel`
 tree, diffs regions/components into a `PageDiff`, and renders an offline
 outline with an optional template wireframe. Its detailed invariants and module
 map live in [flexipage.md](flexipage.md).
 
-**Core principle:** diff the _normalized model_, not the rendered diagram or the
-raw XML. Cosmetic saves (coordinate churn, element reordering) must produce zero
-diff; only logic changes should surface.
+**Core principle:** operate on the _normalized model_, not the rendered diagram
+or the raw XML. Cosmetic saves (coordinate churn, element reordering) must
+produce zero diff; comparison mode surfaces logic changes while snapshot mode
+preserves the current normalized state.
 
 ## Modules (`src/`)
 
@@ -38,14 +44,14 @@ diff; only logic changes should surface.
 | `model/flow-header.ts`                          | Thin, non-vendored extractor for selected `<Flow>` root scalars (`status`, `processType`, `runInMode`, `apiVersion`, `triggerOrder`, `description`, `interviewLabel`, `isTemplate`). Parses raw XML with `xml2js` and leaves malformed/headerless XML as `{}`. |
 | `model/build-model.ts`                          | `ParsedFlow → GraphModel`. **Canonicalization lives here.**                                                                                                                                                                                                    |
 | `diff/deep-diff.ts`                             | Generic recursive `{path, before, after}` diff of two values.                                                                                                                                                                                                  |
-| `diff/diff-model.ts`                            | `GraphModel × GraphModel → FlowDiff`. Classifies nodes/edges added/deleted/modified/unchanged, diffs both-present flow headers, and attaches per-property deltas.                                                                                              |
+| `diff/diff-model.ts`                            | `GraphModel × GraphModel → FlowDiff` for diffs, plus buildSnapshotDiff for one-model snapshots with present nodes/edges and provenance metadata.                                                                                              |
 | `render/layout.ts`                              | Deterministic graph layout via `elkjs` (layered, top-down). Positions are computed at build time and baked into the artifact.                                                                                                                                  |
 | `render/section-schemas.ts`                     | Type-specific property grouping schemas. Declare how each node type's changes should be organized into semantic sections (e.g., "Outcomes" for decisions) and rendered (lines, table, or grouped-table).                                                       |
 | `render/render-html.ts`                         | Flow-specific SVG canvas and semantic detail content supplied to the shared shell. Embeds a compact client DTO with pre-rendered detail HTML and geometry-only layouts; uses section schemas while rendering. No network/runtime deps. See [render.md](render.md).               |
 | `ci/report-core.ts`                             | Product/platform-agnostic reporting core: vocabulary-driven comment rendering, result loading, zero-summary checks, sticky-note helpers, artifact URLs, and path/table utilities. See [ci.md](ci.md) and [flexipage.md](flexipage.md).                                                                        |
 | `ci/gitlab-report.ts`                           | Consumes `*.diff.json` (via `report-core`), builds the sticky GitLab MR comment, and upserts it via the GitLab API. See [ci.md](ci.md).                                                                                                                        |
 | `ci/github-report.ts`                           | Same shared core, GitHub-shaped: upserts a sticky PR comment via the issue-comments API (marker-only match, no `/user` call). See [ci.md](ci.md).                                                                                                              |
-| `cli.ts`                                        | Arg parsing + orchestration for file, git, and Salesforce org modes. See [cli.md](cli.md).                                                                                                                                                                   |
+| `cli.ts`                                        | Arg parsing + orchestration for file, git, Salesforce org, and as-built snapshot modes. See [cli.md](cli.md).                                                                                                                                                                   |
 
 FlexiPage modules:
 

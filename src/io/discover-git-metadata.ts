@@ -23,6 +23,16 @@ export function discoverGitMetadataFiles(
   return [...new Set(files.map(normalizePath))].filter(matcher).sort();
 }
 
+export function discoverGitMetadataFilesAtRef(
+  repo: string,
+  ref: string,
+  pattern: string,
+  runner: GitRunner = runGit,
+): string[] {
+  const matcher = createPathMatcher(pattern);
+  return [...new Set(listGitTree(repo, ref, runner).map(normalizePath))].filter(matcher).sort();
+}
+
 function listGitTree(repo: string, ref: string, runner: GitRunner): string[] {
   return splitLines(runner(repo, ["ls-tree", "-r", "--name-only", ref]));
 }

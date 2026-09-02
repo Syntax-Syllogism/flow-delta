@@ -157,7 +157,7 @@ See [docs/debugging.md](debugging.md) for more troubleshooting tips.
 - Read [docs/architecture.md](architecture.md) for the conceptual pipeline
 - Read [docs/render.md](render.md) to understand the interactive HTML features
 - Explore the test fixtures in `fixtures/diff/` to see real-world change patterns
-- Check [CONTRIBUTING.md](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.8.1/CONTRIBUTING.md) for code style and PR expectations
+- Check [CONTRIBUTING.md](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/CONTRIBUTING.md) for code style and PR expectations
 
 ## Questions?
 

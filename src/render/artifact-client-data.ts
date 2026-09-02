@@ -5,6 +5,7 @@ import { renderNodePanelBody } from "./snapshot-panel.ts";
 
 export interface FlowArtifactClientNode {
   id: NodeDiff["id"];
+  type: NodeDiff["type"];
   label: NodeDiff["label"];
   status: NodeDiff["status"];
   detailHtml: string;
@@ -38,6 +39,7 @@ export function buildFlowArtifactClientData(layout: LayoutedFlow): FlowArtifactC
   return {
     nodes: layout.diff.nodes.map((node) => ({
       id: node.id,
+      type: node.type,
       label: node.label,
       status: node.status,
       detailHtml: renderNodePanelBody(node, getSectionSchemas(node.type)),

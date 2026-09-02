@@ -10,7 +10,7 @@ import { FlowParser } from "../src/parser/flow_parser.ts";
 import { buildModel } from "../src/model/build-model.ts";
 import { extractFlowHeader } from "../src/model/flow-header.ts";
 import { deepDiff } from "../src/diff/deep-diff.ts";
-import { diffModel } from "../src/diff/diff-model.ts";
+import { buildSnapshotDiff, diffModel } from "../src/diff/diff-model.ts";
 import { buildFlowArtifactClientData } from "../src/render/artifact-client-data.ts";
 import { layoutDiff } from "../src/render/layout.ts";
 import { THEME_STORAGE_KEY, renderHtml } from "../src/render/render-html.ts";
@@ -290,6 +290,56 @@ test("renderHtml emits a self-contained document with node ids and status classe
   assert.ok(!html.includes("https://"));
   for (const node of layout.nodes) {
     assert.ok(html.includes(node.id));
+  }
+});
+
+test("snapshot diffs render present nodes, inventory, facts, and provenance", async () => {
+  const snapshot = buildSnapshotDiff({
+    flowName: "Snapshot_Flow",
+    label: "Snapshot Flow",
+    header: { status: "Active", processType: "AutoLaunchedFlow", apiVersion: "60.0", runInMode: "SystemModeWithoutSharing" },
+    nodes: [
+      { id: "START", type: "start", label: "Start", properties: { triggerType: "Record" } },
+      { id: "SCREEN", type: "screen", label: "Review", properties: { allowBack: "true" } },
+      { id: "DECISION", type: "decision", label: "Approved?", properties: { rules: [] } },
+    ],
+    edges: [{ id: "START->SCREEN", source: "START", target: "SCREEN", kind: "normal" }, { id: "SCREEN->DECISION", source: "SCREEN", target: "DECISION", kind: "normal" }],
+  }, {
+    flowName: "Snapshot_Flow",
+    label: "Snapshot Flow",
+    status: "Active",
+    processType: "AutoLaunchedFlow",
+    apiVersion: "60.0",
+    runInMode: "SystemModeWithoutSharing",
+    source: "File /flows/Snapshot_Flow.flow-meta.xml",
+    generatedAt: "2026-09-01T12:00:00.000Z",
+    toolVersion: "0.8.1",
+  });
+  assert.ok(snapshot.nodes.every((node) => node.status === "present" && node.after));
+  assert.ok(snapshot.edges.every((edge) => edge.status === "present"));
+  const html = renderHtml(await layoutDiff(snapshot));
+
+  assert.match(html, /data-mode="snapshot"/);
+  assert.match(html, /snapshot-inventory/);
+  assert.match(html, /3 elements/);
+  assert.match(html, /snapshot-type-legend/);
+  assert.match(html, /class="node present type-screen"/);
+  assert.match(html, /<svg[^>]+aria-label="Flow snapshot"/);
+  assert.match(html, /Flow facts/);
+  assert.match(html, /Snapshot Flow/);
+  assert.match(html, /File \/flows\/Snapshot_Flow/);
+  assert.match(html, /Generated 2026-09-01T12:00:00\.000Z/);
+  assert.doesNotMatch(html, /data-view-mode="(all|after|before|changes)"/);
+  assert.doesNotMatch(html, / -> /);
+
+  const dom = await renderDom(html);
+  try {
+    const node = dom.document.querySelector('[data-node-id="SCREEN"]') as HTMLElement;
+    node.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    assert.equal(dom.document.getElementById("panel-badge")?.textContent, "Screen");
+    assert.match(dom.document.getElementById("panel-body")?.innerHTML ?? "", /Allow Back/);
+  } finally {
+    dom.close();
   }
 });
 
@@ -614,6 +664,19 @@ test("snapshot panel renders full added screen contents with generic recursion",
   assert.ok(!html.includes("This node was added"));
 });
 
+test("snapshot panel renders present node properties as neutral one-sided values", () => {
+  const html = renderNodePanelBody({
+    status: "present",
+    after: { object: "Account", label: "Current" },
+  });
+
+  assert.match(html, /snapshot-section present/);
+  assert.match(html, /open/);
+  assert.match(html, /class='val one-sided'>Account/);
+  assert.match(html, /class='val one-sided'>Current/);
+  assert.doesNotMatch(html, /No property changes/);
+});
+
 test("snapshot panel renders deleted node contents symmetrically", () => {
   const html = renderNodePanelBody({
     status: "deleted",
@@ -928,6 +991,74 @@ test("CLI git mode writes diff.json that matches file-mode output", async () => 
   const diffJson = JSON.parse(readFileSync(join(outDir, diffFiles[0]), "utf8"));
   const expected = diffModel(buildModel(await parseXml(oldXml)), buildModel(await parseXml(newXml)));
   assert.deepEqual(diffJson, JSON.parse(JSON.stringify(expected)));
+});
+
+test("CLI as-built file mode writes a snapshot artifact", async () => {
+  const outDir = mkdtempSync(join(tmpdir(), "flow-delta-snapshot-out-"));
+  await main([
+    "--as-built",
+    "--file", join(ROOT, "fixtures", "parse", "sample.flow-meta.xml"),
+    "--out", outDir,
+    "--json",
+  ]);
+
+  const html = readFileSync(join(outDir, readdirSync(outDir).find((name) => name.endsWith(".html"))!), "utf8");
+  const snapshot = JSON.parse(readFileSync(join(outDir, readdirSync(outDir).find((name) => name.endsWith(".diff.json"))!), "utf8"));
+  assert.equal(snapshot.mode, "snapshot");
+  assert.ok(snapshot.nodes.every((node: { status: string }) => node.status === "present"));
+  assert.match(html, /data-mode="snapshot"/);
+  assert.doesNotMatch(html, /data-view-mode="all"/);
+});
+
+test("CLI as-built git mode writes a snapshot artifact at one ref", async () => {
+  const repoDir = mkdtempSync(join(tmpdir(), "flow-delta-git-snapshot-"));
+  const outDir = mkdtempSync(join(tmpdir(), "flow-delta-snapshot-out-"));
+  const flowRelPath = "flows/snapshot.flow-meta.xml";
+  const flowAbsPath = join(repoDir, flowRelPath);
+  mkdirSync(dirname(flowAbsPath), { recursive: true });
+  writeFileSync(flowAbsPath, SAMPLE_XML, "utf8");
+  git(repoDir, ["init", "-q"]);
+  git(repoDir, ["config", "user.email", "test@example.com"]);
+  git(repoDir, ["config", "user.name", "test"]);
+  git(repoDir, ["add", "."]);
+  git(repoDir, ["commit", "-m", "snapshot"]);
+  const ref = git(repoDir, ["rev-parse", "HEAD"]);
+
+  await main([
+    "--as-built",
+    "--repo", repoDir,
+    "--at", ref,
+    "--path", flowRelPath,
+    "--out", outDir,
+    "--json",
+  ]);
+
+  const outputs = readdirSync(outDir);
+  const htmlFile = outputs.find((name) => name.endsWith(".html"));
+  const diffFile = outputs.find((name) => name.endsWith(".diff.json"));
+  assert.ok(htmlFile);
+  assert.ok(diffFile);
+  const html = readFileSync(join(outDir, htmlFile!), "utf8");
+  const snapshot = JSON.parse(readFileSync(join(outDir, diffFile!), "utf8"));
+  assert.equal(snapshot.mode, "snapshot");
+  assert.equal(snapshot.snapshotMeta.source, `Git ${ref}: ${flowRelPath}`);
+  assert.match(html, /aria-label="Flow snapshot"/);
+  assert.doesNotMatch(html, /data-view-mode="all"/);
+});
+
+test("CLI as-built mode rejects diff flags clearly", async () => {
+  const previousExitCode = process.exitCode;
+  const errors: string[] = [];
+  const originalConsoleError = console.error;
+  process.exitCode = undefined;
+  console.error = (message?: unknown) => errors.push(String(message));
+  try {
+    await main(["--as-built", "--file", SAMPLE_XML, "--old", "before.flow-meta.xml"]);
+  } finally {
+    console.error = originalConsoleError;
+    process.exitCode = previousExitCode;
+  }
+  assert.deepEqual(errors, ["--as-built cannot be combined with --old; choose snapshot input or diff mode."]);
 });
 
 test("CLI git mode requires a Flow path before discovery", async () => {
