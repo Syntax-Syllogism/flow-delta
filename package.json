@@ -37,7 +37,7 @@
     "render:fixtures": "bash bin/render-fixtures.sh"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260702.1",
+    "@cloudflare/workers-types": "^5.20260807.2",
     "@types/node": "^26.1.0",
     "@types/xml2js": "^0.4.14",
     "esbuild": "^0.28.0",
