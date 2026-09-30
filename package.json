@@ -43,7 +43,7 @@
     "esbuild": "^0.28.0",
     "happy-dom": "^20.10.6",
     "tsx": "^4.19.0",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "elkjs": "^0.12.0",
