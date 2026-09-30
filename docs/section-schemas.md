@@ -5,27 +5,27 @@ description: Define semantic property groups for Flow element diffs.
 
 # Section Schema Authoring Guide
 
-The semantic property panel in the interactive diff organizes property changes into sections. This guide explains how to define, customize, and extend section schemas for new or modified node types.
+The property panel in the interactive diff groups property changes into sections. This guide shows how to define and change section schemas for new or existing node types.
 
 ## Overview
 
-Section schemas live in `src/render/section-schemas.ts` and declare how each node type's properties should be grouped and rendered in the UI. They separate domain-specific structures (decision outcomes, field mappings, filters) from generic property changes, making diffs readable.
+Section schemas live in `src/render/section-schemas.ts`. Each one says how a node type's properties are grouped and rendered. Schemas keep domain structures (decision outcomes, field mappings, filters) apart from generic property changes, which makes diffs easier to read.
 
-## When to add or modify a schema
+## When to add or change a schema
 
 **Add a schema when:**
-- A new Salesforce node type ships with a specific domain concept (e.g., "Filters" for lookups, "Outcomes" for decisions)
-- An existing node type's properties should be reorganized (e.g., grouping related fields)
-- A collection should render as a table instead of scalar lines
 
-**Modify a schema when:**
-- The render mode is wrong (table should be grouped-table, etc.)
-- Column labels need clarification
-- New property paths are added to the node type in Salesforce
+- A new Salesforce node type ships with its own domain concept (for example "Filters" for lookups, "Outcomes" for decisions).
+- An existing node type's properties should be regrouped.
+- A collection should render as a table instead of scalar lines.
+
+**Change a schema when:**
+
+- The render mode is wrong (for example a table should be a grouped-table).
+- Column labels are unclear.
+- Salesforce adds new property paths to the node type.
 
 ## Schema structure
-
-A section schema declares how to render a group of properties:
 
 ```typescript
 interface SectionSchema {
@@ -49,25 +49,22 @@ interface ColumnSchema {
 
 ### `"lines"` (default fallback)
 
-Renders each property change as a labeled scalar comparison. Used for unstructured configuration.
-
-**Example:**
+Shows each property change as a labeled scalar comparison. Use it for unstructured configuration.
 
 ```
 Before:  condition = x
 After:   condition = y
 ```
 
-**When to use:**
-- Scalar properties with no internal structure
-- Configuration that doesn't fit a table
-- Final fallback for properties not matched by any schema
+**Use it for:**
+
+- scalar properties with no internal structure;
+- configuration that doesn't fit a table; and
+- the final fallback, for properties no schema matches.
 
 ### `"table"`
 
-Renders an array of objects as a table. Each array item becomes a row; `columns` define which properties extract as columns.
-
-**Example:**
+Shows an array of objects as a table. Each item is a row, and `columns` choose which properties become columns.
 
 ```
 inputAssignments (table):
@@ -76,20 +73,17 @@ inputAssignments (table):
   Email     | "new@example.com"
 ```
 
-**When to use:**
-- Flat arrays of similar objects (field mappings, filters, conditions)
-- Collections with 2–4 repeating properties per item
-- Record create/update input assignments
+**Use it for:**
 
-**Limitations:**
-- Does not handle nested arrays within rows
-- For nested structures, use `"grouped-table"` instead
+- flat arrays of similar objects (field mappings, filters, conditions);
+- collections with 2–4 repeating properties per item; and
+- Record Create/Update input assignments.
+
+**Limits:** it can't handle nested arrays inside rows. For nested structures, use `"grouped-table"`.
 
 ### `"grouped-table"`
 
-Renders a hierarchical structure: groups (labeled, like outcomes) each containing an inner table.
-
-**Example:**
+Shows a hierarchy. Each labeled group (an outcome, for example) holds an inner table.
 
 ```
 rules (grouped-table):
@@ -103,12 +97,13 @@ rules (grouped-table):
     Type     | Equals   | "Case"
 ```
 
-**When to use:**
-- Collections with headers + nested table (decisions with outcomes and conditions)
-- Multi-level structures where grouping adds clarity
-- Arrays containing arrays or complex sub-objects
+**Use it for:**
 
-## Built-in schemas (examples)
+- collections with a header and a nested table (decisions with outcomes and conditions);
+- multi-level structures where grouping helps; and
+- arrays that contain arrays or complex sub-objects.
+
+## Built-in schemas
 
 ### Decision node
 
@@ -125,7 +120,7 @@ rules (grouped-table):
 }
 ```
 
-Renders each `rules[]` entry as a group (labeled by rule name), with its `conditions[]` as a table.
+Each `rules[]` entry becomes a group, labeled by rule name. Its `conditions[]` become the table.
 
 ### Record Create/Update
 
@@ -158,13 +153,11 @@ Renders each `rules[]` entry as a group (labeled by rule name), with its `condit
 
 ## Adding a schema for a new node type
 
-**Scenario:** Salesforce adds a new node type `"myCustomNode"` with properties `triggers`, `handlers`, and `config`.
+**Scenario:** Salesforce adds a node type `"myCustomNode"` with properties `triggers`, `handlers`, and `config`.
 
-1. **Determine the structure:**
-   - Inspect the parsed XML or a fixture's `diff.json` to see the property shape
-   - Identify which properties group semantically (e.g., handlers + config might be separate sections)
+1. **Find the structure.** Look at the parsed XML, or a fixture's `diff.json`, to see the property shape. Decide which properties belong together (handlers and config might be separate sections).
 
-2. **Define the schema:**
+2. **Define the schema.**
 
    ```typescript
    const myCustomNodeSchemas: SectionSchema[] = [
@@ -189,7 +182,7 @@ Renders each `rules[]` entry as a group (labeled by rule name), with its `condit
    ];
    ```
 
-3. **Register in `getNodeTypeSchemas()`:**
+3. **Register it in `getNodeTypeSchemas()`.**
 
    ```typescript
    function getNodeTypeSchemas(nodeType: NodeType): SectionSchema[] {
@@ -201,23 +194,23 @@ Renders each `rules[]` entry as a group (labeled by rule name), with its `condit
    }
    ```
 
-4. **Test with a fixture:**
-   - Create or find a fixture with a `myCustomNode` before/after
-   - Add a test row in `test/semantic-diff.test.ts` with expected changes
-   - Run `npm test` and render with `npm run render:fixtures`
-   - Verify the properties appear in the correct sections in the HTML
+4. **Test it with a fixture.**
+   - Create or find a fixture with a `myCustomNode` before/after.
+   - Add a test row in `test/semantic-diff.test.ts` with the expected changes.
+   - Run `npm test` and `npm run render:fixtures`.
+   - Open the HTML and check the properties appear in the right sections.
 
-## Column schema properties
+## Column properties
 
 ### `key: string` (required)
 
-The property path to extract from each row. For flat properties, use the property name directly:
+The property path to read from each row. For a flat property, use its name:
 
 ```typescript
 { key: "field", label: "Field" }  // From each object's .field
 ```
 
-For nested properties, use dot notation:
+For a nested property, use dot notation:
 
 ```typescript
 { key: "value.stringValue", label: "Value" }
@@ -225,11 +218,11 @@ For nested properties, use dot notation:
 
 ### `label: string` (required)
 
-The column header displayed in the table. Keep it short (1–3 words).
+The column header. Keep it to 1–3 words.
 
 ### `unwrap?: boolean`
 
-When `true`, strips type-wrapper objects. Converts:
+When `true`, strips type-wrapper objects:
 
 ```typescript
 { stringValue: "hello" } → "hello"
@@ -237,7 +230,7 @@ When `true`, strips type-wrapper objects. Converts:
 { numberValue: 42 } → 42
 ```
 
-Use this for Salesforce typed values to show the scalar value cleanly.
+Use it for Salesforce typed values, so the table shows the scalar and not the wrapper.
 
 ```typescript
 { key: "value", label: "Value", unwrap: true }  // Shows the value, not the wrapper
@@ -245,7 +238,7 @@ Use this for Salesforce typed values to show the scalar value cleanly.
 
 ### `highlight?: boolean`
 
-(Not currently used in the renderer; reserved for future enhancement. Ignore for now.)
+Not used by the renderer yet. Reserved for later. Ignore it.
 
 ## Rendering behavior
 
@@ -253,11 +246,9 @@ Use this for Salesforce typed values to show the scalar value cleanly.
 
 When a row's property changes:
 
-- The changed cell is highlighted (green + for additions, red − for deletions)
-- Unchanged sibling columns are shown **faint** (gray) as context
-- Both before and after are shown side-by-side
-
-Example:
+- The changed cell is highlighted (green `+` for additions, red `−` for deletions).
+- Unchanged sibling columns are shown **faint** (gray) as context.
+- Before and after are shown side by side.
 
 ```
 Field Mappings (modified):
@@ -266,31 +257,29 @@ Field Mappings (modified):
   Email | "old@ex.com"   →   Email | "old@ex.com"  (faint, unchanged)
 ```
 
-### Added/deleted rows
+### Added and deleted rows
 
-- Added rows show the new content with green highlighting
-- Deleted rows show the old content with red strikethrough
+- Added rows show the new content, highlighted green.
+- Deleted rows show the old content, struck through in red.
 
-### Added/deleted nodes
+### Added and deleted nodes
 
-- No section schemas are used
-- The panel shows an empty-state message: *"This node was added in the new version."*
+Section schemas aren't used. The panel shows an empty-state message: *"This node was added in the new version."*
 
 ## Fallback grouping
 
-Properties that don't match any schema path are grouped by:
+Properties that match no schema path are grouped by:
 
-1. **Array name** (if the change is array-indexed)
-   - Changes to `myItems[0].field` group under "myItems"
-2. **Generic "Configuration" section** (for unstructured scalars)
+1. **Array name**, if the change is array-indexed. Changes to `myItems[0].field` go under "myItems".
+2. **A generic "Configuration" section**, for unstructured scalars.
 
-This ensures no property changes are ever left unrendered.
+So no property change is ever left unrendered.
 
-## Common patterns
+## Array ordering
 
-### Sorted arrays (unordered)
+### Unordered arrays
 
-If an array is in `UNORDERED_ARRAY_KEYS` (see [architecture.md](architecture.md)), it's sorted during canonicalization. Changes to item order **will not** produce diffs because the sort is stable.
+An array in `UNORDERED_ARRAY_KEYS` (see [architecture.md](architecture.md)) is sorted during canonicalization. The sort is stable, so a change in item order **won't** produce a diff.
 
 ```typescript
 // If "inputParameters" is unordered:
@@ -298,13 +287,11 @@ before:  [{ name: "a" }, { name: "b" }]
 after:   [{ name: "b" }, { name: "a" }]  // Still zero diff (re-sorted)
 ```
 
-Add unordered arrays to `UNORDERED_ARRAY_KEYS` in `src/model/build-model.ts` if reordering shouldn't count as a change.
+Add an array to `UNORDERED_ARRAY_KEYS` in `src/model/build-model.ts` if reordering shouldn't count as a change.
 
-### Positional arrays (ordered)
+### Positional arrays
 
-Arrays NOT in `UNORDERED_ARRAY_KEYS` are kept positional. A change in position **will** produce a diff.
-
-Example: decision `rules[]` is positional because outcome order matters.
+Arrays **not** in `UNORDERED_ARRAY_KEYS` stay positional. A change in position **does** produce a diff. Decision `rules[]` is positional, because outcome order matters.
 
 ```typescript
 before:  rules[0].name = "Outcome1"
@@ -313,18 +300,19 @@ after:   rules[0].name = "Outcome2"  // Different outcome in position 0 = diff
 
 ## Debugging schema issues
 
-If properties appear in the wrong section or don't render as expected:
+If properties land in the wrong section or don't render as expected:
 
-1. **Check the `diff.json` output** — does the change path match a schema path?
+1. **Check `diff.json`.** Does the change path match a schema path?
+
    ```bash
    npx tsx src/cli.ts --old before.xml --new after.xml --json --out out/
    cat out/*.diff.json | jq '.nodes[] | select(.status == "modified") | .changes'
    ```
 
-2. **Verify the schema is registered** — does `getNodeTypeSchemas()` include it?
-3. **Test render mode** — try switching to a simpler mode (lines → table) to isolate the issue
-4. **Check column keys** — use `rtk read src/model/build-model.ts` to see how properties are canonicalized
-5. **Render fixtures** — `npm run render:fixtures` and inspect the HTML detail panel manually
+2. **Check registration.** Does `getNodeTypeSchemas()` include the schema?
+3. **Simplify the render mode.** Try a simpler mode (lines instead of table) to isolate the issue.
+4. **Check column keys.** Read `src/model/build-model.ts` to see how properties are canonicalized.
+5. **Render the fixtures.** Run `npm run render:fixtures` and inspect the HTML detail panel.
 
 ## Testing new schemas
 
@@ -341,10 +329,11 @@ Add a test case in `test/semantic-diff.test.ts`:
 }
 ```
 
-Run:
+Then run:
+
 ```bash
 npm test
 npm run render:fixtures
 ```
 
-Then visually verify the section organization in the HTML.
+Finally, open the HTML and check the section layout by eye.

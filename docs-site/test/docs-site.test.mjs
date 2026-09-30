@@ -26,7 +26,7 @@ test('builds README as the site index and rewrites rendered internal links', () 
   assert.match(indexHtml, /href="\/flow-delta\/docs\/getting-started\/"/);
   assert.match(
     indexHtml,
-    /href="\/flow-delta\/docs\/architecture\/#canonicalization-in-build-modelts"/,
+    /href="\/flow-delta\/docs\/architecture\/#2-canonicalization-in-build-modelts"/,
   );
   assert.equal(indexHtml.includes('href="getting-started.md"'), false);
 });

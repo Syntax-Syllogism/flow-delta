@@ -5,7 +5,7 @@ description: Core FlowDelta types and their role in the pipeline.
 
 # Data Model Reference
 
-FlowDelta transforms Salesforce Flow metadata through several normalized types. Understanding these structures is essential for extending the system or debugging diff issues.
+FlowDelta turns Salesforce Flow metadata into a few normalized types. You need to know them to extend FlowDelta or debug a diff.
 
 ## Type hierarchy
 
@@ -24,7 +24,7 @@ FlowDiff
 
 ## GraphModel
 
-The normalized graph representation after parsing and canonicalization.
+The graph after parsing and canonicalization.
 
 ```typescript
 interface GraphModel {
@@ -38,7 +38,7 @@ interface GraphModel {
 
 ### GraphNode
 
-A normalized node after canonicalization.
+One node, after canonicalization.
 
 ```typescript
 interface GraphNode {
@@ -53,7 +53,7 @@ interface GraphNode {
 
 ### NodeType (union)
 
-All supported Salesforce Flow element types:
+Every supported Salesforce Flow element type:
 
 ```typescript
 type NodeType =
@@ -94,11 +94,11 @@ interface GraphEdge {
 }
 ```
 
-**Important:** Edge identity includes `kind` (fault vs. normal) because the same two nodes may have multiple edges of different kinds.
+**Note:** Edge identity includes `kind` (fault or normal), because two nodes can have more than one edge of different kinds.
 
 ## FlowDiff
 
-The semantic diff output, ready for rendering or serialization to JSON.
+The semantic diff. It can be rendered or serialized to JSON.
 
 ```typescript
 interface FlowDiff {
@@ -134,7 +134,7 @@ interface SnapshotMeta {
 
 ### NodeDiff
 
-Classifies a node's change status and attaches property deltas.
+A node's change status, plus its property deltas.
 
 ```typescript
 interface NodeDiff {
@@ -162,15 +162,13 @@ interface PropertyChange {
 }
 ```
 
-`diffModel(oldModel, newModel)` produces comparison statuses. For an as-built
-artifact, `buildSnapshotDiff(model, snapshotMeta)` produces one `FlowDiff` with
-`mode: "snapshot"`, `present` status on every node and edge, and the current
-node properties in `after`. Snapshot summaries keep the comparison counters at
-zero; the renderer computes the element inventory from the node types.
+`diffModel(oldModel, newModel)` produces the comparison statuses.
+
+For an as-built artifact, `buildSnapshotDiff(model, snapshotMeta)` produces one `FlowDiff` with `mode: "snapshot"`. Every node and edge has status `present`, and the current node properties are in `after`. The comparison counters in the summary stay at zero. The renderer computes the element inventory from the node types.
 
 ### EdgeDiff
 
-Tracks edge changes with minimal data (edges have no internal structure to diff).
+An edge change. Edges have no internal structure to diff, so this holds little data.
 
 ```typescript
 interface EdgeDiff {
@@ -185,11 +183,11 @@ interface EdgeDiff {
 
 ## Canonicalization (build-model.ts)
 
-Before diffing, `GraphNode.properties` are normalized via:
+Before diffing, `GraphNode.properties` are normalized in three steps:
 
 1. **TOP_LEVEL_KEYS removed:**
    - `name`, `label`, `locationX`, `locationY`, `elementSubtype`, `diffStatus`
-   - Coordinates are the main noise; removing them ensures no-op saves produce zero diff
+   - Coordinates are the main noise. Removing them means a no-op save produces zero diff
 
 2. **EDGE_KEYS removed at all levels:**
    - `connector`, `faultConnector`, `defaultConnector`, `nextValueConnector`, `noMoreValuesConnector`
@@ -197,14 +195,14 @@ Before diffing, `GraphNode.properties` are normalized via:
 
 3. **UNORDERED_ARRAY_KEYS sorted stably:**
    - `capabilityTypes`, `choiceReferences`, `dataTypeMappings`, `filters`, `inputParameters`, `outputParameters`, `processMetadataValues`
-   - Order-insensitive collections don't produce spurious diffs
-   - Array keys NOT in this list are kept positional (e.g., decision rules, assignment items)
+   - Order-insensitive collections don't produce false diffs.
+   - Array keys not in this list stay positional (for example decision rules and assignment items).
 
 ## Common property shapes
 
 ### Decision (decision nodes)
 
-After canonicalization, a decision has:
+After canonicalization, a decision looks like this:
 
 ```typescript
 {
@@ -285,25 +283,25 @@ Properties often wrap scalars in type discriminators:
 }
 ```
 
-The renderer unwraps these for cleaner display in the UI.
+The renderer unwraps these for display.
 
 ## Synthetic nodes
 
-FlowDelta synthesizes two virtual nodes:
+FlowDelta adds two virtual nodes:
 
 - **`start` node** (id: `FLOW_START`, type: `"start"`)
-  - Represents the flow entry point
-  - Edges from start to the actual start node(s) in the parsed flow
+  - The flow entry point
+  - Has edges to the actual start node(s) in the parsed flow
 
 - **`end` node** (id: `END`, type: `"end"`)
-  - Synthetic terminal node
-  - All leaf edges in the flow target this node for rendering consistency
+  - A terminal node
+  - Every leaf edge targets it, so rendering is consistent
 
-These ensure the graph is always well-formed (single entry, single exit) even if the source XML has multiple start/end paths.
+This keeps the graph well-formed (one entry, one exit) even when the source XML has several start or end paths.
 
 ## deepDiff algorithm
 
-`src/diff/deep-diff.ts` recursively compares two values and returns property changes:
+`src/diff/deep-diff.ts` compares two values recursively and returns the property changes:
 
 ```typescript
 interface PropertyChange {
@@ -328,9 +326,9 @@ Example outputs:
 { path: "conditions[2]", before: undefined, after: {...} }
 ```
 
-The diff is **structural** — it recurses into all levels and reports every leaf change. There is no special case for add/remove; those surface as `undefined` → value or value → `undefined`.
+The diff is **structural**. It recurses into every level and reports each leaf change. Adds and removes aren't special cases: they show up as `undefined` → value or value → `undefined`.
 
-## Flow of data through the pipeline
+## Data flow through the pipeline
 
 ```
 Flow XML
@@ -349,4 +347,4 @@ LayoutedFlow (GraphModel + position data)
 Self-contained HTML artifact
 ```
 
-At each stage, the data is read-only for the next stage. Modifications are only additions (position data, diff status, property changes) — never destructive.
+Each stage treats its input as read-only. Later stages only add to it (position data, diff status, property changes). They never destroy anything.

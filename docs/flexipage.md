@@ -5,15 +5,15 @@ description: Semantic diffs and wireframes for Salesforce Lightning pages.
 
 # FlexiPageDelta
 
-FlexiPageDelta is the sibling metadata-diff tool for Salesforce
-`.flexipage-meta.xml` files. It converts an old/new pair into a semantic diff,
-an offline outline HTML artifact with an optional template-aware wireframe
-canvas, and an optional machine-readable
-`PageDiff` JSON file. It is a separate binary family from FlowDelta.
+FlexiPageDelta is the sibling tool to FlowDelta, for Salesforce `.flexipage-meta.xml` files. Given an old and a new file, it produces:
+
+- a semantic diff;
+- an offline outline HTML artifact, with an optional template-aware wireframe canvas; and
+- an optional machine-readable `PageDiff` JSON file.
+
+It is a separate binary family from FlowDelta.
 
 ## Pipeline and modules
-
-The FlexiPage pipeline is:
 
 ```text
 XML (old/new) -> xml2js parser -> PageModel -> PageDiff -> outline/wireframe HTML + diff.json
@@ -21,61 +21,43 @@ XML (old/new) -> xml2js parser -> PageModel -> PageDiff -> outline/wireframe HTM
 
 | Module | Responsibility |
 | --- | --- |
-| `src/io/read-metadata.ts` / `src/io/discover-git-metadata.ts` | Shared local/Git metadata reading and path discovery; see [metadata-io.md](metadata-io.md). |
-| `src/flexipage/parse.ts` | Parse FlexiPage XML into a raw `PageModel` and compose the model transformation. |
-| `src/flexipage/canonicalize-page.ts` | Canonicalize nested facet identities as a pure model transformation, including stable paths, orphan hashes, rewritten references, and unique names. |
-| `src/flexipage/page-model.ts` | Define page headers, ordered regions, identifier-aware components/fields, and recursive property values. |
-| `src/flexipage/diff-page.ts` | Match unique canonical region paths and identifier-aware items with LCS; attach breadcrumbs and visibility notes. |
-| `src/flexipage/component-schemas.ts` | Resolve high-signal component property changes into ordered, friendly groups for the detail panel; unknown components and uncovered properties retain generic fallbacks. |
+| `src/io/read-metadata.ts` / `src/io/discover-git-metadata.ts` | Shared local and Git metadata reading and path discovery. See [metadata-io.md](metadata-io.md). |
+| `src/flexipage/parse.ts` | Parse FlexiPage XML into a raw `PageModel` and run the model transformation. |
+| `src/flexipage/canonicalize-page.ts` | Canonicalize nested facet identities as a pure model transformation: stable paths, orphan hashes, rewritten references, and unique names. |
+| `src/flexipage/page-model.ts` | Define page headers, ordered regions, identifier-aware components and fields, and recursive property values. |
+| `src/flexipage/diff-page.ts` | Match unique canonical region paths and identifier-aware items with LCS. Attach breadcrumbs and visibility notes. |
+| `src/flexipage/component-schemas.ts` | Turn property changes on high-signal components into ordered, friendly groups for the detail panel. Unknown components and uncovered properties keep generic fallbacks. |
 | `src/flexipage/render-outline.ts` | Render the hierarchical, self-contained outline artifact, select wireframe geometry, and drive the shared rollup digest panel. |
-| `src/flexipage/render-wireframe.ts` | Render registry-driven slot placement, nested stacks, removal/orphan appendices, and top-level change rollup pills. |
+| `src/flexipage/render-wireframe.ts` | Render registry-driven slot placement, nested stacks, removal and orphan appendices, and top-level change rollup pills. |
 | `src/flexipage/template-geometry.ts` | Store and validate the curated template geometry registry. |
-| `src/flexipage-cli.ts` | Orchestrate file and git modes and write artifacts. |
-| `src/ci/flexipage-gitlab-report.ts` / `flexipage-github-report.ts` | Post FlexiPage-specific sticky comments using the shared CI core. |
+| `src/flexipage-cli.ts` | Run file and git modes and write artifacts. |
+| `src/ci/flexipage-gitlab-report.ts` / `flexipage-github-report.ts` | Post FlexiPage-specific sticky comments, using the shared CI core. |
 
-The shared `deepDiff` implementation supplies generic `{path, before, after}`
-property changes. `report-core.ts` uses a vocabulary-driven comment builder for
-both products. `render/shell.ts` is the shared offline artifact shell consumed
-by both the FlexiPage outline renderer and Flow's graph renderer. It owns the
-common theme, filter, and detail-panel chrome; each renderer retains its own
-canvas and product-specific client behavior.
+Shared pieces:
+
+- `deepDiff` supplies generic `{path, before, after}` property changes.
+- `report-core.ts` has a vocabulary-driven comment builder used by both products.
+- `render/shell.ts` is the shared offline artifact shell, used by the FlexiPage outline renderer and Flow's graph renderer. It owns the common theme, filter, and detail-panel chrome. Each renderer keeps its own canvas and product-specific client behavior.
 
 ## Model and identity rules
 
 FlexiPages are modeled as ordered trees:
 
-- Curated page scalars are `masterLabel`, `type`, `sobjectType`, `template`,
-  `parentFlexiPage`, and `description`.
+- The curated page scalars are `masterLabel`, `type`, `sobjectType`, `template`, `parentFlexiPage`, and `description`.
 - Regions are anchored by their `name`, with `type`, `mode`, and ordered items.
-- Components preserve an optional `identifier` and use
-  `(componentName, identifier)` for item identity. Their properties retain
-  recursive structure instead of flattening nested XML into strings.
-- Field items preserve `(fieldItem, identifier)` identity. Named
-  `fieldInstanceProperties` merge into a stable keyed object, and
-  `visibilityRule` retains its criteria and `booleanFilter` structure.
-- A component property that names a Facet region becomes a `facetRef`; the
-  outline nests that Facet beneath the referencing component.
+- Components keep an optional `identifier`. Item identity is `(componentName, identifier)`. Properties keep their recursive structure instead of being flattened into strings.
+- Field items keep `(fieldItem, identifier)` identity. Named `fieldInstanceProperties` merge into a stable keyed object. `visibilityRule` keeps its criteria and `booleanFilter` structure.
+- A component property that names a Facet region becomes a `facetRef`. The outline nests that Facet under the referencing component.
 
-The semantic invariants are:
+The semantic invariants:
 
 1. Component property order and XML region-block order are cosmetic.
-2. Referenced GUID Facets are resolved transitively from each top-level region
-   into stable, human-readable paths such as
-   `main › flexipage:tab#detailsTab (Details) › body`; raw GUIDs never enter a
-   canonical path. Duplicate sibling signals receive a deterministic positional
-   suffix, and unreferenced GUID Facets use a content-hash fallback.
-3. Canonical region paths are unique, so nested regions cannot collapse in the
-   diff map or silently drop their items.
-4. Components and fields within a region are matched by LCS on their
-   identifier-aware identities, so an insertion does not cascade into false
-   modifications. Within-region move detection remains a separate follow-up.
-5. Field-property and visibility-rule changes produce recursive property paths;
-   added or removed fields carrying a visibility rule are tagged `has visibility
-   rule`. Region and item diffs carry top-level-rooted human breadcrumbs.
-6. Root scalar changes appear in `pageChanges`; whole-page add/delete cases
-   skip root-header comparison.
-7. Region `type`/`mode` changes are marked as modified and counted as
-   `summary.modifiedRegions`, so they remain visible to CI reporting.
+2. Referenced GUID Facets are resolved transitively from each top-level region into stable, readable paths such as `main › flexipage:tab#detailsTab (Details) › body`. Raw GUIDs never enter a canonical path. Duplicate sibling signals get a deterministic positional suffix. Unreferenced GUID Facets use a content-hash fallback.
+3. Canonical region paths are unique, so nested regions can't collapse in the diff map or silently drop their items.
+4. Components and fields within a region are matched by LCS on their identifier-aware identities, so an insertion doesn't cascade into false modifications. Move detection within a region is a separate follow-up.
+5. Field-property and visibility-rule changes produce recursive property paths. Fields added or removed with a visibility rule are tagged `has visibility rule`. Region and item diffs carry human breadcrumbs rooted at the top level.
+6. Root scalar changes appear in `pageChanges`. Whole-page add and delete cases skip the root-header comparison.
+7. Region `type` and `mode` changes are marked as modified and counted in `summary.modifiedRegions`, so CI reporting still sees them.
 
 ## CLI
 
@@ -89,8 +71,7 @@ npx flexipage-delta \
   --json
 ```
 
-Git mode compares refs. The default path glob is
-`force-app/**/*.flexipage-meta.xml`:
+Git mode compares refs. The default path glob is `force-app/**/*.flexipage-meta.xml`:
 
 ```bash
 npx flexipage-delta \
@@ -101,137 +82,127 @@ npx flexipage-delta \
   --json
 ```
 
-`--path` accepts a literal path or `*`, `**`, and `?` glob patterns. Added and
-deleted pages are discovered from the union of both refs; a deleted page keeps
-the old page label for its output stem. Each page writes `<safe-name>.html`,
-and `--json` additionally writes `<safe-name>.diff.json`. The default output
-directory is `./flexipage-delta-out`.
+- `--path` accepts a literal path, or a glob using `*`, `**`, and `?`.
+- Added and deleted pages are found from the union of both refs. A deleted page keeps the old page label for its output name.
+- Each page writes `<safe-name>.html`. With `--json`, it also writes `<safe-name>.diff.json`.
+- The default output directory is `./flexipage-delta-out`.
 
 ## Outline and wireframe artifact
 
-The HTML artifact is one offline document containing inline CSS and JavaScript.
-It provides `All`, `After`, `Before`, and `Changes only` filters, a
-System/Light/Dark theme control, a resizable/collapsible detail panel, and
-click-for-deltas rows. Regions contain ordered component rows; referenced
-Facets are nested under their tab or tabset component. The shared shell keeps
-the Outline/Wireframe selector and theme control on one row when a wireframe is
-available, with the theme control on the far right. Theme selection uses the
-same `flow-delta-theme` storage key as FlowDelta.
+The HTML artifact is one offline document with inline CSS and JavaScript. It has:
 
-Template changes receive a prominent page-level callout. Generic property
-changes use the same before/after value grammar as FlowDelta. Nested region and
-item breadcrumbs appear in the selected detail panel; the row keeps the path as
-`data-item-path` without printing the full ancestry inline. Fields added or
-removed with conditional visibility show a styled `has visibility rule` note.
-When the after template is present in the geometry registry and its slots
-reconcile with the current page regions, the artifact includes a Wireframe
-canvas and opens there by default; otherwise it remains Outline-only. The
-selected canvas is retained in browser storage under `flow-delta-view`, with
-invalid or inaccessible values falling back to the generated default.
+- `All`, `After`, `Before`, and `Changes only` filters;
+- a System/Light/Dark theme control;
+- a resizable, collapsible detail panel; and
+- rows you click to see deltas.
+
+Regions hold ordered component rows. Referenced Facets nest under their tab or tabset component. When a wireframe is available, the Outline/Wireframe selector and the theme control share one row, with the theme control on the far right. Theme selection uses the same `flow-delta-theme` storage key as FlowDelta.
+
+Other behavior:
+
+- A template change gets a prominent page-level callout.
+- Generic property changes use the same before/after value style as FlowDelta.
+- Nested region and item breadcrumbs appear in the selected detail panel. The row keeps the path as `data-item-path` and doesn't print the full ancestry inline.
+- Fields added or removed with conditional visibility show a styled `has visibility rule` note.
+- If the after template is in the geometry registry and its slots match the current page regions, the artifact includes a Wireframe canvas and opens there by default. Otherwise it is Outline-only.
+- The selected canvas is kept in browser storage under `flow-delta-view`. Invalid or inaccessible values fall back to the generated default.
 
 ### Wireframe change rollups and digest
 
-The Wireframe remains a map rather than a nested geometry view. For each
-top-level slot, the renderer rolls up every non-`unchanged` descendant
-`ItemDiff`, plus any direct region-level `type`/`mode` change, by the first
-segment of its breadcrumb path. A changed region cell retains its own status
-badge and gains one pill such as `5 changes`; unchanged cells have no pill.
-Derived region status from changed child items is not counted a second time.
+The Wireframe is a map, not a nested geometry view. For each top-level slot, the renderer rolls up every non-`unchanged` descendant `ItemDiff`, plus any direct region-level `type` or `mode` change, by the first segment of its breadcrumb path.
 
-Clicking the pill opens a digest in the shared detail panel. Digest entries are
-grouped by the nearest breadcrumb ancestor with a human-facing parenthesized
-label, falling back to the penultimate segment when no such label exists. This
-keeps headings such as `Account Information` and `Additional Information`
-instead of exposing unlabeled connector or column segments. Clicking an entry
-uses the existing item detail path, including generic property deltas and
-visibility-rule notes; direct region changes are represented as equivalent
-detail entries. The Back control returns to the digest. The pill is a separate
-button with propagation stopped, so item-row clicks inside the cell continue to
-open their own details and the interaction never switches to Outline.
+- A changed region cell keeps its own status badge and gains one pill, such as `5 changes`. Unchanged cells have no pill.
+- Region status derived from changed child items isn't counted a second time.
+
+Clicking the pill opens a digest in the shared detail panel:
+
+- Entries are grouped by the nearest breadcrumb ancestor with a human-facing parenthesized label. If there is none, the penultimate segment is used. This keeps headings such as `Account Information` and `Additional Information`, and hides unlabeled connector or column segments.
+- Clicking an entry uses the normal item detail path, including generic property deltas and visibility-rule notes. Direct region changes appear as equivalent detail entries.
+- The Back control returns to the digest.
+- The pill is a separate button with propagation stopped. Item-row clicks inside the cell still open their own details, and the interaction never switches to Outline.
 
 ### Component detail schemas
 
-The detail panel applies the hand-curated registry in
-`src/flexipage/component-schemas.ts` to modified components. The current schemas
-cover `flowruntime:interview`, related-list containers
-(`force:relatedListSingleContainer` and `force:relatedListContainer`),
-`force:highlightsPanel`, `flexipage:tab`, and `flexipage:tabset`. They provide a
-friendly component title plus ordered groups such as `Flow`, `Input Variables`,
-`Related List`, `Display`, `Sorting`, `Tab`, and `Tabs`.
+For modified components, the detail panel uses the hand-curated registry in `src/flexipage/component-schemas.ts`. Current schemas cover:
 
-Properties not explicitly covered on a known component remain visible in an
-`Other` group and use `humanizePath` labels. Components without a schema keep the
-original flat `{path, before → after}` lines. Schema resolution enriches only the
-embedded HTML panel data; `PageDiff`, summaries, and emitted `.diff.json` files
-remain unchanged. The registry is offline and safe to extend by adding another
-component entry.
+- `flowruntime:interview`
+- related-list containers (`force:relatedListSingleContainer` and `force:relatedListContainer`)
+- `force:highlightsPanel`
+- `flexipage:tab`
+- `flexipage:tabset`
+
+Each gives a friendly component title and ordered groups such as `Flow`, `Input Variables`, `Related List`, `Display`, `Sorting`, `Tab`, and `Tabs`.
+
+- Properties not covered on a known component appear in an `Other` group, with `humanizePath` labels.
+- Components with no schema keep the original flat `{path, before → after}` lines.
+- Schema resolution only enriches the embedded HTML panel data. `PageDiff`, summaries, and emitted `.diff.json` files are unchanged.
+- The registry is offline. To extend it, add another component entry.
 
 ### Template wireframe
 
-`src/flexipage/template-geometry.ts` contains curated geometry for the
-supported record, app, and home templates. Registry keys are canonicalized as
-namespace-qualified names (`flexipage:...` for FlexiPage-owned templates), with
-bare-name aliases retained for compatibility; already-qualified keys such as
-`home:desktopTemplate` remain unchanged. Geometry is validated at module load
-and frozen at runtime.
+`src/flexipage/template-geometry.ts` has curated geometry for the supported record, app, and home templates.
 
-The after/current template drives placement, including template changes. Rows
-use CSS-grid proportions, and stacked families render nested rows with their
-inner widths. Empty registry slots remain visible. A deleted region is placed
-in its slot when that slot still exists; deleted regions without a current slot
-are listed in `Removed (not in current template)`. Unreferenced Facet regions
-are listed separately as `Unplaced facet regions` and retain their actual diff
-status. Unknown templates or slot mismatches fall back to the Outline view.
+- Registry keys are canonicalized as namespace-qualified names (`flexipage:...` for FlexiPage-owned templates). Bare-name aliases stay for compatibility. Already-qualified keys such as `home:desktopTemplate` are unchanged.
+- Geometry is validated at module load and frozen at runtime.
+
+The after (current) template drives placement, including for template changes.
+
+- Rows use CSS-grid proportions. Stacked families render nested rows at their inner widths.
+- Empty registry slots stay visible.
+- A deleted region is placed in its slot if that slot still exists. Deleted regions with no current slot are listed under `Removed (not in current template)`.
+- Unreferenced Facet regions are listed separately as `Unplaced facet regions` and keep their real diff status.
+- Unknown templates and slot mismatches fall back to the Outline view.
 
 ## CI reporting
 
-The package ships:
+The package ships two reporters:
 
 - `flexipage-delta-gitlab` for GitLab MR comments.
 - `flexipage-delta-github` for GitHub PR comments.
 
-Both read non-zero `*.diff.json` files and reuse the existing artifact-link and
-sticky-comment patterns. The FlexiPage marker is
-`<!-- FlexiPageDelta:report -->`; the summary columns are page, component
-counts, region counts, page attributes, and the artifact link. A template-only
-change is non-zero and therefore still receives a comment.
+Both read non-zero `*.diff.json` files and reuse the existing artifact-link and sticky-comment patterns.
 
-See [cli.md](cli.md), [render.md](render.md), and [ci.md](ci.md) for the
-shared usage and reporting conventions.
+- The FlexiPage marker is `<!-- FlexiPageDelta:report -->`.
+- The summary columns are page, component counts, region counts, page attributes, and the artifact link.
+- A template-only change counts as non-zero, so it still gets a comment.
+
+See [cli.md](cli.md), [render.md](render.md), and [ci.md](ci.md) for shared usage and reporting conventions.
 
 ## Fixtures and tests
 
-FlexiPage semantic fixtures live under `fixtures/flexipage-diff/<case>/`, and
-retrieved/template-focused pairs live under
-`fixtures/flexipage-template/<template>/`. The
-`nestedDynamicForms` pair covers transitive tabs/accordion/field-section/column
-paths, GUID churn, the former collision-loser `+2/−2/~1` scenario, and a
-visibility-rule addition. Both fixture families are covered by
-`test/flexipage-delta.test.ts`, including registry slots, nested stacks,
-fallback behavior, empty slots, deleted-slot handling, facets, artifact
-controls, wireframe rollup counts, direct-region aggregation, multi-container
-digest grouping, pill-versus-row click isolation, digest drill-down/back
-navigation, CLI file mode, and CLI git mode.
+FlexiPage semantic fixtures live under `fixtures/flexipage-diff/<case>/`. Retrieved and template-focused pairs live under `fixtures/flexipage-template/<template>/`.
 
-Run the focused suite with:
+The `nestedDynamicForms` pair covers transitive tab, accordion, field-section, and column paths, GUID churn, the former collision-loser `+2/−2/~1` scenario, and a visibility-rule addition.
+
+`test/flexipage-delta.test.ts` covers both fixture families. It also covers:
+
+- registry slots, nested stacks, fallback behavior, empty slots, and deleted-slot handling;
+- facets and artifact controls;
+- wireframe rollup counts and direct-region aggregation;
+- multi-container digest grouping;
+- pill-versus-row click isolation and digest drill-down and back navigation; and
+- CLI file mode and CLI git mode.
+
+Run the focused suite:
 
 ```bash
 node --import tsx --test test/flexipage-delta.test.ts
 ```
 
-The pure canonicalization boundary is also directly tested with hand-built
-`PageModel` values, without routing through `xml2js`:
+The pure canonicalization boundary is also tested directly with hand-built `PageModel` values, without going through `xml2js`:
 
 ```bash
 node --import tsx --test test/flexipage-canonicalize.test.ts
 ```
 
-Run the full project suite with `npm test` and build all six published
-entrypoints with `npm run build`.
+Run the full suite with `npm test`. Build all six published entrypoints with `npm run build`.
 
 ## Current boundaries
 
-The current implementation intentionally defers within-region move detection,
-faithful side-by-side before/after template geometry, and a unified
-extension-dispatching front end. These are follow-up improvements, not parser or
-diff correctness requirements for the current sibling tool.
+These are deliberately deferred:
+
+- move detection within a region;
+- faithful side-by-side before/after template geometry; and
+- a unified front end that dispatches by file extension.
+
+They are follow-up improvements. They aren't parser or diff correctness requirements for this tool.

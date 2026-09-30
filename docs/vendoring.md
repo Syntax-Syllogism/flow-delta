@@ -5,55 +5,37 @@ description: Provenance and maintenance policy for the vendored Flow parser.
 
 # Vendored parser (Apache-2.0)
 
-FlowDelta does not parse Flow XML itself. The parser is **vendored** from
-Google's upstream Flow Lens project (`google-flow-lens`) and lives, unmodified,
-at:
+FlowDelta doesn't parse Flow XML itself. The parser is **vendored** from Google's Flow Lens project (`google-flow-lens`) and sits, unmodified, at:
 
 - `src/parser/flow_parser.ts`
 - `src/parser/flow_types.ts`
 
-## Naming distinction
+## Names
 
-**FlowDelta** is this project and its semantic diff/render pipeline. **Google
-Flow Lens** (`google-flow-lens`) refers only to the upstream project from which
-the parser is vendored. Do not use Flow Lens as a name for FlowDelta-authored
-code or behavior.
+**FlowDelta** is this project and its semantic diff and render pipeline. **Google Flow Lens** (`google-flow-lens`) means only the upstream project the parser comes from. Don't use "Flow Lens" to describe FlowDelta's own code or behavior.
 
-## Provenance
+## Where it came from
 
 - Upstream: Google Flow Lens (`google-flow-lens`), Apache License 2.0.
-- Vendored commit: see `NOTICE` at the repo root (records the exact upstream SHA).
-- The vendored files retain their original Apache-2.0 headers; `NOTICE` records
-  the attribution.
+- Vendored commit: the exact upstream SHA is in `NOTICE` at the repo root.
+- The vendored files keep their original Apache-2.0 headers, and `NOTICE` records the attribution.
 
-## Do not edit
+## Don't edit it
 
-Treat `src/parser/` as read-only. Its behavior is pinned by `test/parser.test.ts`
-(the upstream suite, ported to `node:test`), which proves the parser runs
-identically under Node. Edits would diverge from upstream, break that guarantee,
-and complicate any future re-sync. All FlowDelta-specific behavior belongs in the
-layers built _on top_ of the parser (`model/`, `diff/`, `render/`).
+Treat `src/parser/` as read-only. `test/parser.test.ts` (the upstream suite, ported to `node:test`) pins its behavior and shows it runs the same under Node. Editing it would diverge from upstream, break that guarantee, and make any future re-sync harder. FlowDelta-specific behavior belongs in the layers on top: `model/`, `diff/`, and `render/`.
 
-## Why vendor only the parser
+## Why only the parser
 
-A spike confirmed the parser is runtime-agnostic; it imports only `xml2js` plus
-its own type module, with zero Deno APIs, so it copies into a Node/TypeScript
-project verbatim. The upstream diff/render layers were **not** adopted; FlowDelta
-provides its own normalized model, canonicalization, edge-aware diff, per-property
-deltas, and interactive HTML — the gaps upstream doesn't cover.
+A spike showed the parser is runtime-agnostic. It imports only `xml2js` and its own types, with no Deno APIs, so it copies into a Node and TypeScript project as-is. We didn't adopt the upstream diff and render layers. FlowDelta has its own normalized model, canonicalization, edge-aware diff, per-property deltas, and interactive HTML, which cover gaps upstream doesn't.
 
-## License interaction
+## Licensing
 
-FlowDelta is a mixed-license project: MIT and Apache-2.0.
-FlowDelta-authored code is MIT (`LICENSE`); the Google Flow Lens parser is
-Apache-2.0. The project is **not** relicensing the parser as MIT.
+FlowDelta is mixed-license. FlowDelta's own code is MIT (`LICENSE`). The Google Flow Lens parser is Apache-2.0. We aren't relicensing the parser as MIT.
 
-To stay compliant with Apache-2.0 when redistributing (including npm publish),
-all of the following must travel together:
+To comply with Apache-2.0 when redistributing, including on npm, all of these must travel together:
 
-- `src/parser/*` original Apache-2.0 headers (do not strip): §4(c).
-- [`LICENSE-APACHE`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/LICENSE-APACHE), the full Apache-2.0 text: §4(a).
-- [`NOTICE`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/NOTICE), attribution + upstream commit: §4(d).
+- the original Apache-2.0 headers in `src/parser/*` (don't strip them): §4(c);
+- [`LICENSE-APACHE`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/LICENSE-APACHE), the full license text: §4(a);
+- [`NOTICE`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/NOTICE), with attribution and the upstream commit: §4(d).
 
-The parser is vendored verbatim, so there are no "modified file" notices to add
-under §4(b); if that ever changes, mark the modified files prominently.
+The parser is vendored verbatim, so there are no modified-file notices under §4(b). If that ever changes, mark the modified files prominently.

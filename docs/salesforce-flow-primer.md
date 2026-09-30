@@ -5,13 +5,13 @@ description: Flow metadata structure, elements, connectors, and parsing.
 
 # Salesforce Flow XML Primer
 
-FlowDelta parses `.flow-meta.xml` files, which are the metadata representation of Salesforce Flows. This primer explains the XML structure so you can understand what FlowDelta is parsing and comparing.
+FlowDelta parses `.flow-meta.xml` files, the metadata form of Salesforce Flows. This primer explains the XML, so you know what FlowDelta parses and compares.
 
 ## What is a Flow?
 
-A Flow is a Salesforce automation that executes a series of steps (elements) in response to an event or user interaction. Flows can query records, create/update records, call APIs, show screens, and make conditional decisions.
+A Flow is a Salesforce automation. It runs a series of steps (elements) in response to an event or a user action. A Flow can query records, create or update records, call APIs, show screens, and branch on conditions.
 
-The `.flow-meta.xml` file is the metadata representation of a flow's logic, serialized by Salesforce when you export the flow.
+The `.flow-meta.xml` file is the flow's logic as metadata. Salesforce writes it when you export the flow.
 
 ## Top-level structure
 
@@ -35,15 +35,15 @@ The `.flow-meta.xml` file is the metadata representation of a flow's logic, seri
 
 **Key attributes:**
 
-- `<apiVersion>` — Salesforce API version (60.0 = Spring '24, etc.)
-- `<label>` — The display name shown in the UI
-- `<status>` — Active or Draft
-- `<start>` — Entry point (where the flow begins)
-- `<processMetadataValues>` — Flow-level metadata (not diffed by FlowDelta)
+- `<apiVersion>`: the Salesforce API version (60.0 = Spring '24, and so on).
+- `<label>`: the display name shown in the UI.
+- `<status>`: Active or Draft.
+- `<start>`: the entry point, where the flow begins.
+- `<processMetadataValues>`: flow-level metadata (not diffed by FlowDelta).
 
 ## Elements (nodes)
 
-Each element is an action or decision in the flow. Elements are identified by a unique `<name>` (the API name, used internally) and a `<label>` (the display label).
+Each element is a step or decision in the flow. It has a unique `<name>` (the API name, used internally) and a `<label>` (the display label).
 
 ### Start element
 
@@ -56,7 +56,7 @@ Each element is an action or decision in the flow. Elements are identified by a 
 </start>
 ```
 
-The flow entry point. Always named `Start` and typically has one outgoing connector.
+The flow's entry point. It's always named `Start` and usually has one outgoing connector.
 
 ### Assignment
 
@@ -83,8 +83,8 @@ Assigns values to variables.
 
 **Key properties:**
 
-- `<assignmentItems>` — Array of assignments (variable = value)
-- `<connector>` — The next step to execute
+- `<assignmentItems>`: the assignments (variable = value).
+- `<connector>`: the next step to run.
 
 ### Decision
 
@@ -94,7 +94,7 @@ A branching point (if/else logic).
 <elements>
     <name>MyDecision</name>
     <label>Is User Active?</label>
-    <locationX>300</locationY>
+    <locationX>300</locationX>
     <rules>
         <name>YesOutcome</name>
         <conditionLogic>and</conditionLogic>
@@ -132,11 +132,11 @@ A branching point (if/else logic).
 
 **Key properties:**
 
-- `<rules>` — Each outcome (branch). Named by the outcome, contains conditions.
-- `<conditions>` — Logical tests (leftValue operator rightValue)
-- `<connector>` — Where to go if this outcome is true
-- `<defaultConnector>` — Fallback if no rules match
-- Common operators: `Equals`, `NotEquals`, `GreaterThan`, `LessThan`, `Contains`, `StartsWith`, etc.
+- `<rules>`: one per outcome (branch). Named for the outcome, and holds its conditions.
+- `<conditions>`: the tests (leftValue operator rightValue).
+- `<connector>`: where to go if this outcome is true.
+- `<defaultConnector>`: the fallback if no rule matches.
+- Common operators: `Equals`, `NotEquals`, `GreaterThan`, `LessThan`, `Contains`, `StartsWith`, and so on.
 
 ### Record operations
 
@@ -169,10 +169,10 @@ A branching point (if/else logic).
 
 **Key properties:**
 
-- `<filters>` — WHERE clause conditions
-- `<object>` — Salesforce object (Account, Contact, etc.)
-- `<outputAssignments>` — Variables to populate with query results
-- `<getFirstRecordOnly>` — Return one record (vs. all)
+- `<filters>`: the WHERE clause conditions.
+- `<object>`: the Salesforce object (Account, Contact, and so on).
+- `<outputAssignments>`: the variables to fill with the query results.
+- `<getFirstRecordOnly>`: return one record instead of all.
 
 #### Record Create / Update
 
@@ -202,9 +202,9 @@ A branching point (if/else logic).
 
 **Key properties:**
 
-- `<inputAssignments>` — Field assignments (field = value)
-- `<object>` — Salesforce object to create/update
-- `<storeOutputFragment>` — Save the result for later reference
+- `<inputAssignments>`: the field assignments (field = value).
+- `<object>`: the Salesforce object to create or update.
+- `<storeOutputFragment>`: save the result for later reference.
 
 #### Record Delete
 
@@ -247,7 +247,7 @@ Shows a UI to the user.
 
 ### Action Call
 
-Invokes a Salesforce Action or extension.
+Runs a Salesforce Action or extension.
 
 ```xml
 <elements>
@@ -275,8 +275,8 @@ Invokes a Salesforce Action or extension.
 
 **Key properties:**
 
-- `<actionName>` — Built-in action (emailSimple, quickAction, etc.)
-- `<inputParameters>` — Arguments passed to the action
+- `<actionName>`: the built-in action (emailSimple, quickAction, and so on).
+- `<inputParameters>`: the arguments passed to the action.
 
 ### Subflow Call
 
@@ -324,9 +324,9 @@ Repeats a set of steps.
 
 **Key properties:**
 
-- `<collectionReference>` — The collection to iterate over
-- `<nextValueConnector>` — Steps to run for each item
-- `<noMoreValuesConnector>` — Steps to run after all items
+- `<collectionReference>`: the collection to loop over.
+- `<nextValueConnector>`: the steps to run for each item.
+- `<noMoreValuesConnector>`: the steps to run after the last item.
 
 ### Wait
 
@@ -360,19 +360,19 @@ Pauses flow execution.
 
 ### Other element types
 
-Salesforce also includes:
+Salesforce has more element types:
 
-- `<transform>` — Map data between formats
-- `<collectionProcessor>` — Process collections (filter, sort, count)
-- `<orchestratedStage>` — Orchestration support
-- `<step>` — Legacy (mostly deprecated)
-- `<apexPluginCall>` — Call custom Apex
-- `<customError>` — Throw a custom error
-- `<recordRollback>` — Undo DML operations
+- `<transform>`: map data between formats.
+- `<collectionProcessor>`: process collections (filter, sort, count).
+- `<orchestratedStage>`: orchestration support.
+- `<step>`: legacy, mostly deprecated.
+- `<apexPluginCall>`: call custom Apex.
+- `<customError>`: throw a custom error.
+- `<recordRollback>`: undo DML operations.
 
 ## Connections (edges)
 
-Connections define the flow of execution between elements.
+Connections set the order of execution between elements.
 
 ```xml
 <connector>
@@ -382,18 +382,18 @@ Connections define the flow of execution between elements.
 
 **Types:**
 
-- `<connector>` — Normal flow (primary outcome)
-- `<faultConnector>` — Error path (if action fails)
-- `<defaultConnector>` — Fallback in decision (no rules matched)
+- `<connector>`: the normal path (the primary outcome).
+- `<faultConnector>`: the error path, if an action fails.
+- `<defaultConnector>`: the decision fallback, when no rule matched.
 
 **Attributes** (inferred by FlowDelta):
 
-- **Kind:** `normal` or `fault`
-- **Label:** The outcome name (from decision rules) or connector name
+- **Kind:** `normal` or `fault`.
+- **Label:** the outcome name (from decision rules) or connector name.
 
 ## Typed values
 
-Salesforce wraps scalar values in type-discriminator objects:
+Salesforce wraps scalar values in objects that name their type:
 
 ```xml
 <!-- String -->
@@ -430,7 +430,7 @@ Salesforce wraps scalar values in type-discriminator objects:
 </value>
 ```
 
-FlowDelta unwraps these in the UI for readability.
+FlowDelta unwraps these in the UI.
 
 ## Variables
 
@@ -451,9 +451,9 @@ Variables store state during flow execution.
 
 **Key properties:**
 
-- `<dataType>` — String, Number, Boolean, SObject, Record, etc.
-- `<isCollection>` — Single value or list
-- `<isInput>` / `<isOutput>` — Flow input/output parameters
+- `<dataType>`: String, Number, Boolean, SObject, Record, and so on.
+- `<isCollection>`: a single value or a list.
+- `<isInput>` / `<isOutput>`: flow input and output parameters.
 
 ## Metadata values
 
@@ -470,14 +470,14 @@ Examples: `BuilderVersion`, `CanvasMode`, `OriginBuilderType`, etc.
 
 ## Coordinates (cosmetic noise)
 
-Elements have UI positioning properties that don't affect logic:
+Elements have canvas position properties that don't affect logic:
 
 ```xml
 <locationX>100</locationX>
 <locationY>200</locationY>
 ```
 
-These are stripped during canonicalization so cosmetic repositioning doesn't produce a diff.
+Canonicalization strips these, so moving an element on the canvas doesn't produce a diff.
 
 ## Example flow (minimal)
 
@@ -541,23 +541,23 @@ These are stripped during canonicalization so cosmetic repositioning doesn't pro
 
 ## How FlowDelta uses this
 
-1. **Parser** (`src/parser/flow_parser.ts`) — Converts XML to `ParsedFlow` with element collections and transitions
-2. **Model** (`src/model/build-model.ts`) — Normalizes to `GraphModel` (nodes + edges, stripped of coordinates and connectors)
-3. **Diff** (`src/diff/diff-model.ts`) — Compares two `GraphModel`s and produces `FlowDiff` with per-property changes
-4. **Render** (`src/render/render-html.ts`) — Transforms `FlowDiff` into interactive HTML
+1. **Parser** (`src/parser/flow_parser.ts`): converts XML to `ParsedFlow`, with element collections and transitions.
+2. **Model** (`src/model/build-model.ts`): normalizes to a `GraphModel` (nodes and edges, with coordinates and connectors stripped).
+3. **Diff** (`src/diff/diff-model.ts`): compares two `GraphModel`s and produces a `FlowDiff` with per-property changes.
+4. **Render** (`src/render/render-html.ts`): turns the `FlowDiff` into interactive HTML.
 
-The canonicalization step ensures that coordinate changes, reordering of connector definitions, and similar cosmetic edits **don't** produce spurious diffs.
+Canonicalization means coordinate changes, reordered connector definitions, and similar cosmetic edits **don't** produce false diffs.
 
-## Key differences from visual representation
+## Differences from the Flow Builder canvas
 
-- **Node identity:** Nodes are matched by `<name>` (API name), not `<label>` (display label). Renaming a node reads as delete + add.
-- **Edges as separate objects:** Connections are represented as `GraphEdge` objects, not properties of nodes.
-- **No subflow traversal:** Subflow calls are opaque nodes (referenced by name); the called flow isn't expanded.
-- **Synthetic start/end:** FlowDelta creates virtual `start` and `end` nodes for graph consistency.
+- **Node identity:** nodes match by `<name>` (API name), not `<label>` (display label). Renaming a node reads as a delete plus an add.
+- **Edges are separate objects:** connections are `GraphEdge` objects, not properties of nodes.
+- **No subflow traversal:** a subflow call is an opaque node, referenced by name. The called flow isn't expanded.
+- **Virtual start and end:** FlowDelta adds `start` and `end` nodes to keep the graph consistent.
 
 ## References
 
-- **Salesforce Flow XML docs** (official): https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/metaType_Flow.htm
-- **Google Flow Lens** (upstream parser): https://github.com/google/flow-lens
-- **FlowDelta architecture:** [docs/architecture.md](architecture.md)
-- **Data model types:** [docs/data-model.md](data-model.md)
+- [Salesforce Flow XML docs](https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/metaType_Flow.htm) (official)
+- [Google Flow Lens](https://github.com/google/flow-lens) (upstream parser)
+- FlowDelta architecture: [architecture.md](architecture.md)
+- Data model types: [data-model.md](data-model.md)

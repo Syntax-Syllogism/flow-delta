@@ -5,51 +5,41 @@
 [![npm](https://img.shields.io/npm/v/@syntax-syllogism/flow-delta.svg)](https://www.npmjs.com/package/@syntax-syllogism/flow-delta)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Stop reviewing Salesforce Flow changes as raw XML.** FlowDelta parses two
-versions of a `.flow-meta.xml`, diffs them by stable node name, and renders a
-self-contained interactive HTML artifact (plus `diff.json`) that shows added /
-deleted / modified / unchanged nodes and edges with per-property deltas.
+**Stop reviewing Salesforce Flow changes as raw XML.** FlowDelta compares two versions of a `.flow-meta.xml` file by stable node name. It produces a self-contained interactive HTML page, plus a `diff.json`, showing which nodes and edges were added, deleted, modified, or left alone, with per-property changes.
 
-Inspired by Google's [Flow Lens](https://github.com/google/flow-lens), with a
-focus on CI review workflows for GitLab merge requests and GitHub pull requests.
-We also opted for our own HTML output over plantuml, graphviz, or mermaid.
+It's inspired by Google's [Flow Lens](https://github.com/google/flow-lens) and built for CI review of GitLab merge requests and GitHub pull requests. We render our own HTML instead of using PlantUML, Graphviz, or Mermaid.
 
-Raw XML isn't just a Flow problem. The package also ships
-[FlexiPageDelta](docs/flexipage.md), a sibling tool that does the same for
-`.flexipage-meta.xml` — semantic diffs of regions, components, and facets,
-rendered as an interactive outline with an optional template-aware wireframe
-canvas so you can see *where* on the page layout changed, not just what.
-`flexipage-delta`, `flexipage-delta-gitlab`, and `flexipage-delta-github`
-ship alongside the Flow binaries.
+Lightning pages get the same treatment. The package also ships [FlexiPageDelta](docs/flexipage.md), which diffs `.flexipage-meta.xml` files: regions, components, and facets, shown as an interactive outline with an optional wireframe so you can see *where* on the page something changed. The `flexipage-delta`, `flexipage-delta-gitlab`, and `flexipage-delta-github` binaries install alongside the Flow ones.
+
+See it in action:
 
 - [Sample GitLab project with artifacts](https://gitlab.com/j.p.richter/flow-delta-example/-/merge_requests/)
 - [Sample GitHub project with artifacts](https://github.com/Syntax-Syllogism/flow-delta-example/pulls)
 
-## Quick Start
+## Quick start
 
-No install required:
+Run it without installing:
 
 ```bash
 npx @syntax-syllogism/flow-delta --old before.flow-meta.xml --new after.flow-meta.xml --out ./flow-delta-out
 ```
 
-To render an interactive as-built snapshot:
+Open the generated `.html` file in a browser.
+
+To render a single Flow as it is now, use an as-built snapshot:
 
 ```bash
 npx @syntax-syllogism/flow-delta --as-built --file My_Flow.flow-meta.xml --out ./flow-delta-out
 ```
 
-Open the generated `.html` file in a browser to see the interactive snapshot.
-
-Prefer a permanent install?
+To install it permanently:
 
 ```bash
 npm install -g @syntax-syllogism/flow-delta
 flow-delta --old before.flow-meta.xml --new after.flow-meta.xml --out ./flow-delta-out
 ```
 
-Working with Lightning pages instead? [FlexiPageDelta](docs/flexipage.md)
-is available too:
+For Lightning pages:
 
 ```bash
 npx flexipage-delta --old before.flexipage-meta.xml --new after.flexipage-meta.xml --out ./flexipage-delta-out
@@ -57,26 +47,22 @@ npx flexipage-delta --old before.flexipage-meta.xml --new after.flexipage-meta.x
 
 ## Usage
 
-See [docs/cli.md](docs/cli.md) for full diff-mode and as-built snapshot options.
-
-For FlexiPage metadata, see [docs/flexipage.md](docs/flexipage.md) for the
-full CLI, outline/wireframe artifact, and CI reporting details:
+[docs/cli.md](docs/cli.md) lists every option for diff mode and as-built snapshots. [docs/flexipage.md](docs/flexipage.md) covers the FlexiPage CLI, its outline and wireframe output, and CI reporting.
 
 ```bash
+# File mode: compare two local files
+npx @syntax-syllogism/flow-delta --old before.flow-meta.xml --new after.flow-meta.xml --out ./flow-delta-out --json
+
+# Git mode: compare two refs in a repo
+npx @syntax-syllogism/flow-delta --repo /path/to/sfdx-repo --from main --to feature-branch --path 'force-app/**/*.flow-meta.xml' --out ./flow-delta-out
+
+# FlexiPage, with JSON output
 npx flexipage-delta --old before.flexipage-meta.xml --new after.flexipage-meta.xml --out ./flexipage-delta-out --json
 ```
 
-```bash
-# File mode — compare two local files
-npx @syntax-syllogism/flow-delta --old before.flow-meta.xml --new after.flow-meta.xml --out ./flow-delta-out --json
+### CI reporting
 
-# Git mode — compare two refs in a repo
-npx @syntax-syllogism/flow-delta --repo /path/to/sfdx-repo --from main --to feature-branch --path 'force-app/**/*.flow-meta.xml' --out ./flow-delta-out
-```
-
-CI reporters read the generated `flow-delta-out/*.diff.json` files and post a
-sticky review comment. Install the package first (these binaries don't map
-1:1 to the package name, so plain `npx` won't resolve them):
+The CI reporters read the `flow-delta-out/*.diff.json` files and post a sticky review comment. Install the package first. These binaries don't match the package name, so plain `npx` can't find them:
 
 ```bash
 npm install @syntax-syllogism/flow-delta
@@ -84,46 +70,35 @@ npx flow-delta-gitlab --in flow-delta-out
 npx flow-delta-github --in flow-delta-out
 ```
 
-FlexiPageDelta has the same reporters — swap in `flexipage-delta-gitlab` /
-`flexipage-delta-github` and point `--in` at `flexipage-delta-out`.
+FlexiPageDelta has matching reporters. Use `flexipage-delta-gitlab` or `flexipage-delta-github` and point `--in` at `flexipage-delta-out`.
 
-The GitHub reporter can also consume `--artifact-urls <manifest.json>` for
-user-owned live-render links, such as R2 presigned URLs or Cloudflare
-Worker-backed URLs. See [docs/ci.md](docs/ci.md) for GitLab/GitHub workflow
-recipes, private-repo artifact viewing, and smoke harnesses.
+The GitHub reporter also accepts `--artifact-urls <manifest.json>` for live-render links you host yourself, such as R2 presigned URLs or Cloudflare Worker URLs. [docs/ci.md](docs/ci.md) has workflow recipes for GitLab and GitHub, private-repo artifact viewing, and smoke tests.
 
 ## Development
 
-Working from a clone of this repo? Runs as a TypeScript CLI via `tsx`, no
-build step:
+From a clone, FlowDelta runs as a TypeScript CLI through `tsx`. There's no build step:
 
 ```bash
 npm install
-npm test                 # parser + semantic diff / render / CLI suites
-npm run render:fixtures  # render all Flow + FlexiPage fixtures
+npm test                 # parser, semantic diff, render, and CLI suites
+npm run render:fixtures  # render all Flow and FlexiPage fixtures
 npm run render:fixtures -- flow       # Flow only
 npm run render:fixtures -- flexipage  # FlexiPage only
 npx tsx src/cli.ts --old before.flow-meta.xml --new after.flow-meta.xml --out ./flow-delta-out --json
 ```
 
-Architecture, testing, and the vendored-parser policy are documented in
-[docs/](docs/) (start with [docs/architecture.md](docs/architecture.md)).
+For architecture, testing, and the vendored-parser policy, start with [docs/architecture.md](docs/architecture.md). The full index is in [docs/](docs/).
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) and the
-[Code of Conduct](CODE_OF_CONDUCT.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Security
 
-See [SECURITY.md](SECURITY.md) for how to report vulnerabilities.
+See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ## License
 
-[MIT](LICENSE) © Jacob Richter — applies to FlowDelta-authored code.
+[MIT](LICENSE) © Jacob Richter. This covers the code FlowDelta's authors wrote.
 
-FlowDelta also vendors the Flow parser (`src/parser/`) from Google's
-[Flow Lens (`google-flow-lens`)](https://github.com/google/flow-lens), which is
-licensed under the [Apache License 2.0](LICENSE-APACHE). Those files retain their
-original headers; see [`NOTICE`](NOTICE) for attribution and provenance, and
-[docs/vendoring.md](docs/vendoring.md) for the policy.
+FlowDelta also vendors the Flow parser (`src/parser/`) from Google's [Flow Lens](https://github.com/google/flow-lens), which is licensed under the [Apache License 2.0](LICENSE-APACHE). Those files keep their original headers. See [`NOTICE`](NOTICE) for attribution and provenance, and [docs/vendoring.md](docs/vendoring.md) for the policy.

@@ -5,70 +5,46 @@ description: Configure FlowDelta and FlexiPageDelta reporting in CI.
 
 # CI integration (GitLab + GitHub)
 
-This project ships a second binary, `flow-delta-gitlab`, for merge-request
-reporting. It reads the `*.diff.json` files already emitted by `flow-delta`,
-builds one sticky Markdown comment, and updates the existing MR note in place.
+The package ships a second binary, `flow-delta-gitlab`, for merge-request reporting. It reads the `*.diff.json` files that `flow-delta` already wrote, builds one sticky Markdown comment, and updates the existing MR note in place.
 
 ## Sample pipeline
 
-[`examples/gitlab-ci.yml`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/examples/gitlab-ci.yml) shows the supported
-recipe:
+[`examples/gitlab-ci.yml`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/examples/gitlab-ci.yml) is the supported recipe. It:
 
-- run on merge-request pipelines only,
-- set `GIT_DEPTH: 0` so the base SHA is available,
-- diff `$CI_MERGE_REQUEST_DIFF_BASE_SHA` against the source-branch HEAD (see
-  [Choosing the `--to` ref](#choosing-the---to-ref) below),
-- run `flow-delta` with `--changed-only`,
-- keep the out directory as a job artifact,
-- run `flow-delta-gitlab` after the diff step,
-- mark the job `allow_failure: true` so a reporting hiccup does not block the MR.
+- runs on merge-request pipelines only;
+- sets `GIT_DEPTH: 0` so the base SHA is available;
+- diffs `$CI_MERGE_REQUEST_DIFF_BASE_SHA` against the source-branch HEAD (see [Choosing the `--to` ref](#choosing-the---to-ref));
+- runs `flow-delta` with `--changed-only`;
+- keeps the out directory as a job artifact;
+- runs `flow-delta-gitlab` after the diff step;
+- sets `allow_failure: true`, so a reporting hiccup doesn't block the MR.
 
 ### Choosing the `--to` ref
 
-`--changed-only` runs a two-dot `git diff <from> <to>` and reports the flows that
-differ between those two commits. To match GitLab's MR **Changed files** tab,
-`<to>` must be the **source-branch HEAD** — the tip of the branch under review.
+`--changed-only` runs a two-dot `git diff <from> <to>` and reports the flows that differ between those commits. To match GitLab's **Changed files** tab, `<to>` must be the **source-branch HEAD**, the tip of the branch under review.
 
-The trap is `$CI_COMMIT_SHA`. In a plain **detached** MR pipeline it _is_ the
-source-branch HEAD, so `--to "$CI_COMMIT_SHA"` works. But in a **merged results
-pipeline** or **merge train**, `$CI_COMMIT_SHA` is a _synthetic_ commit that
-merges your source branch into the **latest target branch**. Diffing the base
-against that merge commit pulls in every flow changed on target since the merge
-base, i.e. flows from _other_ merged MRs, which then appear in the report even
-though they are not in this MR's changed-files list.
+The trap is `$CI_COMMIT_SHA`. In a plain **detached** MR pipeline it _is_ the source-branch HEAD, so `--to "$CI_COMMIT_SHA"` works. In a **merged results pipeline** or **merge train**, though, `$CI_COMMIT_SHA` is a _synthetic_ commit that merges your source branch into the **latest target branch**. Diffing the base against it pulls in every flow changed on the target since the merge base. Flows from _other_ merged MRs then appear in your report, even though they're not in this MR's changed files.
 
-Use `$CI_MERGE_REQUEST_SOURCE_BRANCH_SHA` instead. GitLab populates it with the
-real source-branch HEAD in merged-results and merge-train pipelines, and leaves
-it empty in detached pipelines, so the fallback covers both:
+Use `$CI_MERGE_REQUEST_SOURCE_BRANCH_SHA` instead. GitLab sets it to the real source-branch HEAD in merged-results and merge-train pipelines, and leaves it empty in detached pipelines, so this fallback covers both:
 
 ```yaml
 --from "$CI_MERGE_REQUEST_DIFF_BASE_SHA" \
 --to   "${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA:-$CI_COMMIT_SHA}"
 ```
 
-To confirm which pipeline style a project uses, print the variables in the job:
-`$CI_MERGE_REQUEST_SOURCE_BRANCH_SHA` is non-empty (and differs from
-`$CI_COMMIT_SHA`) exactly when merged results or merge trains are in play.
+To check which style a project uses, print the variables in the job. `$CI_MERGE_REQUEST_SOURCE_BRANCH_SHA` is non-empty, and differs from `$CI_COMMIT_SHA`, exactly when merged results or merge trains are in use.
 
-The smoke harness in [`scripts/smoke-gitlab.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/scripts/smoke-gitlab.ts)
-uses the same shape to seed a dedicated sample repo, push a base `master`
-branch plus a smoke/e2e feature branch, and open the MR automatically. It uses
-`git` plus [`glab`](https://docs.gitlab.com/cli/), so make sure `glab auth
-status` succeeds for the target GitLab host before running it.
-
-Example:
+The smoke harness, [`scripts/smoke-gitlab.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/scripts/smoke-gitlab.ts), uses the same shape. It seeds a dedicated sample repo, pushes a base `master` branch and a smoke/e2e feature branch, and opens the MR. It uses `git` and [`glab`](https://docs.gitlab.com/cli/), so `glab auth status` must succeed for the target GitLab host before you run it.
 
 ```bash
 npm run smoke:gitlab -- --remote-url <gitlab-repo-url>
 ```
 
-The default local repo path is `sample-project/`, which the script turns into
-its own git repository for the smoke run.
+The default local repo path is `sample-project/`, which the script turns into its own git repository for the smoke run.
 
 ## Inputs
 
-The reporter reads these CI variables by default, with CLI overrides for local
-testing:
+The reporter reads these CI variables by default. CLI flags override them for local testing.
 
 | Variable                 | Purpose                                        |
 | ------------------------ | ---------------------------------------------- |
@@ -79,34 +55,28 @@ testing:
 | `CI_JOB_ID`              | Job whose artifacts hold the HTML              |
 | `FlowDelta_GITLAB_TOKEN` | Project or group access token with `api` scope |
 
-The reporter expects the token to be masked in CI logs.
+Mask the token in CI logs. The reporter expects that.
 
-## Comment shape
+## The comment
 
-The sticky comment starts with a hidden marker so the next run can find and
-update it:
+The sticky comment starts with a hidden marker, so the next run can find and update it:
 
 ```md
 <!-- FlowDelta:report -->
 ```
 
-It then renders a short summary header, one row per changed flow, and a `View`
-link to the interactive HTML artifact for that flow. The table columns are:
+Then comes a short summary header, one row per changed flow, and a `View` link to that flow's interactive HTML. The table columns are:
 
 ```md
 | Flow | Nodes (+/-/~) | Edges (+/-) | Flow Attributes (+/-/~) | Diff |
 ```
 
-Node counts cover added, removed, and modified nodes. Edge counts cover added
-and removed edges (edges have no modified state). Flow Attributes is a
-`+0 / -0 / ~N` count of flow-root property changes (e.g. `status`,
-`apiVersion`, `runInMode`) — additions/removals don't apply to existing
-header fields, so those are always `0`. The artifact URL points at the job
-artifact browse route under `CI_PROJECT_URL`.
+- Node counts cover added, removed, and modified nodes.
+- Edge counts cover added and removed edges. Edges have no modified state.
+- Flow Attributes is a `+0 / -0 / ~N` count of flow-root property changes, such as `status`, `apiVersion`, or `runInMode`. Header fields always exist, so additions and removals are always `0`.
+- The artifact URL points at the job-artifact browse route under `CI_PROJECT_URL`.
 
-To preview this markdown for a given before/after XML pair without running the
-full smoke harness (no tarball build, no sample repo, no push), use
-[`scripts/preview-comment.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/scripts/preview-comment.ts):
+To preview the Markdown for a before and after pair without the full smoke harness (no tarball build, no sample repo, no push), use [`scripts/preview-comment.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/scripts/preview-comment.ts):
 
 ```bash
 npm run preview:comment -- --product flow \
@@ -114,50 +84,36 @@ npm run preview:comment -- --product flow \
   --new fixtures/diff/add_node/after.flow-meta.xml
 ```
 
-Pass `--product flexipage` with `*.flexipage-meta.xml` files for the
-FlexiPageDelta comment instead. Repeat `--old`/`--new` in pairs to render
-multiple rows in one comment; `--commit-sha` and `--artifact-url-base` are
-optional.
+Pass `--product flexipage` with `*.flexipage-meta.xml` files to preview the FlexiPageDelta comment. Repeat `--old` and `--new` in pairs to get several rows in one comment. `--commit-sha` and `--artifact-url-base` are optional.
 
-When no `.diff.json` files contain a non-zero summary, the reporter exits without
-creating a comment. `summary.changedFlowAttributes` participates in that decision,
-so a pure flow-root change with no node/edge changes is still reported.
+If no `.diff.json` has a non-zero summary, the reporter exits without commenting. `summary.changedFlowAttributes` counts toward that check, so a change to only a flow-root attribute is still reported.
 
-## Behavior
+## What the reporter does
 
-- A note authored by the reporter's token user and containing the marker is
-  updated with `PUT`.
-- Otherwise a new note is created with `POST`.
-- Non-2xx API responses are surfaced as reporter failures only; the main MR job
-  stays non-blocking.
+- A note from the reporter's token user that contains the marker is updated with `PUT`.
+- Otherwise it creates a new note with `POST`.
+- Non-2xx API responses fail the reporter only. The main MR job stays non-blocking.
 
-For the pure helper functions and the API orchestration coverage, see
-`test/gitlab-report.test.ts`.
+`test/gitlab-report.test.ts` covers the helper functions and the API orchestration.
 
 ## GitHub Actions
 
-A third binary, `flow-delta-github`, brings the same reporting to GitHub pull
-requests. It shares its comment/scan logic with the GitLab reporter (see
-`src/ci/report-core.ts`); the only GitHub-specific pieces are the issue-comments
-API calls and the artifact-URL scheme.
+A third binary, `flow-delta-github`, brings the same reporting to GitHub pull requests. It shares its comment and scan logic with the GitLab reporter (`src/ci/report-core.ts`). Only the issue-comments API calls and the artifact URL scheme are GitHub-specific.
 
 ### Sample workflow
 
-[`examples/github-actions.yml`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/examples/github-actions.yml) shows the
-supported recipe:
+[`examples/github-actions.yml`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/examples/github-actions.yml) is the supported recipe. It:
 
-- run on `pull_request`,
-- grant `permissions: { contents: read, pull-requests: write }`,
-- checkout with `fetch-depth: 0` so the base SHA is available,
-- run `flow-delta` with `--changed-only`,
-- upload the out directory as a job artifact,
-- run `flow-delta-github` after the diff step, with `continue-on-error: true` so
-  a reporting hiccup does not block the PR.
+- runs on `pull_request`;
+- grants `permissions: { contents: read, pull-requests: write }`;
+- checks out with `fetch-depth: 0` so the base SHA is available;
+- runs `flow-delta` with `--changed-only`;
+- uploads the out directory as a job artifact;
+- runs `flow-delta-github` afterward with `continue-on-error: true`, so a reporting hiccup doesn't block the PR.
 
 ### Inputs
 
-The reporter reads these `GITHUB_*` variables by default, with CLI overrides for
-local testing:
+The reporter reads these `GITHUB_*` variables by default. CLI flags override them for local testing.
 
 | Variable                          | Purpose                                                                 |
 | --------------------------------- | ----------------------------------------------------------------------- |
@@ -170,70 +126,37 @@ local testing:
 | `GITHUB_TOKEN`                    | Needs `permissions: pull-requests: write`                               |
 | `--artifact-urls <manifest.json>` | Optional map of `<artifact>.html` to a live-render URL                  |
 
-### Comment shape and sticky behavior
+### The comment, and how it stays sticky
 
-Same marker, table, and `changedFlowAttributes` reporting rule as the GitLab
-reporter (`isZeroSummary` lives in the shared core, so a pure deactivation
-comments on both platforms). Sticky matching is **by marker only**: the
-reporter never calls `GET /user`, because the Actions `GITHUB_TOKEN` is an
-installation token that posts as `github-actions[bot]` and can't call that
-endpoint. This keeps the GitHub reporter simpler than the GitLab one.
+The marker, table, and `changedFlowAttributes` rule are the same as GitLab's. `isZeroSummary` lives in the shared core, so a pure deactivation produces a comment on both platforms. The reporter finds its comment **by marker only**. It never calls `GET /user`, because the Actions `GITHUB_TOKEN` is an installation token that posts as `github-actions[bot]` and can't call that endpoint. That makes the GitHub reporter simpler than the GitLab one.
 
-- No existing sticky comment → `POST` to `/repos/{owner}/{repo}/issues/{pr}/comments`.
-- Existing sticky comment → `PATCH` `/repos/{owner}/{repo}/issues/comments/{id}`.
-- No PR number resolvable (e.g. the workflow ran on `push`, not `pull_request`)
-  → the reporter no-ops.
-- Non-2xx API responses are surfaced as reporter failures only; pair the step
-  with `continue-on-error: true` to keep the job non-blocking.
-- Fork PRs: the default `GITHUB_TOKEN` on a `pull_request` event from a fork is
-  read-only, so commenting fails there. Use `pull_request_target` with the
-  attendant security caveats, or accept that fork-PR commenting needs elevated
-  configuration.
+- No existing sticky comment: `POST` to `/repos/{owner}/{repo}/issues/{pr}/comments`.
+- An existing sticky comment: `PATCH` `/repos/{owner}/{repo}/issues/comments/{id}`.
+- No PR number can be found (for example, the workflow ran on `push`): the reporter does nothing.
+- Non-2xx API responses fail the reporter only. Pair the step with `continue-on-error: true` to keep the job non-blocking.
+- **Fork PRs:** the default `GITHUB_TOKEN` on a fork's `pull_request` event is read-only, so commenting fails. Use `pull_request_target` and accept its security caveats, or accept that fork PRs need elevated configuration to get comments.
 
-### Artifact link (baseline)
+### Artifact link
 
-The baseline links to the workflow run's artifacts page:
-`${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}`.
-Viewing is **download-then-open**: GitHub Actions artifacts are login-gated
-zips, not browsable files, so there is no per-file deep link the way GitLab's
-job-artifact browse route provides one. Because FlowDelta's artifact is a
-single self-contained HTML file with no external URLs, download-then-open is
-the full interactive experience offline; no server is required to view it.
+By default, the comment links to the workflow run's artifacts page: `${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}`.
 
-When `--artifact-urls <manifest.json>` is provided, the GitHub reporter reads a
-JSON object shaped like `{ "My_Flow.html": "https://..." }`. A matching entry
-wins for that flow; missing entries fall back to the workflow run's artifacts
-page. Missing, empty, malformed, or non-object manifests are treated as empty,
-and manifest values are ignored unless they are `http://` or `https://` strings.
-The same manifest hook is intentionally generic so other reporters can adopt it
-without changing the comment renderer.
+Viewing is **download, then open**. GitHub Actions artifacts are login-gated zips, not browsable files, so there's no per-file deep link like GitLab's job-artifact browse route. FlowDelta's artifact is one self-contained HTML file with no external URLs, so download-then-open gives the full interactive experience offline. No server is needed.
 
-### Live-render on private repos
+With `--artifact-urls <manifest.json>`, the reporter reads a JSON object shaped like `{ "My_Flow.html": "https://..." }`. A matching entry wins for that flow, and flows without an entry fall back to the run's artifacts page. A missing, empty, malformed, or non-object manifest counts as empty, and values that aren't `http://` or `https://` strings are ignored. The manifest hook is deliberately generic so other reporters can adopt it without changing the comment renderer.
 
-The baseline above works on private repos with nothing but the workflow file.
-If you want a reviewer to click straight into a live render instead of
-downloading a zip, publish the self-contained HTML to storage you own and pass
-the resulting URLs through `--artifact-urls`.
+### Live renders on private repos
 
-**Trust boundary (applies to every option below):** FlowDelta ships the CLI and
-template code. Every credential is one _you_ create; every server is
-one _you_ deploy in _your_ infrastructure. FlowDelta-the-project holds no
-token, runs no server, and never sees your repo or artifacts. Every option
-below deploys entirely in infrastructure you own and control.
+The default works on private repos with nothing but the workflow file. If you'd rather have reviewers click into a live render than download a zip, publish the HTML to storage you own and pass the URLs in with `--artifact-urls`.
 
-Privacy comes from who can see the PR comment. A presigned URL or HMAC-signed
-Worker URL is a bearer capability: on a private repo, only repo-read users see
-the link; on a public repo, anyone can use it until it expires. Keep expiries
-short for public demos.
+**Trust boundary (applies to every option below):** FlowDelta ships the CLI and template code. Every credential is one _you_ create, and every server is one _you_ deploy in _your_ infrastructure. FlowDelta as a project holds no token, runs no server, and never sees your repo or artifacts.
 
-#### Option A: R2 presigned URL
+Privacy comes from who can see the PR comment. A presigned URL or HMAC-signed Worker URL is a bearer capability. On a private repo, only users with read access see the link. On a public repo, anyone can use it until it expires, so keep expiries short for public demos.
 
-This is the no-server path. CI uploads each `flow-delta-out/*.html` file to
-your Cloudflare R2 bucket with `content-type: text/html`, then generates an
-R2/S3 presigned GET URL. SigV4 presigned URLs expire after at most seven days.
+#### Option A: R2 presigned URLs
 
-Use the same upload shape as Option B, but omit `ARTIFACT_BASE_URL` and
-`ARTIFACT_HMAC_KEY` so `scripts/r2-publish.mjs` falls back to `aws s3 presign`:
+This needs no server. CI uploads each `flow-delta-out/*.html` file to your Cloudflare R2 bucket with `content-type: text/html`, then generates an R2/S3 presigned GET URL. SigV4 presigned URLs expire after at most seven days.
+
+Use the same upload step as Option B, but leave out `ARTIFACT_BASE_URL` and `ARTIFACT_HMAC_KEY`, so `scripts/r2-publish.mjs` falls back to `aws s3 presign`:
 
 ```yaml
 - name: Publish to R2 with presigned URLs
@@ -249,64 +172,38 @@ Use the same upload shape as Option B, but omit `ARTIFACT_BASE_URL` and
 
 #### Option B: Cloudflare Worker over R2
 
-This is the stable-base-URL path used by the demo. CI uploads to R2 and signs a
-Worker URL as:
+This gives you a stable base URL, and it's what the demo uses. CI uploads to R2 and signs a Worker URL:
 
 ```text
 ${ARTIFACT_BASE_URL}/${GITHUB_REPOSITORY}/${PR}/${GITHUB_SHA}/${stem}.html?exp=<unixSeconds>&sig=<hmac>
 ```
 
-The HMAC is SHA-256 over `${key}:${exp}` using `ARTIFACT_HMAC_KEY`. The Worker
-template in [`examples/cloudflare-worker/`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/examples/cloudflare-worker/)
-recomputes that signature, rejects expired or tampered links, reads the object
-through its R2 binding, and streams it with `content-type: text/html`.
+The HMAC is SHA-256 over `${key}:${exp}`, using `ARTIFACT_HMAC_KEY`. The Worker template in [`examples/cloudflare-worker/`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/examples/cloudflare-worker/) recomputes the signature, rejects expired or tampered links, reads the object through its R2 binding, and streams it with `content-type: text/html`.
 
 One-time setup:
 
-1. Install and authenticate Wrangler: `npm i -g wrangler && wrangler login`.
-2. Copy [`examples/cloudflare-worker/`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/examples/cloudflare-worker/), set
-   `bucket_name` in `wrangler.toml`, and deploy it.
+1. Install and sign in to Wrangler: `npm i -g wrangler && wrangler login`.
+2. Copy [`examples/cloudflare-worker/`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/examples/cloudflare-worker/), set `bucket_name` in `wrangler.toml`, and deploy it.
 3. Set the Worker secret: `wrangler secret put ARTIFACT_HMAC_KEY`.
-4. Add GitHub secrets `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`,
-   `R2_SECRET_ACCESS_KEY`, and `ARTIFACT_HMAC_KEY` with the same HMAC value.
-5. Add GitHub variable `ARTIFACT_BASE_URL` with the Worker URL.
+4. Add the GitHub secrets `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `ARTIFACT_HMAC_KEY` (the same HMAC value).
+5. Add the GitHub variable `ARTIFACT_BASE_URL` with the Worker URL.
 
-The example workflow publishes by key
-`${GITHUB_REPOSITORY}/${{ github.event.number }}/$GITHUB_SHA/${stem}.html`, so
-reruns and stale PRs do not collide. It always keeps the baseline
-`actions/upload-artifact` step as the zero-infra fallback.
+The example workflow publishes under the key `${GITHUB_REPOSITORY}/${{ github.event.number }}/$GITHUB_SHA/${stem}.html`, so reruns and stale PRs don't collide. It always keeps the default `actions/upload-artifact` step as a fallback that needs no infrastructure.
 
-The GitHub smoke harness in [`scripts/smoke-github.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.0/scripts/smoke-github.ts)
-creates or reuses `Syntax-Syllogism/flow-delta-example`, seeds fixture befores on
-`main`, pushes fixture afters to a smoke branch, writes the Worker-backed
-workflow, and opens the PR with `gh pr create`. It assumes the repo secrets and
-Worker already exist; those manual owner setup steps are intentionally not
-automated.
+The GitHub smoke harness, [`scripts/smoke-github.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/scripts/smoke-github.ts), creates or reuses `Syntax-Syllogism/flow-delta-example`, seeds fixture "before" files on `main`, pushes fixture "after" files to a smoke branch, writes the Worker-backed workflow, and opens the PR with `gh pr create`. It assumes the repo secrets and the Worker already exist. Those one-time owner setup steps aren't automated on purpose.
 
-For the pure helper functions and the API orchestration coverage, see
-`test/report-core.test.ts` and `test/github-report.test.ts`.
+`test/report-core.test.ts` and `test/github-report.test.ts` cover the helper functions and the API orchestration.
 
 ## FlexiPageDelta reporting
 
-The sibling reporters are `flexipage-delta-gitlab` and
-`flexipage-delta-github`. They read FlexiPage `*.diff.json` files from the
-directory passed to `--in` (or `FLOW_LENS_OUT_DIR`) and reuse the shared
-vocabulary-driven comment builder in `src/ci/report-core.ts`.
+The matching reporters are `flexipage-delta-gitlab` and `flexipage-delta-github`. They read FlexiPage `*.diff.json` files from the directory given to `--in` (or `FLOW_LENS_OUT_DIR`) and use the shared comment builder in `src/ci/report-core.ts`.
 
-FlexiPage comments use the marker `<!-- FlexiPageDelta:report -->` and a table
-with these columns:
+FlexiPage comments use the marker `<!-- FlexiPageDelta:report -->` and this table:
 
 ```md
 | Page | Components (+/–/~) | Regions (+/–/~) | Page Attributes (+/-/~) | Diff |
 ```
 
-Component counts cover added, removed, and modified items. Region counts cover
-added, removed, and region `type`/`mode` changes. A template-only change is
-non-zero and still produces a comment. GitLab uses the job artifact browse path;
-GitHub uses the workflow-run artifact URL, with the same optional
-`--artifact-urls` manifest path supported by the existing GitHub flow reporter.
+Component counts cover added, removed, and modified items. Region counts cover added, removed, and region `type` or `mode` changes. A template-only change is non-zero and still produces a comment. GitLab uses the job-artifact browse path. GitHub uses the workflow-run artifact URL, with the same optional `--artifact-urls` manifest as the Flow reporter.
 
-The FlexiPage entrypoints accept the same platform credential/environment
-inputs as their Flow counterparts, with `flexipage-delta-out` as their default
-input directory when `--in` is omitted. See [flexipage.md](flexipage.md) for
-the product-specific artifact and CLI behavior.
+The FlexiPage entrypoints take the same platform credentials and environment as their Flow counterparts. Without `--in`, they read `flexipage-delta-out`. See [flexipage.md](flexipage.md) for the product-specific artifact and CLI behavior.

@@ -5,31 +5,21 @@ description: File, Git, Salesforce org comparison, and as-built snapshot modes.
 
 # CLI usage
 
-FlowDelta ships a packaged CLI as the `flow-delta` binary, published as
-`@syntax-syllogism/flow-delta`. For local source runs during development, the
-entry point is `src/cli.ts`.
+FlowDelta's CLI is the `flow-delta` binary, published in `@syntax-syllogism/flow-delta`. In a source checkout, the entry point is `src/cli.ts`.
 
 ```bash
 npx @syntax-syllogism/flow-delta <options>
 ```
 
-If you've already installed the package (`npm install` or `npm install -g`),
-the plain `flow-delta` binary is on your `PATH` / in `node_modules/.bin`, so
-`npx flow-delta <options>` works too. A bare `npx flow-delta` with nothing
-installed will fail: there's no unscoped `flow-delta` package on npm.
+Once the package is installed (`npm install` or `npm install -g`), the `flow-delta` binary is on your `PATH` or in `node_modules/.bin`, so `npx flow-delta <options>` works too. A bare `npx flow-delta` with nothing installed fails, because there's no unscoped `flow-delta` package on npm.
 
-From a source checkout, invoke the TypeScript entry point through the local
-runner: `node --import tsx src/cli.ts <options>` (or
-`npx --no-install tsx src/cli.ts <options>`).
+From a source checkout, run the TypeScript entry point through the local runner: `node --import tsx src/cli.ts <options>` or `npx --no-install tsx src/cli.ts <options>`.
 
-It operates in one of four mutually exclusive modes, selected by which flags
-are present.
+The CLI has four modes. They're mutually exclusive, and the flags you pass select one.
 
 ## As-built mode: render one current Flow
 
-As-built mode creates a self-contained snapshot of a single Flow. It has no
-before/after comparison, so the artifact uses element-type colors, an element
-inventory, neutral read-only property panels, and a provenance footer.
+As-built mode makes a self-contained snapshot of a single Flow. There's no before and after, so the artifact uses element-type colors, an element inventory, read-only property panels, and a provenance footer.
 
 ```bash
 # Local file
@@ -43,10 +33,7 @@ npx @syntax-syllogism/flow-delta --as-built --org my-org --flow My_Flow --flow-v
 npx @syntax-syllogism/flow-delta --as-built --repo /path/to/repo --at v1.2 --path 'force-app/**/*.flow-meta.xml'
 ```
 
-Exactly one of the three input forms is required. --json writes the
-machine-readable snapshot as <flowName>.diff.json, and --out selects the
-output directory. As-built mode cannot be combined with diff version flags or
-interactive/changed-only options.
+Give exactly one of the three input forms. `--json` writes the machine-readable snapshot as `<flowName>.diff.json`, and `--out` picks the output directory. As-built mode can't be combined with diff version flags or with the interactive and changed-only options.
 
 ## File mode: compare two local files
 
@@ -58,9 +45,9 @@ npx @syntax-syllogism/flow-delta \
   --json
 ```
 
-- `--old` / `--new`: the two `.flow-meta.xml` files to compare (both required).
+- `--old` and `--new` are the two `.flow-meta.xml` files. Both are required.
 
-## Git mode: compare two refs in a repo
+## Git mode: compare two refs
 
 ```bash
 npx @syntax-syllogism/flow-delta \
@@ -71,27 +58,18 @@ npx @syntax-syllogism/flow-delta \
   --json
 ```
 
-- `--repo`: repository to read from.
-- `--from` / `--to`: the two git refs (SHAs, branches, tags).
-- `--path`: a file path or glob (`*` within a segment, `**` across segments,
-  `?`). Files are discovered with `git ls-tree -r --name-only` on **both** refs
-  and unioned, so additions, deletions, and renames are all visible.
-- `--changed-only`: optional filter that intersects the discovered files with
-  `git diff --name-only --diff-filter=ACMRD <from> <to> -- <pathspec>`, so only
-  flows that actually changed are rendered.
+- `--repo` is the repository to read.
+- `--from` and `--to` are the two git refs: SHAs, branches, or tags.
+- `--path` is a file path or glob (`*` within a segment, `**` across segments, `?`). Files are found with `git ls-tree -r --name-only` on **both** refs and unioned, so additions, deletions, and renames all show up.
+- `--changed-only` is optional. It keeps only the discovered files that also appear in `git diff --name-only --diff-filter=ACMRD <from> <to> -- <pathspec>`, so only flows that changed are rendered.
 
-Both products use the shared metadata/Git input boundary described in
-[metadata-io.md](metadata-io.md). It normalizes Git path separators, removes
-duplicates, and returns stable sorted paths; product-specific flag validation
-and default patterns remain in each CLI.
+`--repo`, `--from`, `--to`, and `--path` are all required. `--changed-only` is the only optional one.
 
-The four core git-mode flags are required; `--changed-only` is optional.
+Both products share the metadata and Git input boundary described in [metadata-io.md](metadata-io.md). It normalizes path separators, removes duplicates, and returns paths in a stable order. Flag validation and default patterns stay in each CLI.
 
 ## Org mode: compare two versions from Salesforce
 
-Org mode uses the Salesforce CLI's existing authentication and retrieves two
-historical Flow versions as metadata XML before passing them through the same
-pipeline as file mode:
+Org mode reuses the Salesforce CLI's authentication. It retrieves two historical Flow versions as metadata XML and sends them through the same pipeline as file mode:
 
 ```bash
 npx @syntax-syllogism/flow-delta \
@@ -102,71 +80,57 @@ npx @syntax-syllogism/flow-delta \
   --json
 ```
 
-- `--org`: Salesforce org alias or username already authenticated in `sf`.
-- `--flow`: Flow developer name. Omit it to choose from an interactive list.
-- `--from-version` / `--to-version`: two version numbers. Omit either to use
-  the interactive picker, which defaults to the latest two versions.
-- `--interactive`: always show the picker.
-- `--keep`: retain the temporary Salesforce project for troubleshooting; it is
-  deleted automatically after the diff otherwise.
+- `--org` is a Salesforce org alias or username already authenticated in `sf`.
+- `--flow` is the Flow developer name. Leave it out to pick from an interactive list.
+- `--from-version` and `--to-version` are the two version numbers. Leave either out to use the interactive picker, which defaults to the latest two versions.
+- `--interactive` always shows the picker.
+- `--keep` keeps the temporary Salesforce project for troubleshooting. Otherwise it's deleted after the diff.
 
-The picker requires a TTY. In CI or other non-interactive environments, provide
-`--flow`, `--from-version`, and `--to-version` explicitly.
+The picker needs a TTY. In CI or any other non-interactive setting, pass `--flow`, `--from-version`, and `--to-version`.
 
-Org mode requires the Salesforce CLI (`sf`) at runtime. FlowDelta does not
-handle Salesforce credentials. Authenticate first with `sf org login web`.
-Missing `sf`, unauthenticated orgs, unknown flows, unavailable versions, and
-legacy flows without a modern `<start>` element produce actionable errors.
+Org mode needs the Salesforce CLI (`sf`) at runtime. FlowDelta never handles Salesforce credentials, so sign in first with `sf org login web`. Errors are actionable for a missing `sf`, an unauthenticated org, an unknown flow, an unavailable version, and a legacy flow with no modern `<start>` element.
 
-On Windows, FlowDelta invokes the Salesforce CLI through its `sf.cmd` shim.
-The shell launching Node must still expose the Salesforce CLI on `PATH`; if
-PowerShell can find `sf` but Git Bash cannot, add the Salesforce CLI directory
-to Git Bash's `PATH` or run the command from PowerShell.
+On Windows, FlowDelta calls the Salesforce CLI through its `sf.cmd` shim. The shell that launches Node still has to have the Salesforce CLI on its `PATH`. If PowerShell finds `sf` but Git Bash doesn't, add the Salesforce CLI directory to Git Bash's `PATH`, or run the command from PowerShell.
 
 ## Common flags
 
 | Flag | Default | Meaning |
 |------|---------|---------|
-| `--out <dir>` | `./flow-delta-out` | Output directory (created if missing). |
-| `--json` | off | Also write `<flow>.diff.json` alongside the HTML. |
+| `--out <dir>` | `./flow-delta-out` | Output directory. Created if it's missing. |
+| `--json` | off | Also write `<flow>.diff.json` next to the HTML. |
 
-## Outputs
+## Output
 
-Per flow, written to the out directory:
+For each flow, the output directory gets:
 
-- `<flowName>.html`: the self-contained interactive diff or snapshot (open in a
-  browser).
-- `<flowName>.diff.json`: the machine-readable `FlowDiff` (only with `--json`);
-  as-built output has `mode: "snapshot"` and `present` nodes/edges.
+- `<flowName>.html`, the self-contained interactive diff or snapshot. Open it in a browser.
+- `<flowName>.diff.json`, the machine-readable `FlowDiff`, only with `--json`. As-built output has `mode: "snapshot"` and `present` nodes and edges.
 
-The file stem is derived from the flow name via `safeFileName` (non-alphanumerics
-collapsed to `_`). For a **deleted** flow the *old* name is preserved.
+The file name comes from the flow name through `safeFileName`, which collapses non-alphanumerics to `_`. A **deleted** flow keeps its *old* name.
 
-A one-line summary is printed per flow:
+The CLI prints one summary line per flow:
 
 ```
 My_Flow: nodes 1 added, 0 deleted, 1 modified; edges 2 added, 0 deleted
 ```
 
-As-built mode prints an inventory summary instead:
+As-built mode prints an inventory instead:
 
 ```
 My_Flow: 12 elements, 11 connectors
 ```
 
-After the run, the CLI also prints the absolute output directory, for example
-`Artifacts written to C:\path\to\flow-delta-out`.
-
-When curated flow-root attributes changed, the same line gets an additive suffix:
+When curated flow-root attributes changed, the line gets a suffix:
 
 ```
 My_Flow: nodes 0 added, 0 deleted, 0 modified; edges 0 added, 0 deleted; flow attributes: 1 changed (status)
 ```
 
-Failures are isolated: in git mode, one flow failing to parse logs an error and
-sets a non-zero exit code but does not abort the remaining flows.
+After the run, the CLI prints the absolute output directory, for example `Artifacts written to C:\path\to\flow-delta-out`.
 
-## Rendering fixture artifacts (smoke review)
+Failures don't spread. In git mode, if one flow fails to parse, the CLI logs an error and sets a non-zero exit code, but keeps going with the remaining flows.
+
+## Render fixture artifacts
 
 The fixture renderer accepts `flow`, `flexipage`, or `all`:
 
@@ -176,24 +140,15 @@ npm run render:fixtures -- flexipage  # → flexipage-delta-out/fixtures/<case>.
 npm run render:fixtures                # both product fixture sets
 ```
 
-The default `all` mode writes Flow artifacts to
-`flow-delta-out/fixtures/` and FlexiPage artifacts to
-`flexipage-delta-out/fixtures/`. A custom output directory is accepted after
-the selector; in `all` mode it receives `flow/` and `flexipage/` subdirectories.
-The legacy `bin/render-fixtures.sh OUT_DIR` form remains Flow-only.
+`all` is the default. It writes Flow artifacts to `flow-delta-out/fixtures/` and FlexiPage artifacts to `flexipage-delta-out/fixtures/`. You can put a custom output directory after the selector. In `all` mode, it gets `flow/` and `flexipage/` subdirectories. The older `bin/render-fixtures.sh OUT_DIR` form still works, for Flow only.
 
-`bin/render-fixtures.sh` renders every selected fixture pair, naming each
-artifact after its fixture directory so artifacts never collide even when two
-fixtures share an internal metadata name. See [testing.md](testing.md).
+`bin/render-fixtures.sh` renders every selected fixture pair and names each artifact after its fixture directory, so two fixtures with the same internal metadata name never collide. See [testing.md](testing.md).
 
 For GitLab MR reporting and artifact links, see [ci.md](ci.md).
 
-## FlexiPageDelta sibling CLI
+## FlexiPageDelta CLI
 
-FlexiPageDelta is published by the same package under the `flexipage-delta`
-binary. It compares `.flexipage-meta.xml` files and writes an offline outline
-artifact, with a template-aware wireframe when geometry is available, to
-`./flexipage-delta-out` by default:
+The same package ships FlexiPageDelta as the `flexipage-delta` binary. It compares `.flexipage-meta.xml` files and writes an offline outline artifact, plus a template-aware wireframe when geometry is available. The default output directory is `./flexipage-delta-out`:
 
 ```bash
 npx flexipage-delta \
@@ -203,9 +158,7 @@ npx flexipage-delta \
   --json
 ```
 
-Its git mode has the same `--repo`, `--from`, `--to`, `--path`,
-`--changed-only`, `--out`, and `--json` flags. When `--path` is omitted, it
-defaults to `force-app/**/*.flexipage-meta.xml`:
+Git mode takes the same `--repo`, `--from`, `--to`, `--path`, `--changed-only`, `--out`, and `--json` flags. Without `--path`, it defaults to `force-app/**/*.flexipage-meta.xml`:
 
 ```bash
 npx flexipage-delta \
@@ -215,7 +168,4 @@ npx flexipage-delta \
   --json
 ```
 
-The output is `<safe-page-name>.html` plus `<safe-page-name>.diff.json` when
-JSON output is enabled. The summary reports components, regions, region
-metadata changes, and page attributes. See [flexipage.md](flexipage.md) for
-the identity/canonicalization rules and outline behavior.
+The output is `<safe-page-name>.html`, plus `<safe-page-name>.diff.json` with JSON output on. The summary counts components, regions, region metadata changes, and page attributes. See [flexipage.md](flexipage.md) for the identity and canonicalization rules and how the outline behaves.

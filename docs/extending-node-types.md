@@ -5,15 +5,16 @@ description: Add semantic support for Salesforce Flow element types.
 
 # Extending FlowDelta for New Salesforce Node Types
 
-When Salesforce ships a new Flow element type (or an existing type gains new properties), this guide explains how to extend FlowDelta to support it.
+Use this guide when Salesforce ships a new Flow element type, or an existing type gains new properties.
 
 ## Overview
 
-Adding a new node type involves three steps:
+Supporting a new node type takes up to four steps:
 
-1. **Declare the type** in `src/model/graph-model.ts` (if not already there)
-2. **Verify parsing** — confirm the vendored parser handles it
-3. **Add a section schema** (optional) for better rendering
+1. **Declare the type** in `src/model/graph-model.ts`, if it isn't there yet.
+2. **Verify parsing.** Confirm the vendored parser handles it.
+3. **Add a section schema** (optional) for better rendering.
+4. **Add test coverage.**
 
 ## Step 1: Declare the NodeType
 
@@ -31,33 +32,30 @@ export type NodeType =
 
 **Rules:**
 
-- Use lowercase, camelCase
-- Use the exact name from the Salesforce XML (the element type)
-- Don't forget to add a test fixture (see step 3 below)
+- Use lowercase camelCase.
+- Use the exact element name from the Salesforce XML.
+- Add a test fixture (see Step 4).
 
 ## Step 2: Verify parser support
 
-The parser is vendored from Google Flow Lens and lives in `src/parser/flow_types.ts` (read-only). Check if the new element type is already defined:
+The parser is vendored from Google Flow Lens. It lives in `src/parser/flow_types.ts`, which is read-only. Check whether it already defines the new element type:
 
 ```bash
-rtk grep "myNewType" src/parser/flow_types.ts
+grep "myNewType" src/parser/flow_types.ts
 ```
 
-**If it's already there:**
-- The parser understands the element and will parse it correctly
-- Move to step 3
+**If it's there,** the parser handles the element. Go to Step 3.
 
-**If it's not there:**
-- The parser may not recognize the new element
-- You have two options:
-  1. **Open an upstream issue** with Google Flow Lens — request they add the type
-  2. **Add a fallback in `src/model/build-model.ts`** to catch unknown elements as `"unknown"` type
+**If it's not,** the parser may not recognize the element. You have two options:
 
-The parser already includes a fallback for unrecognized types, so parsing won't fail. Unknown elements will be parsed but classified as `type: "unknown"` in the `GraphModel`.
+1. **Open an upstream issue** with Google Flow Lens and ask them to add the type.
+2. **Add a fallback in `src/model/build-model.ts`** that catches unknown elements as `"unknown"`.
+
+The parser already falls back for unrecognized types, so parsing won't fail. Unknown elements are parsed, but classified as `type: "unknown"` in the `GraphModel`.
 
 ## Step 3: Add a section schema (optional)
 
-If the new type has domain-specific properties that should render as semantic sections (e.g., "Filters", "Outcomes"), add a section schema in `src/render/section-schemas.ts`:
+If the new type has domain-specific properties that should show as semantic sections (for example "Filters" or "Outcomes"), add a section schema in `src/render/section-schemas.ts`:
 
 ```typescript
 const myNewTypeSchemas: SectionSchema[] = [
@@ -77,15 +75,13 @@ function getNodeTypeSchemas(nodeType: NodeType): SectionSchema[] {
 }
 ```
 
-See [docs/section-schemas.md](section-schemas.md) for detailed schema authoring.
+See [section-schemas.md](section-schemas.md) for details.
 
-**If you skip this step:**
-- The diff still works; changed properties will appear in the generic `"Configuration"` fallback section
-- The rendering is less polished, but still correct
+**If you skip this step,** the diff still works. Changed properties appear in the generic `"Configuration"` fallback section. The rendering is less polished, but correct.
 
 ## Step 4: Add test coverage
 
-Create a fixture with the new element type in both before and after versions:
+Create a fixture with the new element in both the before and after versions:
 
 ```bash
 mkdir -p fixtures/diff/my_new_type/
@@ -119,23 +115,19 @@ npm test
 npm run render:fixtures
 ```
 
-Open `flow-delta-out/fixtures/my_new_type.html` in a browser and verify the rendering.
+Open `flow-delta-out/fixtures/my_new_type.html` in a browser and check the rendering.
 
 ## Common scenarios
 
-### Scenario 1: Salesforce adds a new node type with simple properties
+### Scenario 1: a new node type with simple properties
 
-Example: A new `"notification"` element that sends notifications.
+Example: a new `"notification"` element that sends notifications.
 
-**Steps:**
-
-1. Add `"notification"` to `NodeType` in `graph-model.ts`
-2. Check if the parser supports it (run the test suite)
-3. Create a fixture with a modified notification node
-4. (Optional) Add a simple section schema if the properties deserve grouping
-5. Commit and test
-
-**Code changes:**
+1. Add `"notification"` to `NodeType` in `graph-model.ts`.
+2. Check whether the parser supports it (run the test suite).
+3. Create a fixture with a modified notification node.
+4. Optionally, add a simple section schema if the properties deserve grouping.
+5. Commit and test.
 
 ```typescript
 // src/model/graph-model.ts
@@ -162,19 +154,15 @@ function getNodeTypeSchemas(nodeType: NodeType): SectionSchema[] {
 }
 ```
 
-### Scenario 2: An existing element type gains new properties
+### Scenario 2: an existing type gains new properties
 
-Example: The `recordCreate` element gains a new `requiredFields` property.
+Example: `recordCreate` gains a `requiredFields` property.
 
-**Steps:**
-
-1. No type change needed (the element is still `"recordCreate"`)
-2. The property is automatically diffed
-3. (Optional) If `requiredFields` is a collection, add it to the section schema's columns
-4. Create a fixture with a modified create element
-5. Test
-
-**Code changes:**
+1. No type change is needed. The element is still `"recordCreate"`.
+2. The new property is diffed automatically.
+3. Optionally, if `requiredFields` is a collection, add a section for it.
+4. Create a fixture with a modified create element.
+5. Test.
 
 ```typescript
 // src/render/section-schemas.ts
@@ -199,20 +187,16 @@ const recordCreateSchemas: SectionSchema[] = [
 ];
 ```
 
-### Scenario 3: Salesforce changes element structure (nested arrays, new keys)
+### Scenario 3: Salesforce changes an element's structure
 
-Example: A decision's `rules` array now includes a `metadata` object.
+Example: a decision's `rules` array now includes a `metadata` object.
 
-**Steps:**
-
-1. No type change
-2. The new `metadata` is automatically captured in property diffs
-3. Inspect the parser output to understand the new structure
-4. If the structure is complex, add a grouped-table schema
-5. Create a fixture with the modified decision
-6. Test
-
-**Code changes:**
+1. No type change.
+2. The new `metadata` is captured in property diffs automatically.
+3. Inspect the parser output to understand the new structure.
+4. If the structure is complex, add a grouped-table schema.
+5. Create a fixture with the modified decision.
+6. Test.
 
 ```typescript
 // src/render/section-schemas.ts
@@ -231,28 +215,22 @@ const decisionSchemas: SectionSchema[] = [
 ];
 ```
 
-### Scenario 4: The parser doesn't understand the element
+### Scenario 4: the parser doesn't understand the element
 
-If the parser fails to parse the new element, it will fall back to `"unknown"`.
+If the parser can't parse the new element, it falls back to `"unknown"`.
 
-**Steps:**
+1. `"unknown"` is already in `NodeType`.
+2. Unknown elements still produce diffs, classified as `type: "unknown"`.
+3. No special handling is needed. The fallback is generic.
+4. Create a fixture with the unknown element.
+5. Run the tests to confirm it parses without error.
 
-1. Add `"unknown"` handling (already in `NodeType`)
-2. Unknown elements still produce diffs, just classified as `type: "unknown"`
-3. No special handling needed; the fallback is generic
-4. Create a fixture with the unknown element
-5. Test to confirm it parses without error
+No code changes are needed. The element appears as `type: "unknown"` in diffs.
 
-**Code:**
+To improve support, either:
 
-```typescript
-// No code changes needed; the parser fallback handles it
-// The element will appear as type: "unknown" in diffs
-```
-
-To improve support:
-- **File an issue** with Google Flow Lens to request parser support
-- **Or** add a custom parser pass in `build-model.ts` to handle the element
+- **file an issue** with Google Flow Lens to request parser support; or
+- **add a custom parser pass** in `build-model.ts` to handle the element.
 
 Example custom pass:
 
@@ -267,55 +245,45 @@ if (element.elementSubtype === "MyNewCustomElement") {
 
 If a new element type doesn't parse or diff correctly:
 
-1. **Check the parser:**
+1. **Check the diff output.**
+
    ```bash
    npx tsx src/cli.ts --old before.xml --new after.xml --json --out out/
    cat out/*.diff.json | jq '.nodes[] | select(.type == "myNewType")'
    ```
 
-2. **Inspect the raw parsed structure:**
-   - Add `console.log()` in `buildGraphModel()` to see the parsed element
-   - Compare it against `src/parser/flow_types.ts` to see what fields are extracted
+2. **Inspect the parsed structure.** Add `console.log()` in `buildGraphModel()` to see the parsed element. Compare it with `src/parser/flow_types.ts` to see which fields are extracted.
+3. **Check canonicalization.** Are the element's properties being stripped (coordinates, connectors)? See `TOP_LEVEL_KEYS` and `EDGE_KEYS` in `build-model.ts`.
+4. **Check the schema.** Are the property paths and column keys right?
+5. **Use a minimal fixture.** Make one with only the new element type, and run the test to isolate the issue.
 
-3. **Check canonicalization:**
-   - Is the element's properties being stripped (coordinates, connectors)?
-   - See `TOP_LEVEL_KEYS` and `EDGE_KEYS` in `build-model.ts`
+## Checklist
 
-4. **Verify the schema:**
-   - Does the section schema have the correct property paths?
-   - Do the column keys match the element's properties?
-
-5. **Test with a fixture:**
-   - Create a minimal fixture with only the new element type
-   - Run the test to isolate the issue
-
-## Checklist for adding a new type
-
-- [ ] Added type name to `NodeType` union in `src/model/graph-model.ts`
-- [ ] Verified parser supports it (or filed upstream issue)
+- [ ] Added the type name to the `NodeType` union in `src/model/graph-model.ts`
+- [ ] Verified the parser supports it (or filed an upstream issue)
 - [ ] Created a fixture in `fixtures/diff/<case>/` with before/after flows
-- [ ] Added test row in `test/semantic-diff.test.ts`
-- [ ] (Optional) Added section schema in `src/render/section-schemas.ts`
-- [ ] (Optional) Updated [docs/salesforce-flow-primer.md](salesforce-flow-primer.md) with element docs
-- [ ] Ran `npm test` and verified it passes
-- [ ] Ran `npm run render:fixtures` and visually inspected the HTML
-- [ ] Committed the fixture and changes together
+- [ ] Added a test row in `test/semantic-diff.test.ts`
+- [ ] (Optional) Added a section schema in `src/render/section-schemas.ts`
+- [ ] (Optional) Updated [salesforce-flow-primer.md](salesforce-flow-primer.md) with element docs
+- [ ] Ran `npm test` and it passes
+- [ ] Ran `npm run render:fixtures` and checked the HTML by eye
+- [ ] Committed the fixture and code changes together
 
 ## Contributing upstream
 
 If you extend the parser or add parser support:
 
-1. **Test thoroughly** — parser changes affect all flows
-2. **Keep parser edits minimal** — the parser is vendored; prefer building on top
-3. **Coordinate with Google Flow Lens** — if the parser is missing a type, file an issue upstream
-4. **Update NOTICE** — if you vendor a new parser version, update the commit hash
+1. **Test thoroughly.** Parser changes affect every flow.
+2. **Keep parser edits minimal.** The parser is vendored, so build on top of it where you can.
+3. **Coordinate with Google Flow Lens.** If the parser lacks a type, file an issue upstream.
+4. **Update NOTICE.** If you vendor a new parser version, update the commit hash.
 
-See [docs/vendoring.md](vendoring.md) for vendoring policy.
+See [vendoring.md](vendoring.md) for the vendoring policy.
 
 ## References
 
-- **Salesforce Flow metadata API:** https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/metaType_Flow.htm
-- **Google Flow Lens (upstream parser):** https://github.com/google/flow-lens
-- **Parser types:** `src/parser/flow_types.ts` (do not edit)
-- **Section schema authoring:** [docs/section-schemas.md](section-schemas.md)
-- **Data model:** [docs/data-model.md](data-model.md)
+- [Salesforce Flow metadata API](https://developer.salesforce.com/docs/atlas.en-us.api_meta.meta/api_meta/metaType_Flow.htm)
+- [Google Flow Lens (upstream parser)](https://github.com/google/flow-lens)
+- Parser types: `src/parser/flow_types.ts` (do not edit)
+- Section schema authoring: [section-schemas.md](section-schemas.md)
+- Data model: [data-model.md](data-model.md)

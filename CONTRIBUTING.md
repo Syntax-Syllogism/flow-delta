@@ -1,22 +1,21 @@
 # Contributing to FlowDelta
 
-Thank you for your interest in contributing to FlowDelta! This is a hobbyist project, and we welcome all kinds of contributions.
+Thanks for your interest. FlowDelta is a hobby project, and every kind of contribution is welcome.
 
-## How to Contribute
+## How to help
 
-1. **Report Bugs:** If you find a bug, please open an issue with a clear description and steps to reproduce.
-1. **Suggest Features:** Have an idea? Open an issue to discuss it.
-1. **Submit Pull Requests:**
-   - Fork the repository.
-   - Create a new branch for your feature or fix.
-   - Write clear, documented code.
-   - Ensure tests pass (`npm test`).
-   - Open a Pull Request with a description of your changes.
+1. **Report a bug.** Open an issue with a clear description and steps to reproduce it.
+2. **Suggest a feature.** Open an issue so we can talk it through.
+3. **Send a pull request.**
+   - Fork the repository and create a branch for your change.
+   - Write clear code, with comments where the reason isn't obvious.
+   - Make sure `npm test` passes.
+   - Open a pull request that says what you changed and why.
 
-## Development Setup
+## Development setup
 
-See the [README](README.md) for instructions on how to set up the project locally.
+The [README](README.md#development) explains how to run the project locally.
 
 ## Code of Conduct
 
-Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
+This project follows a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By taking part, you agree to abide by it.
