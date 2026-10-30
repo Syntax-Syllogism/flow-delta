@@ -1,6 +1,6 @@
 # FlowDelta
 
-<img width="1638" height="1392" alt="Screencast Demo" src="https://github.com/user-attachments/assets/b3f5f248-485a-4f62-9955-805a1b57186b" />
+<img width="2880" height="1800" alt="add_screen" src="https://github.com/user-attachments/assets/27ebedf2-e55d-4637-b285-0cb5beb725aa" />
 
 [![npm](https://img.shields.io/npm/v/@syntax-syllogism/flow-delta.svg)](https://www.npmjs.com/package/@syntax-syllogism/flow-delta)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
