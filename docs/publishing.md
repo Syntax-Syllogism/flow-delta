@@ -9,7 +9,7 @@ FlowDelta is published to npm as `@syntax-syllogism/flow-delta`.
 
 ## Build
 
-`npm run build` runs [`scripts/build.mjs`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/scripts/build.mjs), which bundles the six CLI and reporter entrypoints:
+`npm run build` runs [`scripts/build.mjs`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.3/scripts/build.mjs), which bundles the six CLI and reporter entrypoints:
 
 - `dist/cli.js`
 - `dist/gitlab-report.js`

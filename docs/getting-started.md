@@ -149,6 +149,6 @@ XML (after)  ┘              (build-model)├─► FlowDiff ─► layout ─�
 - [Architecture](architecture.md), for the pipeline.
 - [Rendering](render.md), for the interactive HTML.
 - The fixtures in `fixtures/diff/`, for real change patterns.
-- [CONTRIBUTING.md](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/CONTRIBUTING.md), for code style and PR expectations.
+- [CONTRIBUTING.md](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.3/CONTRIBUTING.md), for code style and PR expectations.
 
 Stuck? Try [Debugging and troubleshooting](debugging.md), or open an issue on [GitHub](https://github.com/Syntax-Syllogism/flow-delta/issues).

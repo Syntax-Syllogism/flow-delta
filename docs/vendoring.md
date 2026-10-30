@@ -35,7 +35,7 @@ FlowDelta is mixed-license. FlowDelta's own code is MIT (`LICENSE`). The Google 
 To comply with Apache-2.0 when redistributing, including on npm, all of these must travel together:
 
 - the original Apache-2.0 headers in `src/parser/*` (don't strip them): §4(c);
-- [`LICENSE-APACHE`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/LICENSE-APACHE), the full license text: §4(a);
-- [`NOTICE`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/NOTICE), with attribution and the upstream commit: §4(d).
+- [`LICENSE-APACHE`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.3/LICENSE-APACHE), the full license text: §4(a);
+- [`NOTICE`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.3/NOTICE), with attribution and the upstream commit: §4(d).
 
 The parser is vendored verbatim, so there are no modified-file notices under §4(b). If that ever changes, mark the modified files prominently.

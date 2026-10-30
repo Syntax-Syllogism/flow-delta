@@ -50,7 +50,7 @@ New to the project? Read these three in order:
 → [CLI usage](cli.md#as-built-mode-render-one-current-flow), then [Rendering](render.md#as-built-snapshots)
 
 **Set up CI reporting in GitLab or GitHub**
-→ [CI integration](ci.md), plus [examples/gitlab-ci.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/examples/gitlab-ci.yml) or [examples/github-actions.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/examples/github-actions.yml)
+→ [CI integration](ci.md), plus [examples/gitlab-ci.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.3/examples/gitlab-ci.yml) or [examples/github-actions.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.3/examples/github-actions.yml)
 
 **Work out why a diff looks wrong**
 → [Debugging and troubleshooting](debugging.md), then [Data model reference](data-model.md)
@@ -97,12 +97,12 @@ New to the project? Read these three in order:
 ## Conventions
 
 - File paths are relative to the project root, for example `src/cli.ts`.
-- Code examples use `npm` and `npm run` scripts. See [package.json](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/package.json).
+- Code examples use `npm` and `npm run` scripts. See [package.json](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.3/package.json).
 - Terminal examples use bash. On Windows, use PowerShell or Git Bash.
 - Links to source assume you have the repo cloned and open.
 
 ## Contributing and license
 
-See [CONTRIBUTING.md](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/CONTRIBUTING.md) for code style, PR expectations, and workflow.
+See [CONTRIBUTING.md](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.3/CONTRIBUTING.md) for code style, PR expectations, and workflow.
 
-FlowDelta's code is MIT. The vendored parser is Apache-2.0. See [LICENSE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/LICENSE) and [LICENSE-APACHE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/LICENSE-APACHE).
+FlowDelta's code is MIT. The vendored parser is Apache-2.0. See [LICENSE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.3/LICENSE) and [LICENSE-APACHE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.3/LICENSE-APACHE).
