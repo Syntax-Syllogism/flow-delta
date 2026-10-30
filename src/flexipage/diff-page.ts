@@ -49,11 +49,17 @@ const HEADER_ORDER = ["masterLabel", "template", "sobjectType", "type", "parentF
 export function diffPage(oldModel: PageModel, newModel: PageModel): PageDiff {
   const oldRegions = new Map(oldModel.regions.map((region) => [region.name, region]));
   const newRegions = new Map(newModel.regions.map((region) => [region.name, region]));
-  const names = [...new Set([...newModel.regions.map((region) => region.name), ...oldModel.regions.map((region) => region.name)])];
+  const names = [
+    ...new Set([...newModel.regions.map((region) => region.name), ...oldModel.regions.map((region) => region.name)]),
+  ];
   const regions = names.map((name) => diffRegion(name, oldRegions.get(name), newRegions.get(name)));
-  const pageChanges = oldModel.header && newModel.header && Object.keys(oldModel.header).length > 0 && Object.keys(newModel.header).length > 0
-    ? deepDiff(oldModel.header, newModel.header).sort((left, right) => orderOf(left.path) - orderOf(right.path))
-    : [];
+  const pageChanges =
+    oldModel.header &&
+    newModel.header &&
+    Object.keys(oldModel.header).length > 0 &&
+    Object.keys(newModel.header).length > 0
+      ? deepDiff(oldModel.header, newModel.header).sort((left, right) => orderOf(left.path) - orderOf(right.path))
+      : [];
   const items = regions.flatMap((region) => region.items);
 
   return {
@@ -75,11 +81,38 @@ export function diffPage(oldModel: PageModel, newModel: PageModel): PageDiff {
 }
 
 function diffRegion(name: string, oldRegion: Region | undefined, newRegion: Region | undefined): RegionDiff {
-  if (!oldRegion) return { name, path: name, type: newRegion!.type, mode: newRegion!.mode, status: "added", items: newRegion!.items.map((item, index) => classifyItem(undefined, item, `${name}:after:${index}`, name)) };
-  if (!newRegion) return { name, path: name, type: oldRegion.type, mode: oldRegion.mode, status: "deleted", items: oldRegion.items.map((item, index) => classifyItem(item, undefined, `${name}:before:${index}`, name)) };
+  if (!oldRegion)
+    return {
+      name,
+      path: name,
+      type: newRegion!.type,
+      mode: newRegion!.mode,
+      status: "added",
+      items: newRegion!.items.map((item, index) => classifyItem(undefined, item, `${name}:after:${index}`, name)),
+    };
+  if (!newRegion)
+    return {
+      name,
+      path: name,
+      type: oldRegion.type,
+      mode: oldRegion.mode,
+      status: "deleted",
+      items: oldRegion.items.map((item, index) => classifyItem(item, undefined, `${name}:before:${index}`, name)),
+    };
   const items = diffItems(oldRegion.items, newRegion.items, name);
-  const regionChanges = deepDiff({ type: oldRegion.type, mode: oldRegion.mode }, { type: newRegion.type, mode: newRegion.mode });
-  return { name, path: name, type: newRegion.type, mode: newRegion.mode, status: regionChanges.length || items.some((item) => item.status !== "unchanged") ? "modified" : "unchanged", ...(regionChanges.length ? { changes: regionChanges } : {}), items };
+  const regionChanges = deepDiff(
+    { type: oldRegion.type, mode: oldRegion.mode },
+    { type: newRegion.type, mode: newRegion.mode },
+  );
+  return {
+    name,
+    path: name,
+    type: newRegion.type,
+    mode: newRegion.mode,
+    status: regionChanges.length || items.some((item) => item.status !== "unchanged") ? "modified" : "unchanged",
+    ...(regionChanges.length ? { changes: regionChanges } : {}),
+    items,
+  };
 }
 
 function diffItems(oldItems: Item[], newItems: Item[], regionName: string): ItemDiff[] {
@@ -88,14 +121,18 @@ function diffItems(oldItems: Item[], newItems: Item[], regionName: string): Item
   let oldIndex = 0;
   let newIndex = 0;
   for (const [matchOld, matchNew] of pairs) {
-    while (oldIndex < matchOld) output.push(classifyItem(oldItems[oldIndex], undefined, `${regionName}:before:${oldIndex++}`, regionName));
-    while (newIndex < matchNew) output.push(classifyItem(undefined, newItems[newIndex], `${regionName}:after:${newIndex++}`, regionName));
+    while (oldIndex < matchOld)
+      output.push(classifyItem(oldItems[oldIndex], undefined, `${regionName}:before:${oldIndex++}`, regionName));
+    while (newIndex < matchNew)
+      output.push(classifyItem(undefined, newItems[newIndex], `${regionName}:after:${newIndex++}`, regionName));
     output.push(classifyItem(oldItems[matchOld], newItems[matchNew], `${regionName}:${matchNew}`, regionName));
     oldIndex = matchOld + 1;
     newIndex = matchNew + 1;
   }
-  while (oldIndex < oldItems.length) output.push(classifyItem(oldItems[oldIndex], undefined, `${regionName}:before:${oldIndex++}`, regionName));
-  while (newIndex < newItems.length) output.push(classifyItem(undefined, newItems[newIndex], `${regionName}:after:${newIndex++}`, regionName));
+  while (oldIndex < oldItems.length)
+    output.push(classifyItem(oldItems[oldIndex], undefined, `${regionName}:before:${oldIndex++}`, regionName));
+  while (newIndex < newItems.length)
+    output.push(classifyItem(undefined, newItems[newIndex], `${regionName}:after:${newIndex++}`, regionName));
   return output;
 }
 
@@ -103,26 +140,37 @@ function classifyItem(before: Item | undefined, after: Item | undefined, id: str
   const item = after ?? before!;
   const identifier = item.identifier;
   const itemPath = `${regionPath} › ${itemLabel(item)}`;
-  const base = item.kind === "component"
-    ? { id, path: itemPath, kind: item.kind, componentName: item.componentName, ...(identifier ? { identifier } : {}) }
-    : { id, path: itemPath, kind: item.kind, fieldItem: item.fieldItem, ...(identifier ? { identifier } : {}) };
+  const base =
+    item.kind === "component"
+      ? {
+          id,
+          path: itemPath,
+          kind: item.kind,
+          componentName: item.componentName,
+          ...(identifier ? { identifier } : {}),
+        }
+      : { id, path: itemPath, kind: item.kind, fieldItem: item.fieldItem, ...(identifier ? { identifier } : {}) };
   if (!before) return { ...base, status: "added", ...visibilityNote(item), after };
   if (!after) return { ...base, status: "deleted", ...visibilityNote(item), before };
-  const changes = before.kind === "component" && after.kind === "component"
-    ? deepDiff(before.properties, after.properties)
-    : before.kind === "field" && after.kind === "field"
-      ? deepDiff(before.attributes, after.attributes)
-      : deepDiff(before, after);
-  return changes.length ? { ...base, status: "modified", changes, before, after } : { ...base, status: "unchanged", after };
+  const changes =
+    before.kind === "component" && after.kind === "component"
+      ? deepDiff(before.properties, after.properties)
+      : before.kind === "field" && after.kind === "field"
+        ? deepDiff(before.attributes, after.attributes)
+        : deepDiff(before, after);
+  return changes.length
+    ? { ...base, status: "modified", changes, before, after }
+    : { ...base, status: "unchanged", after };
 }
 
 function lcs(oldItems: Item[], newItems: Item[]): Array<[number, number]> {
   const table = Array.from({ length: oldItems.length + 1 }, () => Array<number>(newItems.length + 1).fill(0));
   for (let oldIndex = oldItems.length - 1; oldIndex >= 0; oldIndex -= 1) {
     for (let newIndex = newItems.length - 1; newIndex >= 0; newIndex -= 1) {
-      table[oldIndex][newIndex] = itemKey(oldItems[oldIndex]) === itemKey(newItems[newIndex])
-        ? table[oldIndex + 1][newIndex + 1] + 1
-        : Math.max(table[oldIndex + 1][newIndex], table[oldIndex][newIndex + 1]);
+      table[oldIndex][newIndex] =
+        itemKey(oldItems[oldIndex]) === itemKey(newItems[newIndex])
+          ? table[oldIndex + 1][newIndex + 1] + 1
+          : Math.max(table[oldIndex + 1][newIndex], table[oldIndex][newIndex + 1]);
     }
   }
   const matches: Array<[number, number]> = [];

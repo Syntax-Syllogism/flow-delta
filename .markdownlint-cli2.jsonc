@@ -1,0 +1,26 @@
+// Runs after Prettier in the pre-commit hook: Prettier owns formatting and
+// markdownlint --fix repairs what it can, then fails on what remains.
+{
+  "config": {
+    "extends": "markdownlint/style/prettier",
+    "default": true,
+    "MD013": false,
+    "MD024": false,
+    "MD025": false,
+    "MD033": false,
+    "MD040": false,
+    "MD041": false,
+    "MD045": false,
+    "MD060": false,
+  },
+  "ignores": [
+    "**/node_modules/**",
+    "lib/**",
+    "dist/**",
+    "coverage/**",
+    "docs-site/dist/**",
+    "docs-site/.astro/**",
+    ".history/**",
+    ".loop/**",
+  ],
+}

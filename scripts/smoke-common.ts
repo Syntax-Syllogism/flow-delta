@@ -20,8 +20,10 @@ export function collectFixturePairs(root: string): FixturePair[] {
 }
 
 export function collectFlexiPageFixturePairs(root: string, namePrefix: string): FixturePair[] {
-  return collectMetadataFixturePairs(root, "before.flexipage-meta.xml", "after.flexipage-meta.xml")
-    .map((fixture) => ({ ...fixture, name: `${namePrefix}-${fixture.name}` }));
+  return collectMetadataFixturePairs(root, "before.flexipage-meta.xml", "after.flexipage-meta.xml").map((fixture) => ({
+    ...fixture,
+    name: `${namePrefix}-${fixture.name}`,
+  }));
 }
 
 function collectMetadataFixturePairs(root: string, beforeName: string, afterName: string): FixturePair[] {
@@ -53,12 +55,18 @@ export function prepareRepoScaffold(repoDir: string): void {
 export function buildAndPackLocal(root: string): string {
   runNpm(["run", "build"], { cwd: root, stdio: "inherit" });
   const dest = mkdtempSync(join(tmpdir(), "flow-delta-pack-"));
-  const output = String(runNpm(["pack", "--pack-destination", dest], {
-    cwd: root,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  })).trim();
-  const file = output.split("\n").map((line) => line.trim()).filter(Boolean).pop();
+  const output = String(
+    runNpm(["pack", "--pack-destination", dest], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }),
+  ).trim();
+  const file = output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .pop();
   if (!file) {
     throw new Error("npm pack did not report a tarball name");
   }
@@ -69,17 +77,17 @@ export function resolveNpmCommand(platform = process.platform): string {
   return platform === "win32" ? "npm.cmd" : "npm";
 }
 
-export function resolveNpmInvocation(env = process.env, platform = process.platform): { command: string; prefixArgs: string[] } {
+export function resolveNpmInvocation(
+  env = process.env,
+  platform = process.platform,
+): { command: string; prefixArgs: string[] } {
   if (env.npm_execpath) {
     return { command: process.execPath, prefixArgs: [env.npm_execpath] };
   }
   return { command: resolveNpmCommand(platform), prefixArgs: [] };
 }
 
-function runNpm(
-  args: string[],
-  options: Parameters<typeof execFileSync>[2],
-): Buffer | string {
+function runNpm(args: string[], options: Parameters<typeof execFileSync>[2]): Buffer | string {
   const invocation = resolveNpmInvocation();
   return execFileSync(invocation.command, [...invocation.prefixArgs, ...args], options);
 }
@@ -91,9 +99,9 @@ export function buildRepoGitIgnore(): string {
     .split("\n")
     .filter((line) => {
       const trimmed = line.trim();
-      return trimmed !== "# FlowDelta smoke output"
-        && trimmed !== "flow-delta-out/"
-        && trimmed !== "flexipage-delta-out/";
+      return (
+        trimmed !== "# FlowDelta smoke output" && trimmed !== "flow-delta-out/" && trimmed !== "flexipage-delta-out/"
+      );
     })
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
@@ -116,7 +124,10 @@ export function ensureRemote(repoDir: string, remote: string, remoteUrl?: string
     return;
   }
 
-  const remotes = execFileSync("git", ["-C", repoDir, "remote"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] })
+  const remotes = execFileSync("git", ["-C", repoDir, "remote"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  })
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
@@ -179,7 +190,11 @@ export function writeFixtureFiles(flowDir: string, fixtures: FixturePair[], phas
   });
 }
 
-export function writeFlexiPageFixtureFiles(flexiPageDir: string, fixtures: FixturePair[], phase: "before" | "after"): void {
+export function writeFlexiPageFixtureFiles(
+  flexiPageDir: string,
+  fixtures: FixturePair[],
+  phase: "before" | "after",
+): void {
   fixtures.forEach((fixture, index) => {
     const pageName = safeFileName(`smoke-${String(index + 1).padStart(2, "0")}-${fixture.name}`);
     const xml = phase === "before" ? fixture.before : fixture.after;

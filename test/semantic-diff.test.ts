@@ -48,9 +48,7 @@ test("canonicalization removes cosmetic-only changes", async () => {
 });
 
 test("deepDiff reports exact property paths", () => {
-  assert.deepEqual(deepDiff({ a: 1 }, { a: 2 }), [
-    { path: "a", before: 1, after: 2 },
-  ]);
+  assert.deepEqual(deepDiff({ a: 1 }, { a: 2 }), [{ path: "a", before: 1, after: 2 }]);
   assert.deepEqual(deepDiff({ nested: { value: "old" } }, { nested: { value: "new" } }), [
     { path: "nested.value", before: "old", after: "new" },
   ]);
@@ -58,9 +56,7 @@ test("deepDiff reports exact property paths", () => {
     { path: "items[1]", before: 2, after: 3 },
     { path: "items[2]", before: undefined, after: 4 },
   ]);
-  assert.deepEqual(deepDiff({ value: { a: 1 } }, { value: "x" }), [
-    { path: "value", before: { a: 1 }, after: "x" },
-  ]);
+  assert.deepEqual(deepDiff({ value: { a: 1 } }, { value: "x" }), [{ path: "value", before: { a: 1 }, after: "x" }]);
 });
 
 test("extractFlowHeader returns curated root scalar attributes only", async () => {
@@ -112,9 +108,7 @@ test("diffModel classifies added, deleted, modified, and edge rewires", async ()
   assert.ok(connector);
   connector.targetReference = "Add_No_Tag_Definition_Found_Error";
   rewireFlow.transitions = rewireFlow.transitions?.map((transition) =>
-    transition.from === "Populate_Tag"
-      ? { ...transition, to: "Add_No_Tag_Definition_Found_Error" }
-      : transition,
+    transition.from === "Populate_Tag" ? { ...transition, to: "Add_No_Tag_Definition_Found_Error" } : transition,
   );
 
   const baseDiff = diffModel(buildModel(original), buildModel(structuredClone(original)));
@@ -204,12 +198,18 @@ test("diffModel reports ordered flow-level attribute changes in the summary", ()
   const diff = diffModel(before, after);
 
   assert.equal(diff.summary.changedFlowAttributes, 3);
-  assert.deepEqual(diff.flowChanges?.map((change) => change.path), ["status", "runInMode", "apiVersion"]);
-  assert.deepEqual(diff.flowChanges?.find((change) => change.path === "status"), {
-    path: "status",
-    before: "Active",
-    after: "Draft",
-  });
+  assert.deepEqual(
+    diff.flowChanges?.map((change) => change.path),
+    ["status", "runInMode", "apiVersion"],
+  );
+  assert.deepEqual(
+    diff.flowChanges?.find((change) => change.path === "status"),
+    {
+      path: "status",
+      before: "Active",
+      after: "Draft",
+    },
+  );
 });
 
 test("diffModel skips flow-level changes when one side has no header", () => {
@@ -270,7 +270,10 @@ test("renderHtml emits a self-contained document with node ids and status classe
     html,
     /@media \(prefers-color-scheme: dark\) \{ :root:not\(\[data-theme="light"\]\) \{ --surface-subtle:#172033; --node-text:#f8fafc;[^}]*--canvas-start:#0f172a;/,
   );
-  assert.match(html, /panel-resizer:hover::before, \.panel-resizer\.dragging::before \{ background: var\(--focus\); width: 3px; \}/);
+  assert.match(
+    html,
+    /panel-resizer:hover::before, \.panel-resizer\.dragging::before \{ background: var\(--focus\); width: 3px; \}/,
+  );
   assert.match(html, /function applyView\(mode\)/);
   assert.match(html, /function applyTheme\(theme\)/);
   assert.match(html, /function round\(value\)/);
@@ -294,27 +297,38 @@ test("renderHtml emits a self-contained document with node ids and status classe
 });
 
 test("snapshot diffs render present nodes, inventory, facts, and provenance", async () => {
-  const snapshot = buildSnapshotDiff({
-    flowName: "Snapshot_Flow",
-    label: "Snapshot Flow",
-    header: { status: "Active", processType: "AutoLaunchedFlow", apiVersion: "60.0", runInMode: "SystemModeWithoutSharing" },
-    nodes: [
-      { id: "START", type: "start", label: "Start", properties: { triggerType: "Record" } },
-      { id: "SCREEN", type: "screen", label: "Review", properties: { allowBack: "true" } },
-      { id: "DECISION", type: "decision", label: "Approved?", properties: { rules: [] } },
-    ],
-    edges: [{ id: "START->SCREEN", source: "START", target: "SCREEN", kind: "normal" }, { id: "SCREEN->DECISION", source: "SCREEN", target: "DECISION", kind: "normal" }],
-  }, {
-    flowName: "Snapshot_Flow",
-    label: "Snapshot Flow",
-    status: "Active",
-    processType: "AutoLaunchedFlow",
-    apiVersion: "60.0",
-    runInMode: "SystemModeWithoutSharing",
-    source: "File /flows/Snapshot_Flow.flow-meta.xml",
-    generatedAt: "2026-09-01T12:00:00.000Z",
-    toolVersion: "0.8.1",
-  });
+  const snapshot = buildSnapshotDiff(
+    {
+      flowName: "Snapshot_Flow",
+      label: "Snapshot Flow",
+      header: {
+        status: "Active",
+        processType: "AutoLaunchedFlow",
+        apiVersion: "60.0",
+        runInMode: "SystemModeWithoutSharing",
+      },
+      nodes: [
+        { id: "START", type: "start", label: "Start", properties: { triggerType: "Record" } },
+        { id: "SCREEN", type: "screen", label: "Review", properties: { allowBack: "true" } },
+        { id: "DECISION", type: "decision", label: "Approved?", properties: { rules: [] } },
+      ],
+      edges: [
+        { id: "START->SCREEN", source: "START", target: "SCREEN", kind: "normal" },
+        { id: "SCREEN->DECISION", source: "SCREEN", target: "DECISION", kind: "normal" },
+      ],
+    },
+    {
+      flowName: "Snapshot_Flow",
+      label: "Snapshot Flow",
+      status: "Active",
+      processType: "AutoLaunchedFlow",
+      apiVersion: "60.0",
+      runInMode: "SystemModeWithoutSharing",
+      source: "File /flows/Snapshot_Flow.flow-meta.xml",
+      generatedAt: "2026-09-01T12:00:00.000Z",
+      toolVersion: "0.8.1",
+    },
+  );
   assert.ok(snapshot.nodes.every((node) => node.status === "present" && node.after));
   assert.ok(snapshot.edges.every((edge) => edge.status === "present"));
   const html = renderHtml(await layoutDiff(snapshot));
@@ -360,8 +374,15 @@ test("renderHtml emits a flow-level banner for deactivation changes only", async
   assert.ok(!html.includes("http://"));
   assert.ok(!html.includes("https://"));
 
-  const unchangedHtml = renderHtml(await layoutDiff(diffModel(model({ id: "A", type: "start", label: "A", properties: {} }), model({ id: "A", type: "start", label: "A", properties: {} }))));
-  assert.ok(!unchangedHtml.includes("id=\"flow-tab\""));
+  const unchangedHtml = renderHtml(
+    await layoutDiff(
+      diffModel(
+        model({ id: "A", type: "start", label: "A", properties: {} }),
+        model({ id: "A", type: "start", label: "A", properties: {} }),
+      ),
+    ),
+  );
+  assert.ok(!unchangedHtml.includes('id="flow-tab"'));
 });
 
 test("renderHtml emits an apiVersion-only banner without activation callout", async () => {
@@ -407,19 +428,28 @@ test("section schemas name high-impact node property groups", () => {
   assert.equal(screen.length, 1);
 
   const start = getSectionSchemas("start");
-  assert.deepEqual(start.map((schema) => schema.name), ["Trigger", "Entry Conditions", "Scheduled Paths"]);
+  assert.deepEqual(
+    start.map((schema) => schema.name),
+    ["Trigger", "Entry Conditions", "Scheduled Paths"],
+  );
 
   const decision = getSectionSchemas("decision");
   assert.equal(decision[0].name, "Outcomes");
   assert.deepEqual(decision[0].paths, ["rules"]);
   assert.equal(decision[0].render, "grouped-table");
   assert.equal(decision[0].innerArray, "conditions");
-  assert.deepEqual(decision[0].innerColumns?.map((c) => c.label), ["Resource", "Operator", "Value"]);
+  assert.deepEqual(
+    decision[0].innerColumns?.map((c) => c.label),
+    ["Resource", "Operator", "Value"],
+  );
 
   const create = getSectionSchemas("recordCreate");
   assert.equal(create[0].name, "Field Mappings");
   assert.equal(create[0].render, "table");
-  assert.deepEqual(create[0].columns?.map((c) => c.path), ["field", "value"]);
+  assert.deepEqual(
+    create[0].columns?.map((c) => c.path),
+    ["field", "value"],
+  );
 
   assert.equal(getSectionSchemas("recordUpdate")[0].name, "Field Mappings");
   assert.equal(getSectionSchemas("recordLookup")[0].name, "Filters");
@@ -457,7 +487,11 @@ test("buildFlowArtifactClientData keeps semantic records separate from view geom
   assert.equal(data.nodes.length, diff.nodes.length);
   assert.equal(new Set(data.nodes.map((node) => node.id)).size, diff.nodes.length);
   assert.ok(data.nodes.every((node) => node.detailHtml.length > 0));
-  assert.ok(data.nodes.every((node) => !Object.hasOwn(node, "before") && !Object.hasOwn(node, "after") && !Object.hasOwn(node, "changes")));
+  assert.ok(
+    data.nodes.every(
+      (node) => !Object.hasOwn(node, "before") && !Object.hasOwn(node, "after") && !Object.hasOwn(node, "changes"),
+    ),
+  );
   assert.ok(data.edges.every((edge) => !Object.hasOwn(edge, "label") && !Object.hasOwn(edge, "kind")));
   assert.ok(!Object.hasOwn(data, "diff"));
   assert.ok(!Object.hasOwn(data, "sectionSchemas"));
@@ -474,14 +508,26 @@ test("buildFlowArtifactClientData keeps semantic records separate from view geom
   for (const name of ["union", "after", "before"] as const) {
     const expectedIds = expectedNodeIds[name];
     const layoutView = data.layouts[name];
-    assert.ok(layoutView.nodes.every((node) => expectedIds.has(node.id)), `${name} nodes`);
-    assert.ok(layoutView.edges.every((edge) => {
-      const source = data.edges.find((candidate) => candidate.id === edge.id)?.source;
-      const target = data.edges.find((candidate) => candidate.id === edge.id)?.target;
-      return source !== undefined && target !== undefined && expectedIds.has(source) && expectedIds.has(target);
-    }), `${name} edges`);
-    assert.ok(layoutView.nodes.every((node) => Object.keys(node).sort().join(",") === "height,id,width,x,y"), `${name} node geometry`);
-    assert.ok(layoutView.edges.every((edge) => Object.keys(edge).sort().join(",") === "id,sections"), `${name} edge geometry`);
+    assert.ok(
+      layoutView.nodes.every((node) => expectedIds.has(node.id)),
+      `${name} nodes`,
+    );
+    assert.ok(
+      layoutView.edges.every((edge) => {
+        const source = data.edges.find((candidate) => candidate.id === edge.id)?.source;
+        const target = data.edges.find((candidate) => candidate.id === edge.id)?.target;
+        return source !== undefined && target !== undefined && expectedIds.has(source) && expectedIds.has(target);
+      }),
+      `${name} edges`,
+    );
+    assert.ok(
+      layoutView.nodes.every((node) => Object.keys(node).sort().join(",") === "height,id,width,x,y"),
+      `${name} node geometry`,
+    );
+    assert.ok(
+      layoutView.edges.every((edge) => Object.keys(edge).sort().join(",") === "id,sections"),
+      `${name} edge geometry`,
+    );
   }
 });
 
@@ -506,12 +552,16 @@ test("renderHtml client script executes against the rendered artifact DOM harnes
     }
 
     for (const theme of ["light", "dark", "system"]) {
-      const button = dom.document.querySelector(`.theme-toggle button[data-theme-choice="${theme}"]`) as HTMLButtonElement | null;
+      const button = dom.document.querySelector(
+        `.theme-toggle button[data-theme-choice="${theme}"]`,
+      ) as HTMLButtonElement | null;
       assert.ok(button);
       button.click();
       assert.equal(dom.document.documentElement.dataset.theme, theme);
       assert.equal(dom.window.localStorage.getItem(THEME_STORAGE_KEY), theme);
-      for (const themeButton of Array.from(dom.document.querySelectorAll(".theme-toggle button")) as HTMLButtonElement[]) {
+      for (const themeButton of Array.from(
+        dom.document.querySelectorAll(".theme-toggle button"),
+      ) as HTMLButtonElement[]) {
         const expected = themeButton.dataset.themeChoice === theme;
         assert.equal(themeButton.getAttribute("aria-pressed"), expected ? "true" : "false");
       }
@@ -543,8 +593,9 @@ test("renderHtml activates an initially unselected node from the keyboard", asyn
   try {
     const initiallySelected = dom.document.querySelector(".node.selected") as HTMLElement | null;
     assert.ok(initiallySelected);
-    const node = Array.from(dom.document.querySelectorAll(".node"))
-      .find((candidate) => candidate !== initiallySelected) as HTMLElement | undefined;
+    const node = Array.from(dom.document.querySelectorAll(".node")).find(
+      (candidate) => candidate !== initiallySelected,
+    ) as HTMLElement | undefined;
     assert.ok(node);
     const initialPanelTitle = dom.document.getElementById("panel-title")?.textContent;
 
@@ -566,7 +617,12 @@ test("renderHtml resolves stored themes before interaction and rejects poisoned 
   const seeded = await renderDom(html, { [THEME_STORAGE_KEY]: "dark" });
   try {
     assert.equal(seeded.document.documentElement.dataset.theme, "dark");
-    assert.equal((seeded.document.querySelector('[data-theme-choice="dark"]') as HTMLButtonElement | null)?.getAttribute("aria-pressed"), "true");
+    assert.equal(
+      (seeded.document.querySelector('[data-theme-choice="dark"]') as HTMLButtonElement | null)?.getAttribute(
+        "aria-pressed",
+      ),
+      "true",
+    );
   } finally {
     seeded.close();
   }
@@ -594,7 +650,11 @@ test("renderHtml refits the viewport to each filter's visible bounds", async () 
       (dom.document.querySelector(`.filters button[data-view-mode="${mode}"]`) as HTMLButtonElement | null)?.click();
       origins.set(mode, origin());
     }
-    assert.equal(new Set(origins.values()).size, 4, `each filter refits to its own visible bounds, got ${[...origins].map(([m, o]) => `${m}=${o}`).join(", ")}`);
+    assert.equal(
+      new Set(origins.values()).size,
+      4,
+      `each filter refits to its own visible bounds, got ${[...origins].map(([m, o]) => `${m}=${o}`).join(", ")}`,
+    );
   } finally {
     dom.close();
   }
@@ -634,25 +694,28 @@ test("assignment panel renders an added item as one badged table row", async () 
 });
 
 test("snapshot panel renders full added screen contents with generic recursion", () => {
-  const html = renderNodePanelBody({
-    status: "added",
-    after: {
-      fields: {
-        name: "MainRegion",
-        fieldType: "RegionContainer",
+  const html = renderNodePanelBody(
+    {
+      status: "added",
+      after: {
         fields: {
-          name: "LeftColumn",
-          fieldType: "Region",
+          name: "MainRegion",
+          fieldType: "RegionContainer",
           fields: {
-            name: "WelcomeText",
-            fieldType: "DisplayText",
-            fieldText: "<p>Hello reviewer</p>",
+            name: "LeftColumn",
+            fieldType: "Region",
+            fields: {
+              name: "WelcomeText",
+              fieldType: "DisplayText",
+              fieldText: "<p>Hello reviewer</p>",
+            },
           },
         },
+        showFooter: { booleanValue: "true" },
       },
-      showFooter: { booleanValue: "true" },
     },
-  }, []);
+    [],
+  );
 
   assert.match(html, /snapshot-section added/);
   assert.match(html, /<summary>Field/);
@@ -678,13 +741,16 @@ test("snapshot panel renders present node properties as neutral one-sided values
 });
 
 test("snapshot panel renders deleted node contents symmetrically", () => {
-  const html = renderNodePanelBody({
-    status: "deleted",
-    before: {
-      object: "Account",
-      filters: [{ field: "Name", operator: "EqualTo", value: { stringValue: "Acme" } }],
+  const html = renderNodePanelBody(
+    {
+      status: "deleted",
+      before: {
+        object: "Account",
+        filters: [{ field: "Name", operator: "EqualTo", value: { stringValue: "Acme" } }],
+      },
     },
-  }, getSectionSchemas("recordLookup"));
+    getSectionSchemas("recordLookup"),
+  );
 
   assert.match(html, /snapshot-section deleted/);
   assert.match(html, /Filters/);
@@ -696,12 +762,15 @@ test("snapshot panel renders deleted node contents symmetrically", () => {
 
 test("snapshot panel bounds long string blobs without truncating them", () => {
   const longText = "Long rich text ".repeat(30);
-  const html = renderNodePanelBody({
-    status: "added",
-    after: {
-      fieldText: longText,
+  const html = renderNodePanelBody(
+    {
+      status: "added",
+      after: {
+        fieldText: longText,
+      },
     },
-  }, []);
+    [],
+  );
 
   assert.match(html, /<pre>/);
   assert.match(html, /Long rich text Long rich text/);
@@ -709,15 +778,18 @@ test("snapshot panel bounds long string blobs without truncating them", () => {
 });
 
 test("snapshot panel treats known schema-less single-child collections as lists", () => {
-  const html = renderNodePanelBody({
-    status: "added",
-    after: {
-      customErrorMessages: {
-        name: "MissingAccount",
-        errorMessage: "Account is required",
+  const html = renderNodePanelBody(
+    {
+      status: "added",
+      after: {
+        customErrorMessages: {
+          name: "MissingAccount",
+          errorMessage: "Account is required",
+        },
       },
     },
-  }, []);
+    [],
+  );
 
   assert.match(html, /Custom error message/);
   assert.match(html, /snapshot-card added/);
@@ -765,16 +837,25 @@ test('fixture "add_screen" renders the added screen\'s nested contents end-to-en
 });
 
 test("addendum A schemas render common schema-less node types with named sections", () => {
-  const startHtml = renderNodePanelBody({
-    status: "added",
-    after: {
-      object: "Account",
-      recordTriggerType: "CreateAndUpdate",
-      filterLogic: "and",
-      filters: [{ field: "Name", operator: "IsNull", value: { booleanValue: "false" } }],
-      scheduledPaths: { name: "Follow_Up", label: "Follow Up", offsetNumber: "1", offsetUnit: "Days", timeSource: "Record" },
+  const startHtml = renderNodePanelBody(
+    {
+      status: "added",
+      after: {
+        object: "Account",
+        recordTriggerType: "CreateAndUpdate",
+        filterLogic: "and",
+        filters: [{ field: "Name", operator: "IsNull", value: { booleanValue: "false" } }],
+        scheduledPaths: {
+          name: "Follow_Up",
+          label: "Follow Up",
+          offsetNumber: "1",
+          offsetUnit: "Days",
+          timeSource: "Record",
+        },
+      },
     },
-  }, getSectionSchemas("start"));
+    getSectionSchemas("start"),
+  );
 
   assert.match(startHtml, /Trigger/);
   assert.match(startHtml, /Entry Conditions/);
@@ -782,64 +863,81 @@ test("addendum A schemas render common schema-less node types with named section
   assert.match(startHtml, /<th>Time Source<\/th>/);
   assert.match(startHtml, /Follow Up/);
 
-  const subflowHtml = renderNodePanelBody({
-    status: "added",
-    after: {
-      flowName: "Child_Flow",
-      inputAssignments: [{ name: "recordId", value: { elementReference: "Record.Id" } }],
-      outputAssignments: [{ name: "result", assignToReference: "childResult" }],
+  const subflowHtml = renderNodePanelBody(
+    {
+      status: "added",
+      after: {
+        flowName: "Child_Flow",
+        inputAssignments: [{ name: "recordId", value: { elementReference: "Record.Id" } }],
+        outputAssignments: [{ name: "result", assignToReference: "childResult" }],
+      },
     },
-  }, getSectionSchemas("subflow"));
+    getSectionSchemas("subflow"),
+  );
 
   assert.match(subflowHtml, /Parameters/);
   assert.match(subflowHtml, /<th>Assign To<\/th>/);
   assert.match(subflowHtml, /\{!Record\.Id\}/);
 
-  const customErrorHtml = renderNodePanelBody({
-    status: "added",
-    after: {
-      customErrorMessages: { name: "MissingAccount", errorMessage: "Account is required" },
+  const customErrorHtml = renderNodePanelBody(
+    {
+      status: "added",
+      after: {
+        customErrorMessages: { name: "MissingAccount", errorMessage: "Account is required" },
+      },
     },
-  }, getSectionSchemas("customError"));
+    getSectionSchemas("customError"),
+  );
 
   assert.match(customErrorHtml, /Error Messages/);
   assert.match(customErrorHtml, /<th>Message<\/th>/);
   assert.match(customErrorHtml, /Account is required/);
 
-  const transformHtml = renderNodePanelBody({
-    status: "added",
-    after: {
-      transformValues: [{ name: "MapName", sourceDataType: "String", targetDataType: "String", value: { stringValue: "Acme" } }],
-      dataTypeMappings: { name: "AmountMapping", sourceDataType: "Currency", targetDataType: "Number" },
+  const transformHtml = renderNodePanelBody(
+    {
+      status: "added",
+      after: {
+        transformValues: [
+          { name: "MapName", sourceDataType: "String", targetDataType: "String", value: { stringValue: "Acme" } },
+        ],
+        dataTypeMappings: { name: "AmountMapping", sourceDataType: "Currency", targetDataType: "Number" },
+      },
     },
-  }, getSectionSchemas("transform"));
+    getSectionSchemas("transform"),
+  );
 
   assert.match(transformHtml, /Value Mappings/);
   assert.match(transformHtml, /Data Type Mappings/);
   assert.match(transformHtml, /<th>Source Type<\/th>/);
 
-  const collectionHtml = renderNodePanelBody({
-    status: "added",
-    after: {
-      collectionReference: "records",
-      operation: "Filter",
-      filters: [{ field: "Status", operator: "EqualTo", value: { stringValue: "Open" } }],
-      sortOptions: { field: "CreatedDate", sortOrder: "Desc" },
+  const collectionHtml = renderNodePanelBody(
+    {
+      status: "added",
+      after: {
+        collectionReference: "records",
+        operation: "Filter",
+        filters: [{ field: "Status", operator: "EqualTo", value: { stringValue: "Open" } }],
+        sortOptions: { field: "CreatedDate", sortOrder: "Desc" },
+      },
     },
-  }, getSectionSchemas("collectionProcessor"));
+    getSectionSchemas("collectionProcessor"),
+  );
 
   assert.match(collectionHtml, /Collection Settings/);
   assert.match(collectionHtml, /Sort Options/);
   assert.match(collectionHtml, /CreatedDate/);
 
-  const stageHtml = renderNodePanelBody({
-    status: "added",
-    after: {
-      stageLabel: "Review",
-      stageOrder: "1",
-      stageSteps: { name: "Approve", label: "Approve Request" },
+  const stageHtml = renderNodePanelBody(
+    {
+      status: "added",
+      after: {
+        stageLabel: "Review",
+        stageOrder: "1",
+        stageSteps: { name: "Approve", label: "Approve Request" },
+      },
     },
-  }, getSectionSchemas("orchestratedStage"));
+    getSectionSchemas("orchestratedStage"),
+  );
 
   assert.match(stageHtml, /Stage Settings/);
   assert.match(stageHtml, /Stage Steps/);
@@ -892,8 +990,18 @@ function model(node: { id: string; type: string; label: string; properties: Reco
 
 test("modified table row keeps unchanged sibling columns as context (Finding 2)", async () => {
   const condition = { leftValueReference: "isWin", operator: "EqualTo", rightValue: { booleanValue: "true" } };
-  const before = model({ id: "D", type: "decision", label: "D", properties: { rules: [{ label: "R1", conditions: [condition] }] } });
-  const after = model({ id: "D", type: "decision", label: "D", properties: { rules: [{ label: "R1", conditions: [{ ...condition, operator: "NotEqualTo" }] }] } });
+  const before = model({
+    id: "D",
+    type: "decision",
+    label: "D",
+    properties: { rules: [{ label: "R1", conditions: [condition] }] },
+  });
+  const after = model({
+    id: "D",
+    type: "decision",
+    label: "D",
+    properties: { rules: [{ label: "R1", conditions: [{ ...condition, operator: "NotEqualTo" }] }] },
+  });
   const panel = await renderPanel(diffModel(before, after), "D");
 
   // Only the operator changed, but the row still shows Resource and Value for context.
@@ -904,8 +1012,15 @@ test("modified table row keeps unchanged sibling columns as context (Finding 2)"
 });
 
 test("wholly added outcome shows one group badge, no per-row Change column (Finding 3)", async () => {
-  const ruleA = { label: "R1", conditions: [{ leftValueReference: "a", operator: "EqualTo", rightValue: { booleanValue: "true" } }] };
-  const ruleB = { label: "R2", conditionLogic: "and", conditions: [{ leftValueReference: "b", operator: "IsNull", rightValue: { booleanValue: "false" } }] };
+  const ruleA = {
+    label: "R1",
+    conditions: [{ leftValueReference: "a", operator: "EqualTo", rightValue: { booleanValue: "true" } }],
+  };
+  const ruleB = {
+    label: "R2",
+    conditionLogic: "and",
+    conditions: [{ leftValueReference: "b", operator: "IsNull", rightValue: { booleanValue: "false" } }],
+  };
   const before = model({ id: "D", type: "decision", label: "D", properties: { rules: [ruleA] } });
   const after = model({ id: "D", type: "decision", label: "D", properties: { rules: [ruleA, ruleB] } });
   const panel = await renderPanel(diffModel(before, after), "D");
@@ -918,8 +1033,18 @@ test("wholly added outcome shows one group badge, no per-row Change column (Find
 });
 
 test("scalar-only generic change renders in the Settings table", async () => {
-  const before = model({ id: "C", type: "recordCreate", label: "C", properties: { object: "Account", inputAssignments: [] } });
-  const after = model({ id: "C", type: "recordCreate", label: "C", properties: { object: "Contact", inputAssignments: [] } });
+  const before = model({
+    id: "C",
+    type: "recordCreate",
+    label: "C",
+    properties: { object: "Account", inputAssignments: [] },
+  });
+  const after = model({
+    id: "C",
+    type: "recordCreate",
+    label: "C",
+    properties: { object: "Contact", inputAssignments: [] },
+  });
   const panel = await renderPanel(diffModel(before, after), "C");
 
   assert.match(panel, /<summary>Settings <span class="section-count">\(1\)<\/span><\/summary>/);
@@ -931,7 +1056,15 @@ test("scalar-only generic change renders in the Settings table", async () => {
 
 test("filter table unwraps numberValue and unknown node types fall back without error", async () => {
   const before = model({ id: "L", type: "recordLookup", label: "L", properties: { object: "ApexLog", filters: [] } });
-  const after = model({ id: "L", type: "recordLookup", label: "L", properties: { object: "ApexLog", filters: [{ field: "LogLength", operator: "GreaterThan", value: { numberValue: "99.0" } }] } });
+  const after = model({
+    id: "L",
+    type: "recordLookup",
+    label: "L",
+    properties: {
+      object: "ApexLog",
+      filters: [{ field: "LogLength", operator: "GreaterThan", value: { numberValue: "99.0" } }],
+    },
+  });
   const lookupPanel = await renderPanel(diffModel(before, after), "L");
   assert.match(lookupPanel, /<th>Filters<\/th>|Filters/);
   assert.match(lookupPanel, /class="val ins">99\.0/, "numberValue unwrapped");
@@ -977,14 +1110,7 @@ test("CLI git mode writes diff.json that matches file-mode output", async () => 
   git(repoDir, ["commit", "-m", "new"]);
   const newSha = git(repoDir, ["rev-parse", "HEAD"]);
 
-  await main([
-    "--from", oldSha,
-    "--to", newSha,
-    "--repo", repoDir,
-    "--path", flowRelPath,
-    "--out", outDir,
-    "--json",
-  ]);
+  await main(["--from", oldSha, "--to", newSha, "--repo", repoDir, "--path", flowRelPath, "--out", outDir, "--json"]);
 
   const diffFiles = readdirSync(outDir).filter((name) => name.endsWith(".diff.json"));
   assert.equal(diffFiles.length, 1);
@@ -997,13 +1123,29 @@ test("CLI as-built file mode writes a snapshot artifact", async () => {
   const outDir = mkdtempSync(join(tmpdir(), "flow-delta-snapshot-out-"));
   await main([
     "--as-built",
-    "--file", join(ROOT, "fixtures", "parse", "sample.flow-meta.xml"),
-    "--out", outDir,
+    "--file",
+    join(ROOT, "fixtures", "parse", "sample.flow-meta.xml"),
+    "--out",
+    outDir,
     "--json",
   ]);
 
-  const html = readFileSync(join(outDir, readdirSync(outDir).find((name) => name.endsWith(".html"))!), "utf8");
-  const snapshot = JSON.parse(readFileSync(join(outDir, readdirSync(outDir).find((name) => name.endsWith(".diff.json"))!), "utf8"));
+  const html = readFileSync(
+    join(
+      outDir,
+      readdirSync(outDir).find((name) => name.endsWith(".html"))!,
+    ),
+    "utf8",
+  );
+  const snapshot = JSON.parse(
+    readFileSync(
+      join(
+        outDir,
+        readdirSync(outDir).find((name) => name.endsWith(".diff.json"))!,
+      ),
+      "utf8",
+    ),
+  );
   assert.equal(snapshot.mode, "snapshot");
   assert.ok(snapshot.nodes.every((node: { status: string }) => node.status === "present"));
   assert.match(html, /data-mode="snapshot"/);
@@ -1024,14 +1166,7 @@ test("CLI as-built git mode writes a snapshot artifact at one ref", async () => 
   git(repoDir, ["commit", "-m", "snapshot"]);
   const ref = git(repoDir, ["rev-parse", "HEAD"]);
 
-  await main([
-    "--as-built",
-    "--repo", repoDir,
-    "--at", ref,
-    "--path", flowRelPath,
-    "--out", outDir,
-    "--json",
-  ]);
+  await main(["--as-built", "--repo", repoDir, "--at", ref, "--path", flowRelPath, "--out", outDir, "--json"]);
 
   const outputs = readdirSync(outDir);
   const htmlFile = outputs.find((name) => name.endsWith(".html"));
@@ -1099,18 +1234,27 @@ test("CLI git mode with --changed-only skips untouched flows that match the glob
   git(repoDir, ["commit", "-m", "old"]);
   const oldSha = git(repoDir, ["rev-parse", "HEAD"]);
 
-  writeFileSync(changedAbsPath, SAMPLE_XML.replace("<booleanValue>true</booleanValue>", "<booleanValue>false</booleanValue>"), "utf8");
+  writeFileSync(
+    changedAbsPath,
+    SAMPLE_XML.replace("<booleanValue>true</booleanValue>", "<booleanValue>false</booleanValue>"),
+    "utf8",
+  );
   git(repoDir, ["add", "."]);
   git(repoDir, ["commit", "-m", "new"]);
   const newSha = git(repoDir, ["rev-parse", "HEAD"]);
 
   await main([
-    "--from", oldSha,
-    "--to", newSha,
-    "--repo", repoDir,
-    "--path", "flows/*.flow-meta.xml",
+    "--from",
+    oldSha,
+    "--to",
+    newSha,
+    "--repo",
+    repoDir,
+    "--path",
+    "flows/*.flow-meta.xml",
     "--changed-only",
-    "--out", outDir,
+    "--out",
+    outDir,
     "--json",
   ]);
 
@@ -1147,11 +1291,16 @@ test("CLI git mode discovers deleted files from refs and preserves the old flow 
 
   assert.equal(readdirSync(repoDir).includes("flows"), true);
   await main([
-    "--from", oldSha,
-    "--to", newSha,
-    "--repo", repoDir,
-    "--path", "flows/*.flow-meta.xml",
-    "--out", outDir,
+    "--from",
+    oldSha,
+    "--to",
+    newSha,
+    "--repo",
+    repoDir,
+    "--path",
+    "flows/*.flow-meta.xml",
+    "--out",
+    outDir,
     "--json",
   ]);
 
@@ -1172,18 +1321,17 @@ test("CLI file mode writes diff.json and html artifacts", async () => {
   const oldPath = join(inputDir, "old.flow-meta.xml");
   const newPath = join(inputDir, "new.flow-meta.xml");
   writeFileSync(oldPath, SAMPLE_XML, "utf8");
-  writeFileSync(newPath, SAMPLE_XML.replace("<booleanValue>true</booleanValue>", "<booleanValue>false</booleanValue>"), "utf8");
+  writeFileSync(
+    newPath,
+    SAMPLE_XML.replace("<booleanValue>true</booleanValue>", "<booleanValue>false</booleanValue>"),
+    "utf8",
+  );
 
   const logs: string[] = [];
   const originalConsoleLog = console.log;
   console.log = (...args: unknown[]) => logs.push(args.join(" "));
   try {
-    await main([
-      "--old", oldPath,
-      "--new", newPath,
-      "--out", outDir,
-      "--json",
-    ]);
+    await main(["--old", oldPath, "--new", newPath, "--out", outDir, "--json"]);
   } finally {
     console.log = originalConsoleLog;
   }
@@ -1199,7 +1347,12 @@ test("CLI file mode writes diff.json and html artifacts", async () => {
   ]);
 
   const diffJson = JSON.parse(readFileSync(join(outDir, diffFiles[0]), "utf8"));
-  const expected = diffModel(buildModel(await parseXml(SAMPLE_XML)), buildModel(await parseXml(SAMPLE_XML.replace("<booleanValue>true</booleanValue>", "<booleanValue>false</booleanValue>"))));
+  const expected = diffModel(
+    buildModel(await parseXml(SAMPLE_XML)),
+    buildModel(
+      await parseXml(SAMPLE_XML.replace("<booleanValue>true</booleanValue>", "<booleanValue>false</booleanValue>")),
+    ),
+  );
   assert.deepEqual(diffJson, JSON.parse(JSON.stringify(expected)));
 });
 
@@ -1215,12 +1368,7 @@ test("CLI file mode reports flow-level attribute-only changes", async () => {
   const originalConsoleLog = console.log;
   console.log = (...args: unknown[]) => logs.push(args.join(" "));
   try {
-    await main([
-      "--old", oldPath,
-      "--new", newPath,
-      "--out", outDir,
-      "--json",
-    ]);
+    await main(["--old", oldPath, "--new", newPath, "--out", outDir, "--json"]);
   } finally {
     console.log = originalConsoleLog;
   }
@@ -1268,16 +1416,54 @@ const DIFF_CASES: Array<{ name: string; expected: ExpectedSummary }> = [
   // Added screen: start retargets to the new screen (1 added node), and because
   // locationX/Y + connectors are stripped from properties, no existing node is
   // marked modified — the rewire shows up purely as edges.
-  { name: "add_screen", expected: { addedNodes: 1, removedNodes: 0, modifiedNodes: 0, addedEdges: 2, removedEdges: 1 } },
-  { name: "delete_node", expected: { addedNodes: 0, removedNodes: 1, modifiedNodes: 0, addedEdges: 1, removedEdges: 2 } },
-  { name: "modify_assignment", expected: { addedNodes: 0, removedNodes: 0, modifiedNodes: 1, addedEdges: 0, removedEdges: 0 } },
-  { name: "modify_decision", expected: { addedNodes: 0, removedNodes: 0, modifiedNodes: 1, addedEdges: 0, removedEdges: 0 } },
-  { name: "rewire_connector", expected: { addedNodes: 0, removedNodes: 0, modifiedNodes: 0, addedEdges: 3, removedEdges: 3 } },
+  {
+    name: "add_screen",
+    expected: { addedNodes: 1, removedNodes: 0, modifiedNodes: 0, addedEdges: 2, removedEdges: 1 },
+  },
+  {
+    name: "delete_node",
+    expected: { addedNodes: 0, removedNodes: 1, modifiedNodes: 0, addedEdges: 1, removedEdges: 2 },
+  },
+  {
+    name: "modify_assignment",
+    expected: { addedNodes: 0, removedNodes: 0, modifiedNodes: 1, addedEdges: 0, removedEdges: 0 },
+  },
+  {
+    name: "modify_decision",
+    expected: { addedNodes: 0, removedNodes: 0, modifiedNodes: 1, addedEdges: 0, removedEdges: 0 },
+  },
+  {
+    name: "rewire_connector",
+    expected: { addedNodes: 0, removedNodes: 0, modifiedNodes: 0, addedEdges: 3, removedEdges: 3 },
+  },
   // fault_path bundles two real changes: the fault path (added customError node
   // + fault edge) AND a re-added decision condition. We assert it as-is.
-  { name: "fault_path", expected: { addedNodes: 1, removedNodes: 0, modifiedNodes: 1, addedEdges: 2, removedEdges: 0 } },
-  { name: "deactivate_flow", expected: { addedNodes: 0, removedNodes: 0, modifiedNodes: 0, addedEdges: 0, removedEdges: 0, changedFlowAttributes: 1 } },
-  { name: "bump_api_version", expected: { addedNodes: 0, removedNodes: 0, modifiedNodes: 0, addedEdges: 0, removedEdges: 0, changedFlowAttributes: 2 } },
+  {
+    name: "fault_path",
+    expected: { addedNodes: 1, removedNodes: 0, modifiedNodes: 1, addedEdges: 2, removedEdges: 0 },
+  },
+  {
+    name: "deactivate_flow",
+    expected: {
+      addedNodes: 0,
+      removedNodes: 0,
+      modifiedNodes: 0,
+      addedEdges: 0,
+      removedEdges: 0,
+      changedFlowAttributes: 1,
+    },
+  },
+  {
+    name: "bump_api_version",
+    expected: {
+      addedNodes: 0,
+      removedNodes: 0,
+      modifiedNodes: 0,
+      addedEdges: 0,
+      removedEdges: 0,
+      changedFlowAttributes: 2,
+    },
+  },
 ];
 
 async function diffFixture(name: string) {
@@ -1313,23 +1499,44 @@ test('diff fixture "deactivate_flow" reports a header-only deactivation', async 
   const diff = await diffFixture("deactivate_flow");
   assert.equal(diff.summary.changedFlowAttributes, 1);
   assert.deepEqual(diff.flowChanges, [{ path: "status", before: "Active", after: "Draft" }]);
-  assert.ok(diff.nodes.every((node) => node.status === "unchanged"), "all nodes unchanged");
-  assert.ok(diff.edges.every((edge) => edge.status === "unchanged"), "all edges unchanged");
+  assert.ok(
+    diff.nodes.every((node) => node.status === "unchanged"),
+    "all nodes unchanged",
+  );
+  assert.ok(
+    diff.edges.every((edge) => edge.status === "unchanged"),
+    "all edges unchanged",
+  );
 });
 
 test('diff fixture "bump_api_version" reports header-only API/run-mode changes', async () => {
   const diff = await diffFixture("bump_api_version");
   assert.equal(diff.summary.changedFlowAttributes, 2);
-  assert.deepEqual(diff.flowChanges?.map((change) => change.path), ["runInMode", "apiVersion"]);
-  assert.ok(diff.nodes.every((node) => node.status === "unchanged"), "all nodes unchanged");
-  assert.ok(diff.edges.every((edge) => edge.status === "unchanged"), "all edges unchanged");
+  assert.deepEqual(
+    diff.flowChanges?.map((change) => change.path),
+    ["runInMode", "apiVersion"],
+  );
+  assert.ok(
+    diff.nodes.every((node) => node.status === "unchanged"),
+    "all nodes unchanged",
+  );
+  assert.ok(
+    diff.edges.every((edge) => edge.status === "unchanged"),
+    "all edges unchanged",
+  );
 });
 
 test('diff fixture "noop_save" is a pure no-op (every node and edge unchanged)', async () => {
   const diff = await diffFixture("noop_save");
   assert.ok(diff.nodes.length > 0, "expected the flow to have nodes");
-  assert.ok(diff.nodes.every((node) => node.status === "unchanged"), "all nodes unchanged");
-  assert.ok(diff.edges.every((edge) => edge.status === "unchanged"), "all edges unchanged");
+  assert.ok(
+    diff.nodes.every((node) => node.status === "unchanged"),
+    "all nodes unchanged",
+  );
+  assert.ok(
+    diff.edges.every((edge) => edge.status === "unchanged"),
+    "all edges unchanged",
+  );
 });
 
 test('diff fixture "modify_decision" reports the exact condition path', async () => {
@@ -1354,7 +1561,10 @@ test('diff fixture "modify_assignment" reports the assignmentItems path', async 
 
 test('diff fixture "rewire_connector" changes only edges, not nodes', async () => {
   const diff = await diffFixture("rewire_connector");
-  assert.ok(diff.nodes.every((node) => node.status === "unchanged"), "all nodes unchanged");
+  assert.ok(
+    diff.nodes.every((node) => node.status === "unchanged"),
+    "all nodes unchanged",
+  );
   assert.equal(diff.summary.addedEdges, 3);
   assert.equal(diff.summary.removedEdges, 3);
 });

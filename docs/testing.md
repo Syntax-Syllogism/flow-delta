@@ -31,6 +31,7 @@ The exit code is the gate. It runs before build and tests in `prepublishOnly`, a
 - `test/report-core.test.ts`: the reporting core shared by both products and both CI platforms (`buildComment`, the vocabulary-driven builder, `isZeroSummary`, `findStickyNote`). Also the package, bin, and build smoke checks for all six published binaries.
 - `test/gitlab-report.test.ts`: GitLab reporting. The artifact-URL scheme and the sticky-note `upsertComment` behavior (list, then PUT or POST).
 - `test/github-report.test.ts`: GitHub reporting. The artifact-URL scheme, the issue-comments `upsertComment` behavior (list, then PATCH or POST, no `/user` call), and `main()` orchestration (PR-number resolution from `GITHUB_EVENT_PATH` or `--pr`, no-op paths, attribute-only diffs). See [ci.md](ci.md) for the reporting flows themselves.
+- `test/cli-flags.test.ts`: the `--version` and unknown-option behavior of all six published binaries. Each prints `<bin> <package version>` and creates no output directory, and unknown options don't throw. See [cli.md](cli.md#help-and-version).
 - `test/smoke-common.test.ts`: the shared smoke-harness helpers used by both the GitLab and GitHub smoke scripts (for example `renameFlowMetadata` and `stageAndCommit`).
 - `test/smoke-github.test.ts`: the GitHub smoke entrypoint and generated workflow, including both Flow and FlexiPage diff and report pipelines.
 

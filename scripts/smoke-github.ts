@@ -132,18 +132,33 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 
 function resolveOptions(values: Record<string, string | boolean | undefined>): SmokeOptions {
   return {
-    repoDir: resolve(stringValue(values["repo-dir"] ?? process.env.FLOW_DELTA_SMOKE_REPO_DIR ?? DEFAULT_REPO_DIR, "repo dir")),
+    repoDir: resolve(
+      stringValue(values["repo-dir"] ?? process.env.FLOW_DELTA_SMOKE_REPO_DIR ?? DEFAULT_REPO_DIR, "repo dir"),
+    ),
     remote: stringValue(values.remote ?? process.env.FLOW_DELTA_SMOKE_REMOTE ?? "github", "remote"),
     remoteUrl: stringValueOptional(values["remote-url"] ?? process.env.FLOW_DELTA_SMOKE_REMOTE_URL),
-    baseBranch: stringValue(values["base-branch"] ?? process.env.FLOW_DELTA_SMOKE_BASE_BRANCH ?? DEFAULT_BASE_BRANCH, "base branch"),
-    branchPrefix: stringValue(values["branch-prefix"] ?? process.env.FLOW_DELTA_SMOKE_BRANCH_PREFIX ?? DEFAULT_BRANCH_PREFIX, "branch prefix"),
-    titlePrefix: stringValue(values["title-prefix"] ?? process.env.FLOW_DELTA_SMOKE_TITLE_PREFIX ?? DEFAULT_TITLE_PREFIX, "title prefix"),
-    githubRepo: stringValue(values["github-repo"] ?? process.env.FLOW_DELTA_SMOKE_GITHUB_REPO ?? DEFAULT_GITHUB_REPO, "GitHub repo"),
+    baseBranch: stringValue(
+      values["base-branch"] ?? process.env.FLOW_DELTA_SMOKE_BASE_BRANCH ?? DEFAULT_BASE_BRANCH,
+      "base branch",
+    ),
+    branchPrefix: stringValue(
+      values["branch-prefix"] ?? process.env.FLOW_DELTA_SMOKE_BRANCH_PREFIX ?? DEFAULT_BRANCH_PREFIX,
+      "branch prefix",
+    ),
+    titlePrefix: stringValue(
+      values["title-prefix"] ?? process.env.FLOW_DELTA_SMOKE_TITLE_PREFIX ?? DEFAULT_TITLE_PREFIX,
+      "title prefix",
+    ),
+    githubRepo: stringValue(
+      values["github-repo"] ?? process.env.FLOW_DELTA_SMOKE_GITHUB_REPO ?? DEFAULT_GITHUB_REPO,
+      "GitHub repo",
+    ),
   };
 }
 
 function printUsage(): void {
-  console.log(`
+  console.log(
+    `
 Usage:
   npm run smoke:github -- [--github-repo <owner/repo>] [--repo-dir <path>]
 
@@ -159,7 +174,8 @@ Optional:
   --branch-prefix   smoke branch prefix (default: ${DEFAULT_BRANCH_PREFIX})
   --title-prefix    PR title prefix (default: ${DEFAULT_TITLE_PREFIX})
   --github-repo     demo repo (default: ${DEFAULT_GITHUB_REPO})
-`.trimEnd());
+`.trimEnd(),
+  );
 }
 
 export function buildSmokeWorkflow(tarballName: string): string {
@@ -248,12 +264,7 @@ function ensureGithubRepo(repo: string): void {
   }
 }
 
-function createPullRequest(input: {
-  repoDir: string;
-  title: string;
-  baseBranch: string;
-  headBranch: string;
-}): string {
+function createPullRequest(input: { repoDir: string; title: string; baseBranch: string; headBranch: string }): string {
   const gh = resolveGhCommand();
   return execFileSync(
     gh,

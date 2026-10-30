@@ -49,9 +49,17 @@ test("upsertComment PATCHes an existing sticky comment when present", async () =
   );
 
   assert.deepEqual(
-    requests.map((request) => ({ url: request.url, method: request.method, auth: request.headers.get("Authorization") })),
+    requests.map((request) => ({
+      url: request.url,
+      method: request.method,
+      auth: request.headers.get("Authorization"),
+    })),
     [
-      { url: "https://api.github.com/repos/acme/flow-lens/issues/2/comments?per_page=100&page=1", method: "GET", auth: "Bearer secret" },
+      {
+        url: "https://api.github.com/repos/acme/flow-lens/issues/2/comments?per_page=100&page=1",
+        method: "GET",
+        auth: "Bearer secret",
+      },
       { url: "https://api.github.com/repos/acme/flow-lens/issues/comments/7", method: "PATCH", auth: "Bearer secret" },
     ],
   );
@@ -119,13 +127,16 @@ test("main() resolves the PR number from GITHUB_EVENT_PATH and posts a comment",
       GITHUB_API_URL: "https://api.github.com",
     },
     () =>
-      withFetch(async (input, init = {}) => {
-        requests.push({ url: String(input), method: init.method ?? "GET" });
-        if (String(input).includes("/comments?")) {
-          return jsonResponse([]);
-        }
-        return jsonResponse({ id: 1 });
-      }, () => runMain(["--in", inputDir])),
+      withFetch(
+        async (input, init = {}) => {
+          requests.push({ url: String(input), method: init.method ?? "GET" });
+          if (String(input).includes("/comments?")) {
+            return jsonResponse([]);
+          }
+          return jsonResponse({ id: 1 });
+        },
+        () => runMain(["--in", inputDir]),
+      ),
   );
 
   assert.deepEqual(requests, [
@@ -148,13 +159,16 @@ test("main() resolves the PR number from --pr when there is no event payload", a
       GITHUB_TOKEN: "secret",
     },
     () =>
-      withFetch(async (input) => {
-        requests.push({ url: String(input) });
-        if (String(input).includes("/comments?")) {
-          return jsonResponse([]);
-        }
-        return jsonResponse({ id: 1 });
-      }, () => runMain(["--in", inputDir, "--pr", "7"])),
+      withFetch(
+        async (input) => {
+          requests.push({ url: String(input) });
+          if (String(input).includes("/comments?")) {
+            return jsonResponse([]);
+          }
+          return jsonResponse({ id: 1 });
+        },
+        () => runMain(["--in", inputDir, "--pr", "7"]),
+      ),
   );
 
   assert.ok(requests.some((request) => request.url.includes("/issues/7/comments")));
@@ -174,10 +188,13 @@ test("main() no-ops when no PR number can be resolved", async () => {
       GITHUB_TOKEN: "secret",
     },
     () =>
-      withFetch(async () => {
-        fetchCalls += 1;
-        return jsonResponse({});
-      }, () => runMain(["--in", inputDir])),
+      withFetch(
+        async () => {
+          fetchCalls += 1;
+          return jsonResponse({});
+        },
+        () => runMain(["--in", inputDir]),
+      ),
   );
 
   assert.equal(fetchCalls, 0);
@@ -198,10 +215,13 @@ test("main() no-ops when there are no changed diffs", async () => {
       GITHUB_TOKEN: "secret",
     },
     () =>
-      withFetch(async () => {
-        fetchCalls += 1;
-        return jsonResponse({});
-      }, () => runMain(["--in", inputDir])),
+      withFetch(
+        async () => {
+          fetchCalls += 1;
+          return jsonResponse({});
+        },
+        () => runMain(["--in", inputDir]),
+      ),
   );
 
   assert.equal(fetchCalls, 0);
@@ -209,10 +229,7 @@ test("main() no-ops when there are no changed diffs", async () => {
 
 test("main() posts a comment for an attribute-only diff (no node/edge changes)", async () => {
   const inputDir = writeFixtureDir({
-    "flow.diff.json": diffFixture(
-      { changedFlowAttributes: 1 },
-      [{ path: "status", before: "Active", after: "Draft" }],
-    ),
+    "flow.diff.json": diffFixture({ changedFlowAttributes: 1 }, [{ path: "status", before: "Active", after: "Draft" }]),
   });
   const eventPath = writeEventFile({ pull_request: { number: 42 } });
   const requests: Array<{ url: string; method: string; body?: string }> = [];
@@ -225,17 +242,20 @@ test("main() posts a comment for an attribute-only diff (no node/edge changes)",
       GITHUB_TOKEN: "secret",
     },
     () =>
-      withFetch(async (input, init = {}) => {
-        requests.push({
-          url: String(input),
-          method: init.method ?? "GET",
-          body: typeof init.body === "string" ? init.body : undefined,
-        });
-        if (String(input).includes("/comments?")) {
-          return jsonResponse([]);
-        }
-        return jsonResponse({ id: 1 });
-      }, () => runMain(["--in", inputDir])),
+      withFetch(
+        async (input, init = {}) => {
+          requests.push({
+            url: String(input),
+            method: init.method ?? "GET",
+            body: typeof init.body === "string" ? init.body : undefined,
+          });
+          if (String(input).includes("/comments?")) {
+            return jsonResponse([]);
+          }
+          return jsonResponse({ id: 1 });
+        },
+        () => runMain(["--in", inputDir]),
+      ),
   );
 
   const posted = requests.find((request) => request.method === "POST");
@@ -260,16 +280,19 @@ test("main() links a provided artifact URL manifest entry when available", async
       GITHUB_TOKEN: "secret",
     },
     () =>
-      withFetch(async (_input, init = {}) => {
-        requests.push({
-          method: init.method ?? "GET",
-          body: typeof init.body === "string" ? init.body : undefined,
-        });
-        if ((init.method ?? "GET") === "GET") {
-          return jsonResponse([]);
-        }
-        return jsonResponse({ id: 1 });
-      }, () => runMain(["--in", inputDir, "--artifact-urls", urlsPath])),
+      withFetch(
+        async (_input, init = {}) => {
+          requests.push({
+            method: init.method ?? "GET",
+            body: typeof init.body === "string" ? init.body : undefined,
+          });
+          if ((init.method ?? "GET") === "GET") {
+            return jsonResponse([]);
+          }
+          return jsonResponse({ id: 1 });
+        },
+        () => runMain(["--in", inputDir, "--artifact-urls", urlsPath]),
+      ),
   );
 
   const posted = requests.find((request) => request.method === "POST");

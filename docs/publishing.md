@@ -9,7 +9,7 @@ FlowDelta is published to npm as `@syntax-syllogism/flow-delta`.
 
 ## Build
 
-`npm run build` runs [`scripts/build.mjs`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/scripts/build.mjs), which bundles the six CLI and reporter entrypoints:
+`npm run build` runs [`scripts/build.mjs`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/scripts/build.mjs), which bundles the six CLI and reporter entrypoints:
 
 - `dist/cli.js`
 - `dist/gitlab-report.js`
@@ -32,12 +32,12 @@ The manifest publishes:
 
 The binaries map like this:
 
-| Binary | Target |
-|---|---|
-| `flow-delta` | `dist/cli.js` |
-| `flow-delta-gitlab` | `dist/gitlab-report.js` |
-| `flow-delta-github` | `dist/github-report.js` |
-| `flexipage-delta` | `dist/flexipage-cli.js` |
+| Binary                   | Target                            |
+| ------------------------ | --------------------------------- |
+| `flow-delta`             | `dist/cli.js`                     |
+| `flow-delta-gitlab`      | `dist/gitlab-report.js`           |
+| `flow-delta-github`      | `dist/github-report.js`           |
+| `flexipage-delta`        | `dist/flexipage-cli.js`           |
 | `flexipage-delta-gitlab` | `dist/flexipage-gitlab-report.js` |
 | `flexipage-delta-github` | `dist/flexipage-github-report.js` |
 

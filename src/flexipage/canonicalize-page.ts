@@ -28,7 +28,9 @@ export function canonicalizePageModel(model: PageModel): PageModel {
     name: canonicalNames.get(region.name) ?? region.name,
     items: region.items.map((item) => {
       if (item.kind !== "component") return item;
-      const properties = Object.fromEntries(Object.entries(item.properties).map(([key, value]) => [key, mapFacetValues(value)]));
+      const properties = Object.fromEntries(
+        Object.entries(item.properties).map(([key, value]) => [key, mapFacetValues(value)]),
+      );
       return {
         ...item,
         properties,
@@ -94,9 +96,16 @@ function facetHash(region: Region): string {
   const stable = {
     type: region.type,
     mode: region.mode,
-    items: region.items.map((item) => item.kind === "component"
-      ? { kind: item.kind, componentName: item.componentName, identifier: item.identifier, properties: item.properties }
-      : { kind: item.kind, fieldItem: item.fieldItem, identifier: item.identifier, attributes: item.attributes }),
+    items: region.items.map((item) =>
+      item.kind === "component"
+        ? {
+            kind: item.kind,
+            componentName: item.componentName,
+            identifier: item.identifier,
+            properties: item.properties,
+          }
+        : { kind: item.kind, fieldItem: item.fieldItem, identifier: item.identifier, attributes: item.attributes },
+    ),
   };
   return createHash("sha1").update(JSON.stringify(stable)).digest("hex").slice(0, 12);
 }

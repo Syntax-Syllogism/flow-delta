@@ -9,6 +9,7 @@ import { diffPage, type PageDiff } from "./flexipage/diff-page.ts";
 import { parseFlexiPage } from "./flexipage/parse.ts";
 import type { PageModel } from "./flexipage/page-model.ts";
 import { renderOutline } from "./flexipage/render-outline.ts";
+import { versionLine } from "./util/version.ts";
 
 export interface FlexiPageCliOptions {
   old?: string;
@@ -20,26 +21,54 @@ export interface FlexiPageCliOptions {
   out?: string;
   json?: boolean;
   help?: boolean;
+  version?: boolean;
 }
 
 type ParsedOptions = FlexiPageCliOptions & { "changed-only"?: boolean };
 
 const CLI_USAGE = `Usage:
   flexipage-delta --old <old.flexipage-meta.xml> --new <new.flexipage-meta.xml> [--out dir] [--json]
-  flexipage-delta --from <ref> --to <ref> --repo <path> [--path <glob>] [--changed-only] [--out dir] [--json]`;
+  flexipage-delta --from <ref> --to <ref> --repo <path> [--path <glob>] [--changed-only] [--out dir] [--json]
+  flexipage-delta --version`;
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
-  const parsed = parseArgs({
-    args: argv,
-    options: {
-      old: { type: "string" }, new: { type: "string" }, from: { type: "string" }, to: { type: "string" },
-      repo: { type: "string" }, path: { type: "string" }, out: { type: "string" }, json: { type: "boolean" },
-      "changed-only": { type: "boolean" }, help: { type: "boolean", short: "h" },
-    },
-    allowPositionals: false,
-  });
+  if (argv.includes("--version")) {
+    console.log(versionLine("flexipage-delta"));
+    return;
+  }
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args: argv,
+      options: {
+        old: { type: "string" },
+        new: { type: "string" },
+        from: { type: "string" },
+        to: { type: "string" },
+        repo: { type: "string" },
+        path: { type: "string" },
+        out: { type: "string" },
+        json: { type: "boolean" },
+        "changed-only": { type: "boolean" },
+        help: { type: "boolean", short: "h" },
+        version: { type: "boolean" },
+      },
+      allowPositionals: false,
+    });
+  } catch (error) {
+    const parseError = error as NodeJS.ErrnoException;
+    if (parseError.code?.startsWith("ERR_PARSE_ARGS")) {
+      console.error(`${parseError.message}\nRun flexipage-delta --help for usage.`);
+      process.exitCode = 1;
+      return;
+    }
+    throw error;
+  }
   const options = parsed.values as ParsedOptions;
-  if (options.help) { console.log(CLI_USAGE); return; }
+  if (options.help) {
+    console.log(CLI_USAGE);
+    return;
+  }
   const outDir = resolve(options.out ?? "./flexipage-delta-out");
   mkdirSync(outDir, { recursive: true });
   try {
@@ -50,7 +79,15 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     }
     if (options.from || options.to || options.repo || options.path) {
       if (!options.from || !options.to || !options.repo) throw new Error("Git mode requires --from, --to, and --repo");
-      await runGitMode(options.repo, options.from, options.to, options.path ?? "force-app/**/*.flexipage-meta.xml", outDir, Boolean(options.json), Boolean(options["changed-only"]));
+      await runGitMode(
+        options.repo,
+        options.from,
+        options.to,
+        options.path ?? "force-app/**/*.flexipage-meta.xml",
+        outDir,
+        Boolean(options.json),
+        Boolean(options["changed-only"]),
+      );
       return;
     }
     throw new Error("Specify either --old/--new or --from/--to/--repo");
@@ -61,10 +98,23 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 }
 
 async function runFileMode(oldPath: string, newPath: string, outDir: string, writeJson: boolean): Promise<void> {
-  await writeArtifacts(await parseFlexiPage(readMetadataFromFile(oldPath)), await parseFlexiPage(readMetadataFromFile(newPath)), outDir, writeJson);
+  await writeArtifacts(
+    await parseFlexiPage(readMetadataFromFile(oldPath)),
+    await parseFlexiPage(readMetadataFromFile(newPath)),
+    outDir,
+    writeJson,
+  );
 }
 
-async function runGitMode(repo: string, from: string, to: string, pattern: string, outDir: string, writeJson: boolean, changedOnly: boolean): Promise<void> {
+async function runGitMode(
+  repo: string,
+  from: string,
+  to: string,
+  pattern: string,
+  outDir: string,
+  writeJson: boolean,
+  changedOnly: boolean,
+): Promise<void> {
   let failed = false;
   for (const filePath of discoverGitMetadataFiles({
     repo,
@@ -76,7 +126,13 @@ async function runGitMode(repo: string, from: string, to: string, pattern: strin
     try {
       const oldXml = readMetadataFromGit(repo, from, filePath);
       const newXml = readMetadataFromGit(repo, to, filePath);
-      await writeArtifacts(oldXml ? await parseFlexiPage(oldXml) : emptyPage(), newXml ? await parseFlexiPage(newXml) : emptyPage(), outDir, writeJson, filePath);
+      await writeArtifacts(
+        oldXml ? await parseFlexiPage(oldXml) : emptyPage(),
+        newXml ? await parseFlexiPage(newXml) : emptyPage(),
+        outDir,
+        writeJson,
+        filePath,
+      );
     } catch (error) {
       failed = true;
       console.error(`${filePath}: ${(error as Error).message}`);
@@ -89,12 +145,20 @@ function emptyPage(): PageModel {
   return { pageName: "(unknown)", header: {}, regions: [] };
 }
 
-async function writeArtifacts(oldModel: PageModel, newModel: PageModel, outDir: string, writeJson: boolean, sourcePath?: string): Promise<void> {
+async function writeArtifacts(
+  oldModel: PageModel,
+  newModel: PageModel,
+  outDir: string,
+  writeJson: boolean,
+  sourcePath?: string,
+): Promise<void> {
   const diff = diffPage(oldModel, newModel);
-  const stem = safeFileName(diff.pageName === "(unknown)" ? sourcePath ?? "flexipage" : diff.pageName);
+  const stem = safeFileName(diff.pageName === "(unknown)" ? (sourcePath ?? "flexipage") : diff.pageName);
   writeFileSync(join(outDir, `${stem}.html`), renderOutline(diff, { template: newModel.header.template }), "utf8");
   if (writeJson) writeFileSync(join(outDir, `${stem}.diff.json`), JSON.stringify(diff, null, 2), "utf8");
-  console.log(`${diff.pageName}: components +${diff.summary.addedComponents}/−${diff.summary.removedComponents}/~${diff.summary.modifiedComponents}; regions +${diff.summary.addedRegions}/−${diff.summary.removedRegions}/~${diff.summary.modifiedRegions}; page attributes ${diff.summary.changedPageAttributes}`);
+  console.log(
+    `${diff.pageName}: components +${diff.summary.addedComponents}/−${diff.summary.removedComponents}/~${diff.summary.modifiedComponents}; regions +${diff.summary.addedRegions}/−${diff.summary.removedRegions}/~${diff.summary.modifiedRegions}; page attributes ${diff.summary.changedPageAttributes}`,
+  );
 }
 
 if (isMainModule(import.meta.url)) void main();

@@ -26,7 +26,7 @@ export type NodeType =
   | "end"
   | "assignment"
   // ... existing types
-  | "myNewType"  // Add here
+  | "myNewType" // Add here
   | "unknown";
 ```
 
@@ -62,8 +62,8 @@ const myNewTypeSchemas: SectionSchema[] = [
   {
     name: "Configuration",
     paths: ["myProperty", "anotherProperty"],
-    render: "lines"  // or "table" / "grouped-table"
-  }
+    render: "lines", // or "table" / "grouped-table"
+  },
 ];
 
 function getNodeTypeSchemas(nodeType: NodeType): SectionSchema[] {
@@ -173,17 +173,15 @@ const recordCreateSchemas: SectionSchema[] = [
     render: "table",
     columns: [
       { key: "field", label: "Field" },
-      { key: "value", label: "Value", unwrap: true }
-    ]
+      { key: "value", label: "Value", unwrap: true },
+    ],
   },
   {
-    name: "Required Fields",  // New section
+    name: "Required Fields", // New section
     paths: ["requiredFields"],
     render: "table",
-    columns: [
-      { key: "name", label: "Field Name" }
-    ]
-  }
+    columns: [{ key: "name", label: "Field Name" }],
+  },
 ];
 ```
 
@@ -208,9 +206,9 @@ const decisionSchemas: SectionSchema[] = [
     columns: [
       { key: "leftValueReference", label: "Resource", unwrap: true },
       { key: "operator", label: "Operator" },
-      { key: "rightValue", label: "Value", unwrap: true }
-    ]
-  }
+      { key: "rightValue", label: "Value", unwrap: true },
+    ],
+  },
   // If "rules[].metadata" needs special rendering, add another section
 ];
 ```
@@ -237,7 +235,7 @@ Example custom pass:
 ```typescript
 // In buildGraphModel(), after parsing:
 if (element.elementSubtype === "MyNewCustomElement") {
-  element.type = "myCustomElement";  // Override unknown → custom type
+  element.type = "myCustomElement"; // Override unknown → custom type
 }
 ```
 

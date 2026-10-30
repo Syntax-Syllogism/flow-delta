@@ -79,6 +79,7 @@ This shouldn't happen. The [canonicalization rules](architecture.md#invariants-t
 
    - In `before` only: it was really deleted.
    - In both, but shown as deleted: the name probably changed.
+
 3. **Check case and special characters.** XML names are case-sensitive, so `MyNode` and `mynode` differ. Compare the exact `<name>` in both files.
 4. **Check git mode.** Git mode finds files with `git ls-tree -r` on both refs. A file renamed at the git level appears as added plus deleted. Run `git diff --name-status` on the same refs to see what changed.
 
@@ -96,6 +97,7 @@ This shouldn't happen. The [canonicalization rules](architecture.md#invariants-t
    ```
 
    Check `.changes[]` for the property path. Paths use dots and array indexes, like `rules[0].conditions[1].value`.
+
 5. **Check the render.** The JSON can be right while the HTML hides the change. Click the modified node and check that its section schema shows the property.
 
 ## HTML rendering issues
@@ -109,6 +111,7 @@ This shouldn't happen. The [canonicalization rules](architecture.md#invariants-t
    ```
 
    A non-trivial flow should be over 100 KB. The timestamp should match your CLI run.
+
 2. **Check the browser console.** Open the `.html`, press F12, and look at the Console for errors. All JS is inline, so network errors are unlikely.
 3. **Check the embedded payload.** The HTML embeds a client-oriented object as the `DATA` constant. It's separate from the optional neighboring `*.diff.json`. View the page source, search for `const DATA =`, and check the JSON is valid. If it's corrupt, the renderer has nothing to show.
 4. **Try a fixture.** Run `npm run render:fixtures`, then open:
@@ -116,6 +119,7 @@ This shouldn't happen. The [canonicalization rules](architecture.md#invariants-t
    - `flow-delta-out/fixtures/modify_decision.html` (should show decision rule changes)
 
    If the fixtures render correctly, the problem is specific to your flow.
+
 5. **Check the detail panel.** Click a modified node and check that its properties appear in the expected sections. If some are missing, check the schema in `render/section-schemas.ts`.
 
 ### Symptom: view filters (All / After / Before / Changes only) don't work

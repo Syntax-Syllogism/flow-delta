@@ -76,12 +76,25 @@ export function renderNodePanelBody(node: SnapshotPanelNode, schemas: SectionSch
     return "<div class='empty'>No configuration.</div>";
   }
 
-  return sections.map((section, index) => {
-    const open = node.status === "modified" || node.status === "present" || index === 0 ? " open" : "";
-    return "<details class='detail-section snapshot-section " + node.status + "'" + open + "><summary>"
-      + escapeHtml(section.name) + " <span class='section-count'>(" + section.count + ")</span></summary>"
-      + "<div class='section-body'>" + section.html + "</div></details>";
-  }).join("");
+  return sections
+    .map((section, index) => {
+      const open = node.status === "modified" || node.status === "present" || index === 0 ? " open" : "";
+      return (
+        "<details class='detail-section snapshot-section " +
+        node.status +
+        "'" +
+        open +
+        "><summary>" +
+        escapeHtml(section.name) +
+        " <span class='section-count'>(" +
+        section.count +
+        ")</span></summary>" +
+        "<div class='section-body'>" +
+        section.html +
+        "</div></details>"
+      );
+    })
+    .join("");
 }
 
 function renderSections(
@@ -110,7 +123,9 @@ function renderSections(
     const scalar = scalarPair(childBefore, childAfter);
     if (scalar) {
       if (options.showUnchanged || childChanged) {
-        settingsRows.push(scalarRow(key, scalar.before, scalar.after, statusOf(childBefore, childAfter), options.nodeStatus));
+        settingsRows.push(
+          scalarRow(key, scalar.before, scalar.after, statusOf(childBefore, childAfter), options.nodeStatus),
+        );
       }
       if (childChanged) settingsCount += 1;
       continue;
@@ -196,8 +211,8 @@ function renderObject(
   after: unknown,
   ctx: RenderOptions & { label: string; pathKey: string; depth: number },
 ): RenderedValue {
-  const beforeObj = isObj(before) ? before as Record<string, unknown> : {};
-  const afterObj = isObj(after) ? after as Record<string, unknown> : {};
+  const beforeObj = isObj(before) ? (before as Record<string, unknown>) : {};
+  const afterObj = isObj(after) ? (after as Record<string, unknown>) : {};
   const keys = unionKeys(beforeObj, afterObj);
   const scalarRows: string[] = [];
   const nested: string[] = [];
@@ -223,8 +238,13 @@ function renderObject(
       depth: ctx.depth + 1,
     });
     if (rendered.html) {
-      nested.push("<div class='snapshot-nested'><div class='snapshot-nested-title'>" + escapeHtml(humanizePath(key)) + "</div>"
-        + rendered.html + "</div>");
+      nested.push(
+        "<div class='snapshot-nested'><div class='snapshot-nested-title'>" +
+          escapeHtml(humanizePath(key)) +
+          "</div>" +
+          rendered.html +
+          "</div>",
+      );
       count += rendered.count;
     }
   }
@@ -243,10 +263,16 @@ function renderArray(
   const beforeItems = arr(before);
   const afterItems = arr(after);
   if (looksLikeNameValueArray(beforeItems, afterItems)) {
-    return renderTableFromItems(before, after, [""], [
-      { path: "name", label: "Name" },
-      { path: "value", label: "Value" },
-    ], ctx);
+    return renderTableFromItems(
+      before,
+      after,
+      [""],
+      [
+        { path: "name", label: "Name" },
+        { path: "value", label: "Value" },
+      ],
+      ctx,
+    );
   }
 
   const max = Math.max(beforeItems.length, afterItems.length);
@@ -266,8 +292,15 @@ function renderArray(
     });
     if (!rendered.html) continue;
     count += rendered.count || (childChanged ? 1 : 0);
-    cards.push("<div class='snapshot-card " + statusOf(childBefore, childAfter) + "'><div class='snapshot-card-title'>"
-      + escapeHtml(title) + "</div>" + rendered.html + "</div>");
+    cards.push(
+      "<div class='snapshot-card " +
+        statusOf(childBefore, childAfter) +
+        "'><div class='snapshot-card-title'>" +
+        escapeHtml(title) +
+        "</div>" +
+        rendered.html +
+        "</div>",
+    );
   }
 
   return { html: cards.join(""), changed: count > 0, count };
@@ -280,7 +313,12 @@ function renderTable(
   columns: Array<{ path: string; label: string }>,
   options: RenderOptions,
 ): RenderedValue {
-  return renderTableFromItems(before, after, paths, columns, { ...options, label: "", pathKey: paths[0] || "", depth: 0 });
+  return renderTableFromItems(before, after, paths, columns, {
+    ...options,
+    label: "",
+    pathKey: paths[0] || "",
+    depth: 0,
+  });
 }
 
 function renderTableFromItems(
@@ -317,13 +355,17 @@ function renderTableFromItems(
   if (!rows.length) return { html: "", changed: false, count: 0 };
 
   const showChange = options.nodeStatus === "modified" && !options.suppressChangeColumn;
-  const head = "<tr><th class='row-idx'>#</th>" + columns.map((col) => "<th>" + escapeHtml(col.label) + "</th>").join("")
-    + (showChange ? "<th>Change</th>" : "") + "</tr>";
+  const head =
+    "<tr><th class='row-idx'>#</th>" +
+    columns.map((col) => "<th>" + escapeHtml(col.label) + "</th>").join("") +
+    (showChange ? "<th>Change</th>" : "") +
+    "</tr>";
   const body = rows.map((row) => renderRow(row, columns, showChange, options.nodeStatus)).join("");
   return {
     html: "<table class='change-table'><thead>" + head + "</thead><tbody>" + body + "</tbody></table>",
     changed: rows.some((row) => row.kind !== "unchanged" || Object.values(row.cells).some((cell) => cell.changed)),
-    count: rows.filter((row) => row.kind !== "unchanged" || Object.values(row.cells).some((cell) => cell.changed)).length,
+    count: rows.filter((row) => row.kind !== "unchanged" || Object.values(row.cells).some((cell) => cell.changed))
+      .length,
   };
 }
 
@@ -333,11 +375,17 @@ function renderRow(
   showChange: boolean,
   nodeStatus: SnapshotPanelNode["status"],
 ): string {
-  const cells = columns.map((col) => {
-    const cell = row.cells[col.path];
-    return "<td>" + renderValueCell(cell.before, cell.after, cell.changed ? row.kind : "unchanged", nodeStatus) + "</td>";
-  }).join("");
-  const badge = showChange ? "<td><span class='change-kind " + row.kind + "'>" + capitalize(row.kind) + "</span></td>" : "";
+  const cells = columns
+    .map((col) => {
+      const cell = row.cells[col.path];
+      return (
+        "<td>" + renderValueCell(cell.before, cell.after, cell.changed ? row.kind : "unchanged", nodeStatus) + "</td>"
+      );
+    })
+    .join("");
+  const badge = showChange
+    ? "<td><span class='change-kind " + row.kind + "'>" + capitalize(row.kind) + "</span></td>"
+    : "";
   return "<tr class='row-" + row.kind + "'><td class='row-idx'>" + (row.idx + 1) + "</td>" + cells + badge + "</tr>";
 }
 
@@ -362,15 +410,28 @@ function renderGroupedTable(
       const labelValue = schema.groupLabelPath && present ? resolvePath(present, schema.groupLabelPath) : undefined;
       const label = labelValue != null ? stripHtml(String(labelValue)) : "Outcome " + (i + 1);
       const scalarRows = renderGroupScalars(groupBefore, groupAfter, schema, options);
-      const inner = renderTableFromItems(groupBefore, groupAfter, [schema.innerArray || ""], schema.innerColumns || [], {
-        ...options,
-        suppressChangeColumn: kind !== "modified",
-        label,
-        pathKey: schema.innerArray || "",
-        depth: 1,
-      }).html;
-      const head = "<div class='group-head'><span class='change-kind " + kind + "'>" + capitalize(kind) + "</span>"
-        + "<span class='group-label'>" + escapeHtml(label) + "</span></div>";
+      const inner = renderTableFromItems(
+        groupBefore,
+        groupAfter,
+        [schema.innerArray || ""],
+        schema.innerColumns || [],
+        {
+          ...options,
+          suppressChangeColumn: kind !== "modified",
+          label,
+          pathKey: schema.innerArray || "",
+          depth: 1,
+        },
+      ).html;
+      const head =
+        "<div class='group-head'><span class='change-kind " +
+        kind +
+        "'>" +
+        capitalize(kind) +
+        "</span>" +
+        "<span class='group-label'>" +
+        escapeHtml(label) +
+        "</span></div>";
       groups.push("<div class='outcome-group'>" + head + scalarRows + inner + "</div>");
       count += 1;
     }
@@ -378,23 +439,22 @@ function renderGroupedTable(
   return { html: groups.join(""), changed: count > 0, count };
 }
 
-function renderGroupScalars(
-  before: unknown,
-  after: unknown,
-  schema: SectionSchema,
-  options: RenderOptions,
-): string {
-  const beforeObj = isObj(before) ? before as Record<string, unknown> : {};
-  const afterObj = isObj(after) ? after as Record<string, unknown> : {};
+function renderGroupScalars(before: unknown, after: unknown, schema: SectionSchema, options: RenderOptions): string {
+  const beforeObj = isObj(before) ? (before as Record<string, unknown>) : {};
+  const afterObj = isObj(after) ? (after as Record<string, unknown>) : {};
   const skip = new Set([schema.innerArray, schema.groupLabelPath].filter(Boolean) as string[]);
-  const rows = unionKeys(beforeObj, afterObj).filter((key) => !skip.has(key)).map((key) => {
-    const cellBefore = getField(beforeObj, key);
-    const cellAfter = getField(afterObj, key);
-    const scalar = scalarPair(cellBefore, cellAfter);
-    if (!scalar) return "";
-    if (!options.showUnchanged && !hasChange(cellBefore, cellAfter, key)) return "";
-    return scalarRow(key, scalar.before, scalar.after, statusOf(cellBefore, cellAfter), options.nodeStatus);
-  }).filter(Boolean).join("");
+  const rows = unionKeys(beforeObj, afterObj)
+    .filter((key) => !skip.has(key))
+    .map((key) => {
+      const cellBefore = getField(beforeObj, key);
+      const cellAfter = getField(afterObj, key);
+      const scalar = scalarPair(cellBefore, cellAfter);
+      if (!scalar) return "";
+      if (!options.showUnchanged && !hasChange(cellBefore, cellAfter, key)) return "";
+      return scalarRow(key, scalar.before, scalar.after, statusOf(cellBefore, cellAfter), options.nodeStatus);
+    })
+    .filter(Boolean)
+    .join("");
   return rows ? "<table class='snapshot-kv'><tbody>" + rows + "</tbody></table>" : "";
 }
 
@@ -405,9 +465,13 @@ function scalarRow(
   kind: "added" | "removed" | "modified" | "unchanged",
   nodeStatus: SnapshotPanelNode["status"],
 ): string {
-  return "<tr><th>" + escapeHtml(humanizePath(key)) + "</th><td>"
-    + renderValueCell(before, after, kind, nodeStatus)
-    + "</td></tr>";
+  return (
+    "<tr><th>" +
+    escapeHtml(humanizePath(key)) +
+    "</th><td>" +
+    renderValueCell(before, after, kind, nodeStatus) +
+    "</td></tr>"
+  );
 }
 
 function renderLine(
@@ -417,10 +481,18 @@ function renderLine(
   kind: "added" | "removed" | "modified" | "unchanged",
   nodeStatus: SnapshotPanelNode["status"],
 ): string {
-  const badge = nodeStatus === "modified" ? "<span class='change-kind " + kind + "'>" + capitalize(kind) + "</span>" : "";
-  return "<ul class='changes'><li><div class='change-line-head'>" + badge
-    + "<span class='change-line-label'>" + escapeHtml(label) + "</span></div>"
-    + "<div class='change-line-value'>" + renderValueCell(before, after, kind, nodeStatus) + "</div></li></ul>";
+  const badge =
+    nodeStatus === "modified" ? "<span class='change-kind " + kind + "'>" + capitalize(kind) + "</span>" : "";
+  return (
+    "<ul class='changes'><li><div class='change-line-head'>" +
+    badge +
+    "<span class='change-line-label'>" +
+    escapeHtml(label) +
+    "</span></div>" +
+    "<div class='change-line-value'>" +
+    renderValueCell(before, after, kind, nodeStatus) +
+    "</div></li></ul>"
+  );
 }
 
 function renderValueCell(
@@ -456,8 +528,8 @@ function hasChange(before: unknown, after: unknown, pathKey = ""): boolean {
     }
     return false;
   }
-  const beforeObj = isObj(before) ? before as Record<string, unknown> : {};
-  const afterObj = isObj(after) ? after as Record<string, unknown> : {};
+  const beforeObj = isObj(before) ? (before as Record<string, unknown>) : {};
+  const afterObj = isObj(after) ? (after as Record<string, unknown>) : {};
   for (const key of unionKeys(beforeObj, afterObj)) {
     if (hasChange(beforeObj[key], afterObj[key], key)) return true;
   }
@@ -500,7 +572,10 @@ function ownsAny(paths: Set<string>, key: string): boolean {
   return false;
 }
 
-function pickSectionObject(obj: Record<string, unknown> | undefined, paths: string[]): Record<string, unknown> | undefined {
+function pickSectionObject(
+  obj: Record<string, unknown> | undefined,
+  paths: string[],
+): Record<string, unknown> | undefined {
   if (!obj) return undefined;
   const out: Record<string, unknown> = {};
   for (const path of paths) {
@@ -544,7 +619,10 @@ function itemTitle(before: unknown, after: unknown, index: number): string {
 }
 
 function stripHtml(value: string): string {
-  return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function capitalize(value: string): string {
@@ -572,12 +650,16 @@ export function humanizePath(path: string): string {
     valueMappings: "Value mapping",
     waitEvents: "Wait event",
   };
-  return path.split(".").map((segment) => {
-    const match = segment.match(/^([^[]+)(?:\[(\d+)\])?$/);
-    if (!match) return segment;
-    const name = names[match[1]] || match[1].replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (char) => char.toUpperCase());
-    return match[2] === undefined ? name : name + " " + (Number(match[2]) + 1);
-  }).join(" > ");
+  return path
+    .split(".")
+    .map((segment) => {
+      const match = segment.match(/^([^[]+)(?:\[(\d+)\])?$/);
+      if (!match) return segment;
+      const name =
+        names[match[1]] || match[1].replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (char) => char.toUpperCase());
+      return match[2] === undefined ? name : name + " " + (Number(match[2]) + 1);
+    })
+    .join(" > ");
 }
 
 function unwrapValue(value: unknown): unknown {
@@ -587,7 +669,8 @@ function unwrapValue(value: unknown): unknown {
   if (keys.length === 1) {
     const key = keys[0];
     const obj = value as Record<string, unknown>;
-    if (key === "stringValue" || key === "numberValue" || key === "dateValue" || key === "dateTimeValue") return obj[key];
+    if (key === "stringValue" || key === "numberValue" || key === "dateValue" || key === "dateTimeValue")
+      return obj[key];
     if (key === "booleanValue") return String(obj[key]) === "true" ? "true" : "false";
   }
   return value;
@@ -635,9 +718,5 @@ function diffValue(before: unknown, after: unknown): string {
 }
 
 function escapeHtml(value: unknown): string {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

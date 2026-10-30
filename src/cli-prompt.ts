@@ -25,9 +25,7 @@ function displayVersionTable(versions: FlowVersion[]): string {
     version.lastModifiedBy,
     version.lastModifiedDate,
   ]);
-  const widths = headers.map((header, index) =>
-    Math.max(header.length, ...rows.map((row) => row[index].length)),
-  );
+  const widths = headers.map((header, index) => Math.max(header.length, ...rows.map((row) => row[index].length)));
   return [formatTableRow(headers, widths), ...rows.map((row) => formatTableRow(row, widths))].join("\n");
 }
 
@@ -77,9 +75,7 @@ export async function pickFlowAndVersions(
     }
     output.write(`${displayVersionTable(versions)}\n`);
     const latest = versions.slice(-2).map((version) => version.versionNumber);
-    const answer = await prompt.question(
-      `Enter two version numbers to compare (default ${latest[0]} ${latest[1]}): `,
-    );
+    const answer = await prompt.question(`Enter two version numbers to compare (default ${latest[0]} ${latest[1]}): `);
     const choices = (answer.trim() ? answer.trim().split(/[\s,]+/) : latest)
       .map((choice) => (typeof choice === "number" ? choice : parseChoice(choice, versions)))
       .filter((choice): choice is number => choice !== undefined);

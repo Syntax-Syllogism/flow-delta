@@ -15,7 +15,7 @@ ParsedFlow (from parser)
 GraphModel
     ├─ GraphNode[] (normalized)
     └─ GraphEdge[] (with kind: normal | fault)
-    
+
     ↓ (diff-model.ts)
 FlowDiff
     ├─ NodeDiff[] (added/deleted/modified/unchanged/present)
@@ -28,11 +28,11 @@ The graph after parsing and canonicalization.
 
 ```typescript
 interface GraphModel {
-  flowName: string;           // Internal API name (e.g., "MyFlow")
-  label: string;              // Display label
-  processType?: string;       // Automation type (e.g., "Flow", "CloudFlow")
-  nodes: GraphNode[];         // All nodes in the graph
-  edges: GraphEdge[];         // All connections
+  flowName: string; // Internal API name (e.g., "MyFlow")
+  label: string; // Display label
+  processType?: string; // Automation type (e.g., "Flow", "CloudFlow")
+  nodes: GraphNode[]; // All nodes in the graph
+  edges: GraphEdge[]; // All connections
 }
 ```
 
@@ -42,12 +42,12 @@ One node, after canonicalization.
 
 ```typescript
 interface GraphNode {
-  id: string;                 // Unique identifier (the element <name>)
-  type: NodeType;             // Element type (decision, assignment, etc.)
-  label: string;              // Display label
+  id: string; // Unique identifier (the element <name>)
+  type: NodeType; // Element type (decision, assignment, etc.)
+  label: string; // Display label
   properties: Record<string, unknown>;
-    // Canonicalized properties (stripped of coordinates, connectors, etc.)
-    // See architecture.md for canonicalization rules
+  // Canonicalized properties (stripped of coordinates, connectors, etc.)
+  // See architecture.md for canonicalization rules
 }
 ```
 
@@ -57,27 +57,27 @@ Every supported Salesforce Flow element type:
 
 ```typescript
 type NodeType =
-  | "start"           // Flow entry point (synthetic)
-  | "end"             // Flow exit point (synthetic)
-  | "assignment"      // Assignment element
-  | "decision"        // Decision (if/else branch)
-  | "loop"            // Loop element
-  | "recordLookup"    // SOQL lookup
-  | "recordCreate"    // DML create
-  | "recordUpdate"    // DML update
-  | "recordDelete"    // DML delete
-  | "screen"          // Lightning screen
-  | "subflow"         // Subflow call
-  | "actionCall"      // Action invocation
-  | "apexPluginCall"  // Apex plug-in
-  | "wait"            // Wait element
-  | "step"            // Step (deprecated, treated as action)
-  | "orchestratedStage"  // Orchestration stage
-  | "transform"       // Transform element
-  | "collectionProcessor"  // Collection processor
-  | "customError"     // Custom error
-  | "recordRollback"  // Rollback
-  | "unknown";        // Unmapped or unrecognized type
+  | "start" // Flow entry point (synthetic)
+  | "end" // Flow exit point (synthetic)
+  | "assignment" // Assignment element
+  | "decision" // Decision (if/else branch)
+  | "loop" // Loop element
+  | "recordLookup" // SOQL lookup
+  | "recordCreate" // DML create
+  | "recordUpdate" // DML update
+  | "recordDelete" // DML delete
+  | "screen" // Lightning screen
+  | "subflow" // Subflow call
+  | "actionCall" // Action invocation
+  | "apexPluginCall" // Apex plug-in
+  | "wait" // Wait element
+  | "step" // Step (deprecated, treated as action)
+  | "orchestratedStage" // Orchestration stage
+  | "transform" // Transform element
+  | "collectionProcessor" // Collection processor
+  | "customError" // Custom error
+  | "recordRollback" // Rollback
+  | "unknown"; // Unmapped or unrecognized type
 ```
 
 ### GraphEdge
@@ -86,11 +86,11 @@ A directed edge connecting two nodes.
 
 ```typescript
 interface GraphEdge {
-  id: string;                 // Composite: `${source}->${target}#${kind}#${label}`
-  source: string;             // Source node id
-  target: string;             // Target node id
-  kind: "normal" | "fault";   // Connection type (includes kind in identity)
-  label?: string;             // Optional label (outcome name for decisions)
+  id: string; // Composite: `${source}->${target}#${kind}#${label}`
+  source: string; // Source node id
+  target: string; // Target node id
+  kind: "normal" | "fault"; // Connection type (includes kind in identity)
+  label?: string; // Optional label (outcome name for decisions)
 }
 ```
 
@@ -142,23 +142,23 @@ interface NodeDiff {
   type: NodeType;
   label: string;
   status: "added" | "deleted" | "modified" | "unchanged" | "present";
-  
+
   changes?: PropertyChange[];
-    // Per-property deltas. Only for "modified".
-    // Example: { path: "rules[0].conditions[1].value", before: "x", after: "y" }
-  
+  // Per-property deltas. Only for "modified".
+  // Example: { path: "rules[0].conditions[1].value", before: "x", after: "y" }
+
   before?: Record<string, unknown>;
-    // Full property snapshot from the old version (modified or deleted)
-    // Renderer uses this for context (faint sibling columns in tables)
-  
+  // Full property snapshot from the old version (modified or deleted)
+  // Renderer uses this for context (faint sibling columns in tables)
+
   after?: Record<string, unknown>;
-    // Full property snapshot from the new version (modified, added, or present)
+  // Full property snapshot from the new version (modified, added, or present)
 }
 
 interface PropertyChange {
-  path: string;              // Dot-path to the changed property (array-indexed if needed)
-  before: unknown;           // Old value
-  after: unknown;            // New value
+  path: string; // Dot-path to the changed property (array-indexed if needed)
+  before: unknown; // Old value
+  after: unknown; // New value
 }
 ```
 
@@ -271,15 +271,15 @@ Properties often wrap scalars in type discriminators:
 
 ```typescript
 {
-  stringValue: "hello"
+  stringValue: "hello";
 }
 // or
 {
-  booleanValue: "true"
+  booleanValue: "true";
 }
 // or
 {
-  numberValue: 42
+  numberValue: 42;
 }
 ```
 
@@ -305,12 +305,12 @@ This keeps the graph well-formed (one entry, one exit) even when the source XML 
 
 ```typescript
 interface PropertyChange {
-  path: string;     // Dot-notated, array-indexed path
+  path: string; // Dot-notated, array-indexed path
   before: unknown;
   after: unknown;
 }
 
-function deepDiff(oldValue: unknown, newValue: unknown): PropertyChange[]
+function deepDiff(oldValue: unknown, newValue: unknown): PropertyChange[];
 ```
 
 Example outputs:

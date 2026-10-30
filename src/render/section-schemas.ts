@@ -42,18 +42,10 @@ const PARAM_COLUMNS: ColumnDef[] = [
   { path: "assignToReference", label: "Assign To" },
 ];
 
-const SCREEN_SETTING_PATHS = [
-  "allowBack",
-  "allowFinish",
-  "allowPause",
-  "showFooter",
-  "showHeader",
-];
+const SCREEN_SETTING_PATHS = ["allowBack", "allowFinish", "allowPause", "showFooter", "showHeader"];
 
 const SECTION_SCHEMAS: Partial<Record<NodeType, SectionSchema[]>> = {
-  screen: [
-    { name: "Screen Settings", paths: SCREEN_SETTING_PATHS, render: "lines" },
-  ],
+  screen: [{ name: "Screen Settings", paths: SCREEN_SETTING_PATHS, render: "lines" }],
   start: [
     {
       name: "Trigger",
@@ -74,55 +66,69 @@ const SECTION_SCHEMAS: Partial<Record<NodeType, SectionSchema[]>> = {
       ],
     },
   ],
-  decision: [{
-    name: "Outcomes",
-    paths: ["rules"],
-    render: "grouped-table",
-    groupLabelPath: "label",
-    innerArray: "conditions",
-    innerColumns: [
-      { path: "leftValueReference", label: "Resource" },
-      { path: "operator", label: "Operator" },
-      { path: "rightValue", label: "Value" },
-    ],
-  }],
-  assignment: [{
-    name: "Assignment Items",
-    paths: ["assignmentItems"],
-    render: "table",
-    columns: [
-      { path: "assignToReference", label: "Variable" },
-      { path: "operator", label: "Operator" },
-      { path: "value", label: "Value" },
-    ],
-  }],
+  decision: [
+    {
+      name: "Outcomes",
+      paths: ["rules"],
+      render: "grouped-table",
+      groupLabelPath: "label",
+      innerArray: "conditions",
+      innerColumns: [
+        { path: "leftValueReference", label: "Resource" },
+        { path: "operator", label: "Operator" },
+        { path: "rightValue", label: "Value" },
+      ],
+    },
+  ],
+  assignment: [
+    {
+      name: "Assignment Items",
+      paths: ["assignmentItems"],
+      render: "table",
+      columns: [
+        { path: "assignToReference", label: "Variable" },
+        { path: "operator", label: "Operator" },
+        { path: "value", label: "Value" },
+      ],
+    },
+  ],
   recordCreate: [{ name: "Field Mappings", paths: ["inputAssignments"], render: "table", columns: MAPPING_COLUMNS }],
   recordUpdate: [{ name: "Field Mappings", paths: ["inputAssignments"], render: "table", columns: MAPPING_COLUMNS }],
   recordLookup: [{ name: "Filters", paths: ["filters"], render: "table", columns: FILTER_COLUMNS }],
   recordDelete: [{ name: "Filters", paths: ["filters"], render: "table", columns: FILTER_COLUMNS }],
-  subflow: [{ name: "Parameters", paths: ["inputAssignments", "outputAssignments"], render: "table", columns: PARAM_COLUMNS }],
-  actionCall: [{ name: "Parameters", paths: ["inputParameters", "outputParameters"], render: "table", columns: PARAM_COLUMNS }],
-  apexPluginCall: [{ name: "Parameters", paths: ["inputParameters", "outputParameters"], render: "table", columns: PARAM_COLUMNS }],
-  wait: [{
-    name: "Wait Events",
-    paths: ["waitEvents"],
-    render: "table",
-    columns: [
-      { path: "label", label: "Label" },
-      { path: "offset", label: "Offset" },
-      { path: "offsetUnit", label: "Unit" },
-      { path: "resumeDateReference", label: "Resume Date" },
-    ],
-  }],
-  customError: [{
-    name: "Error Messages",
-    paths: ["customErrorMessages"],
-    render: "table",
-    columns: [
-      { path: "name", label: "Name" },
-      { path: "errorMessage", label: "Message" },
-    ],
-  }],
+  subflow: [
+    { name: "Parameters", paths: ["inputAssignments", "outputAssignments"], render: "table", columns: PARAM_COLUMNS },
+  ],
+  actionCall: [
+    { name: "Parameters", paths: ["inputParameters", "outputParameters"], render: "table", columns: PARAM_COLUMNS },
+  ],
+  apexPluginCall: [
+    { name: "Parameters", paths: ["inputParameters", "outputParameters"], render: "table", columns: PARAM_COLUMNS },
+  ],
+  wait: [
+    {
+      name: "Wait Events",
+      paths: ["waitEvents"],
+      render: "table",
+      columns: [
+        { path: "label", label: "Label" },
+        { path: "offset", label: "Offset" },
+        { path: "offsetUnit", label: "Unit" },
+        { path: "resumeDateReference", label: "Resume Date" },
+      ],
+    },
+  ],
+  customError: [
+    {
+      name: "Error Messages",
+      paths: ["customErrorMessages"],
+      render: "table",
+      columns: [
+        { path: "name", label: "Name" },
+        { path: "errorMessage", label: "Message" },
+      ],
+    },
+  ],
   transform: [
     {
       name: "Value Mappings",
@@ -159,9 +165,7 @@ const SECTION_SCHEMAS: Partial<Record<NodeType, SectionSchema[]>> = {
       ],
     },
   ],
-  orchestratedStage: [
-    { name: "Stage Settings", paths: ["stageLabel", "stageOrder"], render: "lines" },
-  ],
+  orchestratedStage: [{ name: "Stage Settings", paths: ["stageLabel", "stageOrder"], render: "lines" }],
 };
 
 export function getSectionSchemas(type: NodeType): SectionSchema[] {

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.9.2] - 2026-10-30
+
+### Added
+
+- Version output via `--version` on all six CLI binaries
+
+### Fixed
+
+- Crashes when passing an unknown command-line flag
+
+### Security
+
+- Updated `nanoid` in the docs site to resolve a high-severity Dependabot alert
+
 ## [0.9.1] - 2026-09-30
 
 ### Changed
@@ -14,9 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.0] - 2026-09-02
 
 ### Added
+
 - Add as-built flow snapshots
 
 ### Fixed
+
 - Fix snapshot rendering issues
 
 ## [0.8.1] - 2026-08-31
@@ -45,10 +61,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.1] - 2026-07-20
 
 ### Added
+
 - Share metadata and Git IO across CLIs
 - Reduce Flow artifact client payload
 
 ### Fixed
+
 - System theme handling
 - Restore Flow node keyboard activation
 - Align Flow shell with client DTO
@@ -148,7 +166,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Made start and end nodes a little more recognizable as such. 
+- Made start and end nodes a little more recognizable as such.
 
 ## [0.1.1] - 2026-06-08
 

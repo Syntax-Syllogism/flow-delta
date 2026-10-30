@@ -55,7 +55,11 @@ test("upsertComment updates an existing sticky note when present", async () => {
   );
 
   assert.deepEqual(
-    requests.map((request) => ({ url: request.url, method: request.method, token: request.headers.get("PRIVATE-TOKEN") })),
+    requests.map((request) => ({
+      url: request.url,
+      method: request.method,
+      token: request.headers.get("PRIVATE-TOKEN"),
+    })),
     [
       { url: "https://gitlab.example.com/api/v4/user", method: "GET", token: "secret" },
       {

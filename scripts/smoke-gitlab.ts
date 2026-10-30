@@ -124,17 +124,29 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
 
 function resolveOptions(values: Record<string, string | boolean | undefined>): SmokeOptions {
   return {
-    repoDir: resolve(stringValue(values["repo-dir"] ?? process.env.FLOW_DELTA_SMOKE_REPO_DIR ?? DEFAULT_REPO_DIR, "repo dir")),
+    repoDir: resolve(
+      stringValue(values["repo-dir"] ?? process.env.FLOW_DELTA_SMOKE_REPO_DIR ?? DEFAULT_REPO_DIR, "repo dir"),
+    ),
     remote: stringValue(values.remote ?? process.env.FLOW_DELTA_SMOKE_REMOTE ?? "gitlab", "remote"),
     remoteUrl: stringValueOptional(values["remote-url"] ?? process.env.FLOW_DELTA_SMOKE_REMOTE_URL),
-    baseBranch: stringValue(values["base-branch"] ?? process.env.FLOW_DELTA_SMOKE_BASE_BRANCH ?? DEFAULT_BASE_BRANCH, "base branch"),
-    branchPrefix: stringValue(values["branch-prefix"] ?? process.env.FLOW_DELTA_SMOKE_BRANCH_PREFIX ?? DEFAULT_BRANCH_PREFIX, "branch prefix"),
-    titlePrefix: stringValue(values["title-prefix"] ?? process.env.FLOW_DELTA_SMOKE_TITLE_PREFIX ?? DEFAULT_TITLE_PREFIX, "title prefix"),
+    baseBranch: stringValue(
+      values["base-branch"] ?? process.env.FLOW_DELTA_SMOKE_BASE_BRANCH ?? DEFAULT_BASE_BRANCH,
+      "base branch",
+    ),
+    branchPrefix: stringValue(
+      values["branch-prefix"] ?? process.env.FLOW_DELTA_SMOKE_BRANCH_PREFIX ?? DEFAULT_BRANCH_PREFIX,
+      "branch prefix",
+    ),
+    titlePrefix: stringValue(
+      values["title-prefix"] ?? process.env.FLOW_DELTA_SMOKE_TITLE_PREFIX ?? DEFAULT_TITLE_PREFIX,
+      "title prefix",
+    ),
   };
 }
 
 function printUsage(): void {
-  console.log(`
+  console.log(
+    `
 Usage:
   npm run smoke:gitlab -- [--remote-url <gitlab-repo-url>] [--repo-dir <path>]
 
@@ -148,7 +160,8 @@ Optional:
   --base-branch     base branch name (default: ${DEFAULT_BASE_BRANCH})
   --branch-prefix   smoke branch prefix (default: ${DEFAULT_BRANCH_PREFIX})
   --title-prefix    MR title prefix (default: ${DEFAULT_TITLE_PREFIX})
-`.trimEnd());
+`.trimEnd(),
+  );
 }
 
 // CI config for the smoke MR: install the packed local tarball and run its bins,
@@ -159,7 +172,7 @@ function buildSmokeCi(tarballName: string): string {
     "FlowDelta:",
     "  image: node:24-alpine",
     "  rules:",
-    "    - if: $CI_PIPELINE_SOURCE == \"merge_request_event\"",
+    '    - if: $CI_PIPELINE_SOURCE == "merge_request_event"',
     "  variables:",
     "    GIT_DEPTH: 0",
     "  before_script:",
@@ -169,16 +182,16 @@ function buildSmokeCi(tarballName: string): string {
     "    - |",
     "      ./node_modules/.bin/flow-delta \\",
     "        --repo . \\",
-    "        --from \"$CI_MERGE_REQUEST_DIFF_BASE_SHA\" \\",
-    "        --to   \"${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA:-$CI_COMMIT_SHA}\" \\",
+    '        --from "$CI_MERGE_REQUEST_DIFF_BASE_SHA" \\',
+    '        --to   "${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA:-$CI_COMMIT_SHA}" \\',
     "        --path 'force-app/**/*.flow-meta.xml' \\",
     "        --changed-only \\",
     "        --out flow-delta-out --json",
     "    - |",
     "      ./node_modules/.bin/flexipage-delta \\",
     "        --repo . \\",
-    "        --from \"$CI_MERGE_REQUEST_DIFF_BASE_SHA\" \\",
-    "        --to   \"${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA:-$CI_COMMIT_SHA}\" \\",
+    '        --from "$CI_MERGE_REQUEST_DIFF_BASE_SHA" \\',
+    '        --to   "${CI_MERGE_REQUEST_SOURCE_BRANCH_SHA:-$CI_COMMIT_SHA}" \\',
     "        --path 'force-app/**/*.flexipage-meta.xml' \\",
     "        --changed-only \\",
     "        --out flexipage-delta-out --json",
@@ -192,11 +205,9 @@ function buildSmokeCi(tarballName: string): string {
   ].join("\n");
 }
 
-function createMergeRequest(input: {
-  repoDir: string;
-  sourceBranch: string;
-  targetBranch: string;
-}): { web_url: string } {
+function createMergeRequest(input: { repoDir: string; sourceBranch: string; targetBranch: string }): {
+  web_url: string;
+} {
   const glab = resolveGlabCommand();
 
   execFileSync(
@@ -219,15 +230,11 @@ function createMergeRequest(input: {
     },
   );
 
-  const output = execFileSync(
-    glab,
-    ["mr", "view", "--output", "json", input.sourceBranch],
-    {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-      cwd: input.repoDir,
-    },
-  ).trim();
+  const output = execFileSync(glab, ["mr", "view", "--output", "json", input.sourceBranch], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    cwd: input.repoDir,
+  }).trim();
 
   const mr = JSON.parse(output) as { web_url?: string };
   if (!mr.web_url) {

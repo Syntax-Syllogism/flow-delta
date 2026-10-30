@@ -9,10 +9,10 @@ FlowDelta and FlexiPageDelta keep their own policies and pipelines, but they sha
 
 ## Modules
 
-| Module | Responsibility |
-| --- | --- |
-| `src/io/read-metadata.ts` | Reads an XML file synchronously, or a metadata path with `git show <ref>:<path>`. |
-| `src/io/git.ts` | The default synchronous Git adapter, the injectable `GitRunner` port, and classification of "missing at ref" errors. |
+| Module                            | Responsibility                                                                                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/io/read-metadata.ts`         | Reads an XML file synchronously, or a metadata path with `git show <ref>:<path>`.                                                                |
+| `src/io/git.ts`                   | The default synchronous Git adapter, the injectable `GitRunner` port, and classification of "missing at ref" errors.                             |
 | `src/io/discover-git-metadata.ts` | Finds metadata paths from both refs or from the changed-path diff, normalizes separators, applies the matcher, and returns sorted, unique paths. |
 
 ## Reading

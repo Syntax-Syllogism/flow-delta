@@ -9,7 +9,7 @@ The package ships a second binary, `flow-delta-gitlab`, for merge-request report
 
 ## Sample pipeline
 
-[`examples/gitlab-ci.yml`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/examples/gitlab-ci.yml) is the supported recipe. It:
+[`examples/gitlab-ci.yml`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/examples/gitlab-ci.yml) is the supported recipe. It:
 
 - runs on merge-request pipelines only;
 - sets `GIT_DEPTH: 0` so the base SHA is available;
@@ -34,7 +34,7 @@ Use `$CI_MERGE_REQUEST_SOURCE_BRANCH_SHA` instead. GitLab sets it to the real so
 
 To check which style a project uses, print the variables in the job. `$CI_MERGE_REQUEST_SOURCE_BRANCH_SHA` is non-empty, and differs from `$CI_COMMIT_SHA`, exactly when merged results or merge trains are in use.
 
-The smoke harness, [`scripts/smoke-gitlab.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/scripts/smoke-gitlab.ts), uses the same shape. It seeds a dedicated sample repo, pushes a base `master` branch and a smoke/e2e feature branch, and opens the MR. It uses `git` and [`glab`](https://docs.gitlab.com/cli/), so `glab auth status` must succeed for the target GitLab host before you run it.
+The smoke harness, [`scripts/smoke-gitlab.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/scripts/smoke-gitlab.ts), uses the same shape. It seeds a dedicated sample repo, pushes a base `master` branch and a smoke/e2e feature branch, and opens the MR. It uses `git` and [`glab`](https://docs.gitlab.com/cli/), so `glab auth status` must succeed for the target GitLab host before you run it.
 
 ```bash
 npm run smoke:gitlab -- --remote-url <gitlab-repo-url>
@@ -76,7 +76,7 @@ Then comes a short summary header, one row per changed flow, and a `View` link t
 - Flow Attributes is a `+0 / -0 / ~N` count of flow-root property changes, such as `status`, `apiVersion`, or `runInMode`. Header fields always exist, so additions and removals are always `0`.
 - The artifact URL points at the job-artifact browse route under `CI_PROJECT_URL`.
 
-To preview the Markdown for a before and after pair without the full smoke harness (no tarball build, no sample repo, no push), use [`scripts/preview-comment.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/scripts/preview-comment.ts):
+To preview the Markdown for a before and after pair without the full smoke harness (no tarball build, no sample repo, no push), use [`scripts/preview-comment.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/scripts/preview-comment.ts):
 
 ```bash
 npm run preview:comment -- --product flow \
@@ -102,7 +102,7 @@ A third binary, `flow-delta-github`, brings the same reporting to GitHub pull re
 
 ### Sample workflow
 
-[`examples/github-actions.yml`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/examples/github-actions.yml) is the supported recipe. It:
+[`examples/github-actions.yml`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/examples/github-actions.yml) is the supported recipe. It:
 
 - runs on `pull_request`;
 - grants `permissions: { contents: read, pull-requests: write }`;
@@ -178,19 +178,19 @@ This gives you a stable base URL, and it's what the demo uses. CI uploads to R2 
 ${ARTIFACT_BASE_URL}/${GITHUB_REPOSITORY}/${PR}/${GITHUB_SHA}/${stem}.html?exp=<unixSeconds>&sig=<hmac>
 ```
 
-The HMAC is SHA-256 over `${key}:${exp}`, using `ARTIFACT_HMAC_KEY`. The Worker template in [`examples/cloudflare-worker/`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/examples/cloudflare-worker/) recomputes the signature, rejects expired or tampered links, reads the object through its R2 binding, and streams it with `content-type: text/html`.
+The HMAC is SHA-256 over `${key}:${exp}`, using `ARTIFACT_HMAC_KEY`. The Worker template in [`examples/cloudflare-worker/`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/examples/cloudflare-worker/) recomputes the signature, rejects expired or tampered links, reads the object through its R2 binding, and streams it with `content-type: text/html`.
 
 One-time setup:
 
 1. Install and sign in to Wrangler: `npm i -g wrangler && wrangler login`.
-2. Copy [`examples/cloudflare-worker/`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/examples/cloudflare-worker/), set `bucket_name` in `wrangler.toml`, and deploy it.
+2. Copy [`examples/cloudflare-worker/`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/examples/cloudflare-worker/), set `bucket_name` in `wrangler.toml`, and deploy it.
 3. Set the Worker secret: `wrangler secret put ARTIFACT_HMAC_KEY`.
 4. Add the GitHub secrets `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `ARTIFACT_HMAC_KEY` (the same HMAC value).
 5. Add the GitHub variable `ARTIFACT_BASE_URL` with the Worker URL.
 
 The example workflow publishes under the key `${GITHUB_REPOSITORY}/${{ github.event.number }}/$GITHUB_SHA/${stem}.html`, so reruns and stale PRs don't collide. It always keeps the default `actions/upload-artifact` step as a fallback that needs no infrastructure.
 
-The GitHub smoke harness, [`scripts/smoke-github.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.1/scripts/smoke-github.ts), creates or reuses `Syntax-Syllogism/flow-delta-example`, seeds fixture "before" files on `main`, pushes fixture "after" files to a smoke branch, writes the Worker-backed workflow, and opens the PR with `gh pr create`. It assumes the repo secrets and the Worker already exist. Those one-time owner setup steps aren't automated on purpose.
+The GitHub smoke harness, [`scripts/smoke-github.ts`](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.2/scripts/smoke-github.ts), creates or reuses `Syntax-Syllogism/flow-delta-example`, seeds fixture "before" files on `main`, pushes fixture "after" files to a smoke branch, writes the Worker-backed workflow, and opens the PR with `gh pr create`. It assumes the repo secrets and the Worker already exist. Those one-time owner setup steps aren't automated on purpose.
 
 `test/report-core.test.ts` and `test/github-report.test.ts` cover the helper functions and the API orchestration.
 

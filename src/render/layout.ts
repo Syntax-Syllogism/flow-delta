@@ -57,7 +57,11 @@ export interface LayoutView {
 }
 
 export async function layoutDiff(diff: FlowDiff): Promise<LayoutedFlow> {
-  const union = await layoutView(diff, () => true, () => true);
+  const union = await layoutView(
+    diff,
+    () => true,
+    () => true,
+  );
   const after = await layoutView(
     diff,
     (node) => node.status !== "deleted",
@@ -121,7 +125,13 @@ async function layoutView(
   };
 
   const laidOut = await elk.layout(graph);
-  const children = (laidOut.children ?? []) as Array<{ id: string; x?: number; y?: number; width: number; height: number }>;
+  const children = (laidOut.children ?? []) as Array<{
+    id: string;
+    x?: number;
+    y?: number;
+    width: number;
+    height: number;
+  }>;
   const edgeLayouts = (laidOut.edges ?? []) as Array<{ id: string; sections?: LayoutSection[] }>;
   const nodeMap = new Map(children.map((node) => [node.id, node]));
   const edgeMap = new Map(edgeLayouts.map((edge) => [edge.id, edge]));

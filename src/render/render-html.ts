@@ -62,15 +62,16 @@ export function renderHtml(layout: LayoutedFlow): string {
   const s = layout.diff.summary;
   const stat = (n: number, kind: string, word: string) =>
     `<span class="stat ${kind}${n === 0 ? " zero" : ""}">${n} ${word}</span>`;
-  const edgeStat = s.addedEdges + s.removedEdges > 0
-    ? `<span class="sep">·</span><span class="stat edges">+${s.addedEdges}/−${s.removedEdges} edges</span>`
-    : "";
+  const edgeStat =
+    s.addedEdges + s.removedEdges > 0
+      ? `<span class="sep">·</span><span class="stat edges">+${s.addedEdges}/−${s.removedEdges} edges</span>`
+      : "";
   const metaHtml = snapshotMode
     ? renderSnapshotMeta(layout)
-    : `${stat(s.addedNodes, "added", "added")}<span class="sep">·</span>`
-      + `${stat(s.removedNodes, "deleted", "deleted")}<span class="sep">·</span>`
-      + `${stat(s.modifiedNodes, "modified", "modified")}${edgeStat}`
-      + `<div class="legend"><span class="added">Added</span><span class="deleted">Deleted</span><span class="modified">Modified</span><span class="unchanged">Unchanged</span></div>`;
+    : `${stat(s.addedNodes, "added", "added")}<span class="sep">·</span>` +
+      `${stat(s.removedNodes, "deleted", "deleted")}<span class="sep">·</span>` +
+      `${stat(s.modifiedNodes, "modified", "modified")}${edgeStat}` +
+      `<div class="legend"><span class="added">Added</span><span class="deleted">Deleted</span><span class="modified">Modified</span><span class="unchanged">Unchanged</span></div>`;
   const viewBox = fitViewBox(layout.width, layout.height);
   const flowBannerHtml = snapshotMode
     ? renderSnapshotFacts(layout.diff.snapshotMeta)
@@ -206,13 +207,29 @@ const SNAPSHOT_TYPE_GROUPS = [
   { key: "end", label: "End", types: ["end"] },
   { key: "screen", label: "Screens", types: ["screen"] },
   { key: "decision", label: "Decisions", types: ["decision"] },
-  { key: "record", label: "Record operations", types: ["recordLookup", "recordCreate", "recordUpdate", "recordDelete"] },
+  {
+    key: "record",
+    label: "Record operations",
+    types: ["recordLookup", "recordCreate", "recordUpdate", "recordDelete"],
+  },
   { key: "loop", label: "Loops", types: ["loop"] },
   { key: "subflow", label: "Subflows", types: ["subflow"] },
   { key: "assignment", label: "Assignments", types: ["assignment"] },
   { key: "action", label: "Actions", types: ["actionCall", "apexPluginCall"] },
   { key: "wait", label: "Waits", types: ["wait"] },
-  { key: "other", label: "Other", types: ["step", "orchestratedStage", "transform", "collectionProcessor", "customError", "recordRollback", "unknown"] },
+  {
+    key: "other",
+    label: "Other",
+    types: [
+      "step",
+      "orchestratedStage",
+      "transform",
+      "collectionProcessor",
+      "customError",
+      "recordRollback",
+      "unknown",
+    ],
+  },
 ] as const;
 
 function renderSnapshotMeta(layout: LayoutedFlow): string {
@@ -220,16 +237,23 @@ function renderSnapshotMeta(layout: LayoutedFlow): string {
   for (const node of layout.diff.nodes) counts.set(node.type, (counts.get(node.type) ?? 0) + 1);
   const inventory = [
     `<span class="stat">${layout.diff.nodes.length} ${layout.diff.nodes.length === 1 ? "element" : "elements"}</span>`,
-    ...SNAPSHOT_TYPE_GROUPS
-      .map((group) => ({ ...group, count: group.types.reduce((sum, type) => sum + (counts.get(type) ?? 0), 0) }))
+    ...SNAPSHOT_TYPE_GROUPS.map((group) => ({
+      ...group,
+      count: group.types.reduce((sum, type) => sum + (counts.get(type) ?? 0), 0),
+    }))
       .filter((group) => group.count > 0)
       .map((group) => `<span class="stat">${group.count} ${escapeHtml(group.label.toLowerCase())}</span>`),
     `<span class="stat">${layout.diff.edges.length} ${layout.diff.edges.length === 1 ? "connector" : "connectors"}</span>`,
   ].join(`<span class="sep">·</span>`);
-  const legend = SNAPSHOT_TYPE_GROUPS
-    .map((group) => ({ ...group, count: group.types.reduce((sum, type) => sum + (counts.get(type) ?? 0), 0) }))
+  const legend = SNAPSHOT_TYPE_GROUPS.map((group) => ({
+    ...group,
+    count: group.types.reduce((sum, type) => sum + (counts.get(type) ?? 0), 0),
+  }))
     .filter((group) => group.count > 0)
-    .map((group) => `<span class="type-${group.key}"><span class="snapshot-type-swatch"></span>${escapeHtml(group.label)}</span>`)
+    .map(
+      (group) =>
+        `<span class="type-${group.key}"><span class="snapshot-type-swatch"></span>${escapeHtml(group.label)}</span>`,
+    )
     .join("");
   return `<div class="snapshot-inventory">${inventory}</div><div class="snapshot-type-legend">${legend}</div>`;
 }
@@ -258,17 +282,75 @@ function renderFlowBanner(changes: LayoutedFlow["diff"]["flowChanges"]): string 
   const kind = statusChange ? getStatusKind(statusChange.before, statusChange.after) : "neutral";
   const callout = statusChange ? renderStatusCallout(statusChange.before, statusChange.after, kind) : "";
   const count = changes.length;
-  const tabLabel = statusChange && kind !== "neutral" ? `${kind === "deactivated" ? "Deactivated" : "Activated"}${count > 1 ? ` · ${count} changes` : ""}` : `${count} flow-level ${count === 1 ? "change" : "changes"}`;
+  const tabLabel =
+    statusChange && kind !== "neutral"
+      ? `${kind === "deactivated" ? "Deactivated" : "Activated"}${count > 1 ? ` · ${count} changes` : ""}`
+      : `${count} flow-level ${count === 1 ? "change" : "changes"}`;
   return `<button type="button" id="flow-tab" class="flow-tab ${kind}" aria-expanded="false" aria-controls="flow-popover"><span class="flow-tab-dot"></span>${escapeHtml(tabLabel)}<span class="flow-tab-chev">▾</span></button><div id="flow-popover" class="flow-popover" role="region" aria-label="Flow-level changes" hidden><div class="flow-popover-head">Flow-level changes</div><div class="flow-popover-body">${callout}<div class="flow-banner-list">${changes.map((change) => `<div class="flow-change-row"><div class="flow-change-label">${escapeHtml(humanizePath(change.path))}</div><div class="flow-change-value">${renderValueDelta(change.before, change.after)}</div></div>`).join("")}</div></div></div>`;
 }
 
-function getStatusKind(before: unknown, after: unknown): "deactivated" | "activated" | "neutral" { const beforeText = String(before), afterText = String(after); if (beforeText === "Active" && afterText !== "Active") return "deactivated"; if (beforeText !== "Active" && afterText === "Active") return "activated"; return "neutral"; }
-function renderStatusCallout(before: unknown, after: unknown, kind: "deactivated" | "activated" | "neutral"): string { const beforeText = String(before), afterText = String(after); if (kind === "deactivated") return `<div class="flow-banner-callout deactivated">Deactivated (${escapeHtml(beforeText)} -> ${escapeHtml(afterText)})</div>`; if (kind === "activated") return `<div class="flow-banner-callout activated">Activated (${escapeHtml(beforeText)} -> ${escapeHtml(afterText)})</div>`; return `<div class="flow-banner-callout neutral">Status: ${escapeHtml(beforeText)} -> ${escapeHtml(afterText)}</div>`; }
-function renderValueDelta(before: unknown, after: unknown): string { if (before === undefined) return `<span class="val ins">${escapeHtml(formatValue(after))}</span>`; if (after === undefined) return `<span class="val del">${escapeHtml(formatValue(before))}</span>`; return `<span class="val del">${escapeHtml(formatValue(before))}</span><span class="arrow">-></span><span class="val ins">${escapeHtml(formatValue(after))}</span>`; }
-function formatValue(value: unknown): string { return value === undefined ? "(missing)" : String(value); }
-function fitViewBox(contentWidth: number, contentHeight: number): string { const width = Math.max(contentWidth, 720), height = Math.max(contentHeight, 540); return `${round((contentWidth - width) / 2)} ${round((contentHeight - height) / 2)} ${round(width)} ${round(height)}`; }
-function round(value: number): number { return Math.round(value * 100) / 100; }
-function renderEdge(edge: LayoutedFlow["edges"][number]): string { const points = edge.sections.flatMap((section, index) => [...(index === 0 ? [section.startPoint] : []), ...(section.bendPoints ?? []), section.endPoint]); if (points.length === 0) return ""; const d = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" "); return `<path class="edge ${edge.kind} ${edge.status}" d="${d}" data-edge-id="${escapeHtml(edge.id)}"></path>`; }
-function renderNode(node: LayoutedFlow["nodes"][number]): string { const lines = wrapLabel(node.label, 22), lineHeight = 14, textY = node.height / 2 - ((lines.length - 1) * lineHeight) / 2 + 5; return `<g class="node ${node.status} type-${node.type}" role="button" tabindex="0" data-node-id="${escapeHtml(node.id)}" transform="translate(${node.x},${node.y})"><rect width="${node.width}" height="${node.height}"></rect><text x="${node.width / 2}" y="${textY}" text-anchor="middle" class="node-label">${lines.map((line, index) => `<tspan x="${node.width / 2}" dy="${index === 0 ? 0 : lineHeight}">${escapeHtml(line)}</tspan>`).join("")}</text></g>`; }
-function wrapLabel(label: string, maxChars: number): string[] { const words = label.split(/\s+/), lines: string[] = []; let current = ""; for (const word of words) { const candidate = current ? `${current} ${word}` : word; if (candidate.length > maxChars && current) { lines.push(current); current = word; } else current = candidate; } if (current) lines.push(current); return lines.length ? lines.slice(0, 3) : [label]; }
-function escapeHtml(value: string): string { return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function getStatusKind(before: unknown, after: unknown): "deactivated" | "activated" | "neutral" {
+  const beforeText = String(before),
+    afterText = String(after);
+  if (beforeText === "Active" && afterText !== "Active") return "deactivated";
+  if (beforeText !== "Active" && afterText === "Active") return "activated";
+  return "neutral";
+}
+function renderStatusCallout(before: unknown, after: unknown, kind: "deactivated" | "activated" | "neutral"): string {
+  const beforeText = String(before),
+    afterText = String(after);
+  if (kind === "deactivated")
+    return `<div class="flow-banner-callout deactivated">Deactivated (${escapeHtml(beforeText)} -> ${escapeHtml(afterText)})</div>`;
+  if (kind === "activated")
+    return `<div class="flow-banner-callout activated">Activated (${escapeHtml(beforeText)} -> ${escapeHtml(afterText)})</div>`;
+  return `<div class="flow-banner-callout neutral">Status: ${escapeHtml(beforeText)} -> ${escapeHtml(afterText)}</div>`;
+}
+function renderValueDelta(before: unknown, after: unknown): string {
+  if (before === undefined) return `<span class="val ins">${escapeHtml(formatValue(after))}</span>`;
+  if (after === undefined) return `<span class="val del">${escapeHtml(formatValue(before))}</span>`;
+  return `<span class="val del">${escapeHtml(formatValue(before))}</span><span class="arrow">-></span><span class="val ins">${escapeHtml(formatValue(after))}</span>`;
+}
+function formatValue(value: unknown): string {
+  return value === undefined ? "(missing)" : String(value);
+}
+function fitViewBox(contentWidth: number, contentHeight: number): string {
+  const width = Math.max(contentWidth, 720),
+    height = Math.max(contentHeight, 540);
+  return `${round((contentWidth - width) / 2)} ${round((contentHeight - height) / 2)} ${round(width)} ${round(height)}`;
+}
+function round(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+function renderEdge(edge: LayoutedFlow["edges"][number]): string {
+  const points = edge.sections.flatMap((section, index) => [
+    ...(index === 0 ? [section.startPoint] : []),
+    ...(section.bendPoints ?? []),
+    section.endPoint,
+  ]);
+  if (points.length === 0) return "";
+  const d = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
+  return `<path class="edge ${edge.kind} ${edge.status}" d="${d}" data-edge-id="${escapeHtml(edge.id)}"></path>`;
+}
+function renderNode(node: LayoutedFlow["nodes"][number]): string {
+  const lines = wrapLabel(node.label, 22),
+    lineHeight = 14,
+    textY = node.height / 2 - ((lines.length - 1) * lineHeight) / 2 + 5;
+  return `<g class="node ${node.status} type-${node.type}" role="button" tabindex="0" data-node-id="${escapeHtml(node.id)}" transform="translate(${node.x},${node.y})"><rect width="${node.width}" height="${node.height}"></rect><text x="${node.width / 2}" y="${textY}" text-anchor="middle" class="node-label">${lines.map((line, index) => `<tspan x="${node.width / 2}" dy="${index === 0 ? 0 : lineHeight}">${escapeHtml(line)}</tspan>`).join("")}</text></g>`;
+}
+function wrapLabel(label: string, maxChars: number): string[] {
+  const words = label.split(/\s+/),
+    lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length > maxChars && current) {
+      lines.push(current);
+      current = word;
+    } else current = candidate;
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines.slice(0, 3) : [label];
+}
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}

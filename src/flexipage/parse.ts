@@ -6,7 +6,7 @@ const HEADER_KEYS = ["masterLabel", "type", "sobjectType", "parentFlexiPage", "d
 const ALWAYS_LIST_KEYS = new Set(["criteria"]);
 
 export async function parseFlexiPage(xml: string): Promise<PageModel> {
-  const parsed = await new Parser({ explicitArray: true, trim: true, normalize: false }).parseStringPromise(xml) as {
+  const parsed = (await new Parser({ explicitArray: true, trim: true, normalize: false }).parseStringPromise(xml)) as {
     FlexiPage?: Record<string, unknown[]>;
   };
   const page = parsed.FlexiPage;
@@ -52,13 +52,15 @@ function parseItemInstance(value: unknown): Item[] {
       .map((entry) => [scalar(entry.name), valueText(entry.value)] as const)
       .filter((entry): entry is [string, PropertyValue] => entry[0] !== undefined && entry[1] !== undefined)
       .sort(([left], [right]) => left.localeCompare(right));
-    return [{
-      kind: "component",
-      componentName: scalar(component.componentName) ?? "(unnamed component)",
-      ...(scalar(component.identifier) !== undefined ? { identifier: scalar(component.identifier) } : {}),
-      properties: Object.fromEntries(properties),
-      facetRefs: [],
-    } satisfies ComponentItem];
+    return [
+      {
+        kind: "component",
+        componentName: scalar(component.componentName) ?? "(unnamed component)",
+        ...(scalar(component.identifier) !== undefined ? { identifier: scalar(component.identifier) } : {}),
+        properties: Object.fromEntries(properties),
+        facetRefs: [],
+      } satisfies ComponentItem,
+    ];
   }
 
   const field = objectAt(instance.fieldInstance);
@@ -70,16 +72,17 @@ function parseItemInstance(value: unknown): Item[] {
         .filter((entry): entry is [string, PropertyValue] => entry[1] !== undefined),
     );
     const identifier = scalar(field.identifier);
-    return [{
-      kind: "field",
-      fieldItem: scalar(field.fieldItem) ?? "(unnamed field)",
-      ...(identifier !== undefined ? { identifier } : {}),
-      attributes,
-    } satisfies FieldItem];
+    return [
+      {
+        kind: "field",
+        fieldItem: scalar(field.fieldItem) ?? "(unnamed field)",
+        ...(identifier !== undefined ? { identifier } : {}),
+        attributes,
+      } satisfies FieldItem,
+    ];
   }
   return [];
 }
-
 
 function arrayAt(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
@@ -87,7 +90,7 @@ function arrayAt(value: unknown): unknown[] {
 
 function objectAt(value: unknown): Record<string, unknown> | undefined {
   const first = Array.isArray(value) ? value[0] : value;
-  return first && typeof first === "object" && !Array.isArray(first) ? first as Record<string, unknown> : undefined;
+  return first && typeof first === "object" && !Array.isArray(first) ? (first as Record<string, unknown>) : undefined;
 }
 
 function objectValue(value: unknown): Record<string, unknown> {
@@ -104,7 +107,9 @@ function valueText(value: unknown, preserveList = false): PropertyValue | undefi
   const direct = scalar(value);
   if (direct !== undefined) return direct;
   if (Array.isArray(value)) {
-    const values = value.map((entry) => valueText(entry)).filter((entry): entry is PropertyValue => entry !== undefined);
+    const values = value
+      .map((entry) => valueText(entry))
+      .filter((entry): entry is PropertyValue => entry !== undefined);
     if (values.length === 0) return undefined;
     if (preserveList) return values;
     return mergeNamedValues(values) ?? (values.length === 1 ? values[0] : values);
@@ -117,9 +122,11 @@ function valueText(value: unknown, preserveList = false): PropertyValue | undefi
     const nested = valueText(object.value);
     return { [name]: nested ?? "" };
   }
-  return Object.fromEntries(entries
-    .map(([key, child]) => [key, valueText(child, ALWAYS_LIST_KEYS.has(key))] as const)
-    .filter((entry): entry is [string, PropertyValue] => entry[1] !== undefined));
+  return Object.fromEntries(
+    entries
+      .map(([key, child]) => [key, valueText(child, ALWAYS_LIST_KEYS.has(key))] as const)
+      .filter((entry): entry is [string, PropertyValue] => entry[1] !== undefined),
+  );
 }
 
 function mergeNamedValues(values: PropertyValue[]): PropertyValue | undefined {

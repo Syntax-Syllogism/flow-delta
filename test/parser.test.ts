@@ -9,7 +9,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FIXTURES = join(ROOT, "fixtures", "parse");
 
 test("FlowParser parses the checked-in fixtures", async () => {
-  const files = readdirSync(FIXTURES).filter((name) => name.endsWith(".flow-meta.xml")).sort();
+  const files = readdirSync(FIXTURES)
+    .filter((name) => name.endsWith(".flow-meta.xml"))
+    .sort();
   for (const file of files) {
     const xml = readFileSync(join(FIXTURES, file), "utf8");
     const parser = new FlowParser(xml);

@@ -49,9 +49,12 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       throw new Error("Provide an equal, non-zero number of --old and --new file paths");
     }
 
-    const comment = product === "flow"
-      ? buildComment(await buildFlowResults(olds, news, artifactUrlBase), { commitSha: parsed.values["commit-sha"] })
-      : buildFlexiPageComment(await buildFlexiPageResults(olds, news, artifactUrlBase), { commitSha: parsed.values["commit-sha"] });
+    const comment =
+      product === "flow"
+        ? buildComment(await buildFlowResults(olds, news, artifactUrlBase), { commitSha: parsed.values["commit-sha"] })
+        : buildFlexiPageComment(await buildFlexiPageResults(olds, news, artifactUrlBase), {
+            commitSha: parsed.values["commit-sha"],
+          });
 
     console.log(comment);
   } catch (error) {
@@ -83,7 +86,11 @@ async function buildFlowModelWithHeader(path: string) {
   return model;
 }
 
-async function buildFlexiPageResults(olds: string[], news: string[], artifactUrlBase: string): Promise<FlexiPageResult[]> {
+async function buildFlexiPageResults(
+  olds: string[],
+  news: string[],
+  artifactUrlBase: string,
+): Promise<FlexiPageResult[]> {
   const results: FlexiPageResult[] = [];
   for (let index = 0; index < olds.length; index += 1) {
     const oldModel = await parseFlexiPage(readMetadataFromFile(olds[index]));

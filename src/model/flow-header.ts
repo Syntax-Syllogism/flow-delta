@@ -22,11 +22,13 @@ export const FLOW_HEADER_KEYS = [
   "isTemplate",
 ] as const;
 
-type FlowHeaderKey = typeof FLOW_HEADER_KEYS[number];
+type FlowHeaderKey = (typeof FLOW_HEADER_KEYS)[number];
 
 export async function extractFlowHeader(xml: string): Promise<FlowHeader> {
   try {
-    const parsed = await new Parser({ explicitArray: false }).parseStringPromise(xml) as { Flow?: Record<string, unknown> };
+    const parsed = (await new Parser({ explicitArray: false }).parseStringPromise(xml)) as {
+      Flow?: Record<string, unknown>;
+    };
     const flow = parsed.Flow;
     if (!flow) {
       return {};

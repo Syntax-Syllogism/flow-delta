@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { isMainModule } from "../util/is-main-module.ts";
+import { versionLine } from "../util/version.ts";
 import {
   DEFAULT_MARKER,
   buildComment,
@@ -38,6 +39,7 @@ export interface GitHubReporterEnv {
 const REPORTER_USAGE = `Usage:
   flow-delta-github --in <flow-delta-out> [--api-url <url>] [--repo <owner/repo>] [--pr <number>]
                     [--server-url <url>] [--run-id <id>] [--token <token>] [--commit-sha <sha>]
+  flow-delta-github --version
                     [--artifact-urls <manifest.json>]
 `;
 
@@ -80,6 +82,10 @@ export async function upsertComment(
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
+  if (argv.includes("--version")) {
+    console.log(versionLine("flow-delta-github"));
+    return;
+  }
   try {
     const parsed = parseArgs({
       args: argv,
@@ -95,6 +101,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
         "artifact-urls": { type: "string" },
         marker: { type: "string" },
         help: { type: "boolean", short: "h" },
+        version: { type: "boolean" },
       },
       allowPositionals: false,
     });
@@ -206,12 +213,7 @@ async function listComments(
   }
 }
 
-async function requestJson<T>(
-  fetchImpl: typeof fetch,
-  url: string,
-  init: RequestInit,
-  label = url,
-): Promise<T> {
+async function requestJson<T>(fetchImpl: typeof fetch, url: string, init: RequestInit, label = url): Promise<T> {
   const response = await fetchImpl(url, init);
   return parseResponse<T>(response, label);
 }

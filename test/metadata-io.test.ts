@@ -24,11 +24,7 @@ test("shared Git discovery unions refs, normalizes paths, deduplicates, and sort
     runner,
   );
 
-  assert.deepEqual(files, [
-    "force-app/main/deep/A.xml",
-    "force-app/main/deep/B.xml",
-    "force-app/main/deep/Z.xml",
-  ]);
+  assert.deepEqual(files, ["force-app/main/deep/A.xml", "force-app/main/deep/B.xml", "force-app/main/deep/Z.xml"]);
   assert.deepEqual(calls, [
     ["ls-tree", "-r", "--name-only", "from-ref"],
     ["ls-tree", "-r", "--name-only", "to-ref"],
@@ -38,12 +34,7 @@ test("shared Git discovery unions refs, normalizes paths, deduplicates, and sort
 test("shared Git discovery preserves literal, star, double-star, and question-mark matching", () => {
   const runner: GitRunner = (_repo, args) => {
     assert.equal(args[0], "ls-tree");
-    return [
-      "flows/a.xml",
-      "flows/ab.xml",
-      "flows/nested/a.xml",
-      "flows/nested/ab.xml",
-    ].join("\n");
+    return ["flows/a.xml", "flows/ab.xml", "flows/nested/a.xml", "flows/nested/ab.xml"].join("\n");
   };
 
   assert.deepEqual(
@@ -125,8 +116,5 @@ test("shared metadata reader returns null for missing paths and propagates unrel
   const unrelatedRunner: GitRunner = () => {
     throw unrelatedError;
   };
-  assert.throws(
-    () => readMetadataFromGit("repo", "new", "flows/file.flow-meta.xml", unrelatedRunner),
-    unrelatedError,
-  );
+  assert.throws(() => readMetadataFromGit("repo", "new", "flows/file.flow-meta.xml", unrelatedRunner), unrelatedError);
 });

@@ -95,7 +95,17 @@ function relatedListGroups(): ComponentSchemaGroup[] {
     },
     {
       name: "Display",
-      paths: ["rowsToDisplay", "numVisibleActions", "showSearchBar", "enableListView", "enableEnhancedList", "showActionBar", "hideSearchBar", "hideUpdateButton", "enableFieldSetLabels"],
+      paths: [
+        "rowsToDisplay",
+        "numVisibleActions",
+        "showSearchBar",
+        "enableListView",
+        "enableEnhancedList",
+        "showActionBar",
+        "hideSearchBar",
+        "hideUpdateButton",
+        "enableFieldSetLabels",
+      ],
       labels: {
         rowsToDisplay: "Rows to Display",
         numVisibleActions: "Visible Actions",

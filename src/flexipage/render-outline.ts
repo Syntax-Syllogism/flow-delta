@@ -23,34 +23,59 @@ export function renderOutline(diff: PageDiff, options: RenderOptions = {}): stri
   const renderRegion = (region: RegionDiff, facet = false): string => {
     if (rendered.has(region.name)) return "";
     rendered.add(region.name);
-    const items = region.items.map((item) => {
-      const nested = itemFacetRefs(item).map((ref) => {
-        const child = regions.get(ref);
-        return child ? renderRegion(child, true) : "";
-      }).join("");
-      return renderItem(item) + nested;
-    }).join("");
+    const items = region.items
+      .map((item) => {
+        const nested = itemFacetRefs(item)
+          .map((ref) => {
+            const child = regions.get(ref);
+            return child ? renderRegion(child, true) : "";
+          })
+          .join("");
+        return renderItem(item) + nested;
+      })
+      .join("");
     return `<section class="outline-region ${facet ? "facet-region " : ""}${region.status}" data-region-status="${region.status}">
       <div class="region-head"><span class="status-badge">${region.status}</span><span>${escapeHtml(region.name)}</span></div>
       <div class="region-items">${items}</div>
     </section>`;
   };
-  const content = [...diff.regions.filter((region) => !referenced.has(region.name)), ...diff.regions.filter((region) => referenced.has(region.name))]
-    .map((region) => renderRegion(region)).join("");
+  const content = [
+    ...diff.regions.filter((region) => !referenced.has(region.name)),
+    ...diff.regions.filter((region) => referenced.has(region.name)),
+  ]
+    .map((region) => renderRegion(region))
+    .join("");
   const summary = diff.summary;
   const metaHtml = `<span class="summary-stat added">+${summary.addedComponents} components</span><span class="summary-stat deleted">−${summary.removedComponents} components</span><span class="summary-stat modified">~${summary.modifiedComponents} components</span><span class="summary-stat">+${summary.addedRegions}/−${summary.removedRegions} regions</span><span class="summary-stat">${summary.changedPageAttributes} page attributes</span>`;
   const templateChange = diff.pageChanges?.find((change) => change.path === "template");
-  const bannerHtml = templateChange ? `<div class="banner">Template changed: ${renderInlineValue(templateChange.before)} → ${renderInlineValue(templateChange.after)}</div>` : "";
+  const bannerHtml = templateChange
+    ? `<div class="banner">Template changed: ${renderInlineValue(templateChange.before)} → ${renderInlineValue(templateChange.after)}</div>`
+    : "";
   const data = Object.fromEntries([
     ...diff.regions.flatMap((region) => region.items.map((item) => [item.id, enrichPanelItem(item)] as const)),
-    ...diff.regions.flatMap((region) => region.changes?.length ? [[regionChangeId(region), enrichPanelItem({
-      id: regionChangeId(region),
-      path: region.path,
-      kind: "region",
-      status: region.status,
-      componentName: region.name.split(" › ").at(-1)?.match(/\(([^()]+)\)$/)?.[1] ?? region.name.split(" › ").at(-1) ?? region.name,
-      changes: region.changes,
-    })] as const] : []),
+    ...diff.regions.flatMap((region) =>
+      region.changes?.length
+        ? [
+            [
+              regionChangeId(region),
+              enrichPanelItem({
+                id: regionChangeId(region),
+                path: region.path,
+                kind: "region",
+                status: region.status,
+                componentName:
+                  region.name
+                    .split(" › ")
+                    .at(-1)
+                    ?.match(/\(([^()]+)\)$/)?.[1] ??
+                  region.name.split(" › ").at(-1) ??
+                  region.name,
+                changes: region.changes,
+              }),
+            ] as const,
+          ]
+        : [],
+    ),
   ]);
   const rollups = getWireframeRollups(diff);
   const json = JSON.stringify({ items: data, rollups }).replace(/</g, "\\u003c");
@@ -90,17 +115,18 @@ export function renderOutline(diff: PageDiff, options: RenderOptions = {}): stri
     contentHtml: content,
     wireframeHtml: wireframe ?? undefined,
     defaultView: wireframe ? "wireframe" : "outline",
-    stylesHtml: ".component-change-groups{display:grid;gap:14px}.component-change-group{margin:0}.component-change-group h3{margin:0 0 7px;font-size:13px;color:var(--text)}",
+    stylesHtml:
+      ".component-change-groups{display:grid;gap:14px}.component-change-group{margin:0}.component-change-group h3{margin:0 0 7px;font-size:13px;color:var(--text)}",
     clientScript,
   });
 }
 
-function enrichPanelItem<T extends { componentName?: string; changes?: PropertyChange[] }>(item: T): T & Record<string, unknown> {
+function enrichPanelItem<T extends { componentName?: string; changes?: PropertyChange[] }>(
+  item: T,
+): T & Record<string, unknown> {
   if (!item.componentName || !item.changes) return item;
   const resolved = resolveComponentChanges(item.componentName, item.changes);
-  return resolved
-    ? { ...item, componentLabel: resolved.componentLabel, changeSections: resolved.sections }
-    : item;
+  return resolved ? { ...item, componentLabel: resolved.componentLabel, changeSections: resolved.sections } : item;
 }
 
 function renderInlineValue(value: unknown): string {

@@ -10,15 +10,7 @@ const EDGE_KEYS = new Set([
   "noMoreValuesConnector",
 ]);
 
-
-const TOP_LEVEL_KEYS = new Set([
-  "name",
-  "label",
-  "locationX",
-  "locationY",
-  "elementSubtype",
-  "diffStatus",
-]);
+const TOP_LEVEL_KEYS = new Set(["name", "label", "locationX", "locationY", "elementSubtype", "diffStatus"]);
 
 const UNORDERED_ARRAY_KEYS = new Set([
   "capabilityTypes",
@@ -54,7 +46,17 @@ const NODE_TYPE_BY_COLLECTION: Record<string, NodeType> = {
 export function buildModel(parsed: ParsedFlow): GraphModel {
   const nodes = [
     toNode(parsed.start, "start"),
-    toNode({ name: "END", label: "End", description: "End", elementSubtype: "End", locationX: 0, locationY: 0 } as flowTypes.FlowNode, "end"),
+    toNode(
+      {
+        name: "END",
+        label: "End",
+        description: "End",
+        elementSubtype: "End",
+        locationX: 0,
+        locationY: 0,
+      } as flowTypes.FlowNode,
+      "end",
+    ),
     ...collectNodes(parsed),
   ]
     .filter((node): node is GraphNode => Boolean(node))
@@ -83,9 +85,7 @@ function addImplicitEndTransitions(transitions: Transition[], startNodeId?: stri
     ...transitions.flatMap((transition) => [transition.from, transition.to]),
   ]);
   const nodesWithNormalExit = new Set(
-    transitions
-      .filter((transition) => !transition.fault)
-      .map((transition) => transition.from),
+    transitions.filter((transition) => !transition.fault).map((transition) => transition.from),
   );
   const implicitEndTransitions = [...reachableNodeIds]
     .filter((nodeId) => nodeId !== "END" && !nodesWithNormalExit.has(nodeId))
@@ -165,17 +165,19 @@ function normalizeUnorderedArray(items: unknown[]): unknown[] {
 }
 
 function stableStringify(value: unknown): string {
-  return JSON.stringify(value, (_, entry) => {
-    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
-      return Object.keys(entry as Record<string, unknown>)
-        .sort()
-        .reduce<Record<string, unknown>>((acc, key) => {
-          acc[key] = (entry as Record<string, unknown>)[key];
-          return acc;
-        }, {});
-    }
-    return entry;
-  }) ?? "";
+  return (
+    JSON.stringify(value, (_, entry) => {
+      if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+        return Object.keys(entry as Record<string, unknown>)
+          .sort()
+          .reduce<Record<string, unknown>>((acc, key) => {
+            acc[key] = (entry as Record<string, unknown>)[key];
+            return acc;
+          }, {});
+      }
+      return entry;
+    }) ?? ""
+  );
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

@@ -94,10 +94,20 @@ On Windows, FlowDelta calls the Salesforce CLI through its `sf.cmd` shim. The sh
 
 ## Common flags
 
-| Flag | Default | Meaning |
-|------|---------|---------|
-| `--out <dir>` | `./flow-delta-out` | Output directory. Created if it's missing. |
-| `--json` | off | Also write `<flow>.diff.json` next to the HTML. |
+| Flag          | Default            | Meaning                                         |
+| ------------- | ------------------ | ----------------------------------------------- |
+| `--out <dir>` | `./flow-delta-out` | Output directory. Created if it's missing.      |
+| `--json`      | off                | Also write `<flow>.diff.json` next to the HTML. |
+
+## Help and version
+
+`--help` (or `-h`) prints the usage text. `--version` prints the binary name and the package version, then exits:
+
+```bash
+npx flow-delta --version      # flow-delta 0.9.1
+```
+
+All six binaries in the package support both flags: `flow-delta`, `flexipage-delta`, `flow-delta-gitlab`, `flow-delta-github`, `flexipage-delta-gitlab`, and `flexipage-delta-github`. `--version` is checked before any other argument is parsed, so it doesn't read inputs or write output, even when other flags are present. An unknown option exits with code 1 and an error message instead of a stack trace.
 
 ## Output
 
@@ -106,7 +116,7 @@ For each flow, the output directory gets:
 - `<flowName>.html`, the self-contained interactive diff or snapshot. Open it in a browser.
 - `<flowName>.diff.json`, the machine-readable `FlowDiff`, only with `--json`. As-built output has `mode: "snapshot"` and `present` nodes and edges.
 
-The file name comes from the flow name through `safeFileName`, which collapses non-alphanumerics to `_`. A **deleted** flow keeps its *old* name.
+The file name comes from the flow name through `safeFileName`, which collapses non-alphanumerics to `_`. A **deleted** flow keeps its _old_ name.
 
 The CLI prints one summary line per flow:
 

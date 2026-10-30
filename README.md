@@ -9,7 +9,7 @@
 
 It's inspired by Google's [Flow Lens](https://github.com/google/flow-lens) and built for CI review of GitLab merge requests and GitHub pull requests. We render our own HTML instead of using PlantUML, Graphviz, or Mermaid.
 
-Lightning pages get the same treatment. The package also ships [FlexiPageDelta](docs/flexipage.md), which diffs `.flexipage-meta.xml` files: regions, components, and facets, shown as an interactive outline with an optional wireframe so you can see *where* on the page something changed. The `flexipage-delta`, `flexipage-delta-gitlab`, and `flexipage-delta-github` binaries install alongside the Flow ones.
+Lightning pages get the same treatment. The package also ships [FlexiPageDelta](docs/flexipage.md), which diffs `.flexipage-meta.xml` files: regions, components, and facets, shown as an interactive outline with an optional wireframe so you can see _where_ on the page something changed. The `flexipage-delta`, `flexipage-delta-gitlab`, and `flexipage-delta-github` binaries install alongside the Flow ones.
 
 See it in action:
 
@@ -48,6 +48,8 @@ npx flexipage-delta --old before.flexipage-meta.xml --new after.flexipage-meta.x
 ## Usage
 
 [docs/cli.md](docs/cli.md) lists every option for diff mode and as-built snapshots. [docs/flexipage.md](docs/flexipage.md) covers the FlexiPage CLI, its outline and wireframe output, and CI reporting.
+
+All six CLI binaries support `--help` and `--version` (which prints the binary name and package version).
 
 ```bash
 # File mode: compare two local files

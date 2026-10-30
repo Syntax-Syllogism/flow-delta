@@ -67,7 +67,10 @@ test("lists typed Flow versions from a Tooling API JSON response", () => {
 test("uses exact retrieve file paths, including the suffix-stripped highest version", () => {
   let retrieveCwd = "";
   const runner: SfRunner = (args, cwd) => {
-    assert.deepEqual(args.filter((arg) => arg === "-m"), ["-m", "-m"]);
+    assert.deepEqual(
+      args.filter((arg) => arg === "-m"),
+      ["-m", "-m"],
+    );
     retrieveCwd = cwd ?? "";
     assert.ok(existsSync(`${retrieveCwd}/sfdx-project.json`));
     assert.ok(existsSync(`${retrieveCwd}/force-app`));
@@ -94,7 +97,10 @@ test("single-version retrieval reuses the highest-version filename fallback", ()
   let retrieveCwd = "";
   const runner: SfRunner = (args, cwd) => {
     retrieveCwd = cwd ?? "";
-    assert.deepEqual(args.filter((arg) => arg === "-m"), ["-m"]);
+    assert.deepEqual(
+      args.filter((arg) => arg === "-m"),
+      ["-m"],
+    );
     return JSON.stringify({
       status: 0,
       result: { files: [{ fullName: "My_Flow-2", filePath: "force-app/My_Flow.flow-meta.xml" }] },
@@ -109,8 +115,7 @@ test("single-version retrieval reuses the highest-version filename fallback", ()
 test("the sf JSON runner never writes token-bearing JSON to output", () => {
   const token = "00D000000000001!fake-access-token";
   const output: string[] = [];
-  const runner: SfRunner = () =>
-    JSON.stringify({ status: 0, result: { accessToken: token, records: [] } });
+  const runner: SfRunner = () => JSON.stringify({ status: 0, result: { accessToken: token, records: [] } });
   const originalLog = console.log;
   const originalError = console.error;
   console.log = (...args: unknown[]) => output.push(args.join(" "));
@@ -203,10 +208,18 @@ function fakeOrgModeDependencies(
 test("as-built org mode selects the highest active version without prompting", async () => {
   const calls: { version?: number; file?: string } = {};
   const dependencies: SnapshotModeDependencies = {
-    listFlowVersions: () => [flowVersion(1), { ...flowVersion(2), status: "Obsolete" }, { ...flowVersion(3), status: "Active" }],
+    listFlowVersions: () => [
+      flowVersion(1),
+      { ...flowVersion(2), status: "Obsolete" },
+      { ...flowVersion(3), status: "Active" },
+    ],
     retrieveSingleFlowVersion: (_org, _developerName, version) => {
       calls.version = version;
-      return { workDir: "C:/temp", versions: [{ versionNumber: version, path: "C:/temp/My_Flow.flow-meta.xml" }], cleanup: () => undefined };
+      return {
+        workDir: "C:/temp",
+        versions: [{ versionNumber: version, path: "C:/temp/My_Flow.flow-meta.xml" }],
+        cleanup: () => undefined,
+      };
     },
     runSnapshotFileMode: async (file) => {
       calls.file = file;
@@ -227,17 +240,15 @@ test("org mode dispatches pinned versions directly to file mode", async () => {
     dependencies,
   );
   assert.equal(dependencies.calls.picked, false);
-  assert.deepEqual(dependencies.calls.files, [
-    "C:/temp/My_Flow-1.flow-meta.xml",
-    "C:/temp/My_Flow-2.flow-meta.xml",
-  ]);
+  assert.deepEqual(dependencies.calls.files, ["C:/temp/My_Flow-1.flow-meta.xml", "C:/temp/My_Flow-2.flow-meta.xml"]);
 });
 
 test("org mode without a flow uses the picker before file mode", async () => {
-  const dependencies = fakeOrgModeDependencies(
-    [flowVersion(1), flowVersion(2)],
-    { developerName: "My_Flow", fromVersion: 1, toVersion: 2 },
-  );
+  const dependencies = fakeOrgModeDependencies([flowVersion(1), flowVersion(2)], {
+    developerName: "My_Flow",
+    fromVersion: 1,
+    toVersion: 2,
+  });
   await runOrgMode({ org: "dev" }, "C:/out", false, dependencies);
   assert.equal(dependencies.calls.picked, true);
   assert.ok(dependencies.calls.files);
@@ -245,15 +256,33 @@ test("org mode without a flow uses the picker before file mode", async () => {
 
 test("org mode reports unknown and missing Flow versions clearly", async () => {
   await assert.rejects(
-    () => runOrgMode({ org: "dev", flow: "Missing", "from-version": "1", "to-version": "2" }, "C:/out", false, fakeOrgModeDependencies([])),
+    () =>
+      runOrgMode(
+        { org: "dev", flow: "Missing", "from-version": "1", "to-version": "2" },
+        "C:/out",
+        false,
+        fakeOrgModeDependencies([]),
+      ),
     /Flow Missing was not found/,
   );
   await assert.rejects(
-    () => runOrgMode({ org: "dev", flow: "My_Flow", "from-version": "1", "to-version": "2" }, "C:/out", false, fakeOrgModeDependencies([flowVersion(1)])),
+    () =>
+      runOrgMode(
+        { org: "dev", flow: "My_Flow", "from-version": "1", "to-version": "2" },
+        "C:/out",
+        false,
+        fakeOrgModeDependencies([flowVersion(1)]),
+      ),
     /Flow My_Flow version 2 was not found/,
   );
   await assert.rejects(
-    () => runOrgMode({ org: "dev", flow: "My_Flow", "from-version": "2", "to-version": "2" }, "C:/out", false, fakeOrgModeDependencies([flowVersion(2)])),
+    () =>
+      runOrgMode(
+        { org: "dev", flow: "My_Flow", "from-version": "2", "to-version": "2" },
+        "C:/out",
+        false,
+        fakeOrgModeDependencies([flowVersion(2)]),
+      ),
     /must be different flow versions/,
   );
 });
@@ -264,22 +293,30 @@ test("org mode remaps the parser legacy-start error to an actionable message", a
     throw new Error(ERROR_MESSAGES.flowStartNotDefined);
   };
   await assert.rejects(
-    () => runOrgMode({ org: "dev", flow: "My_Flow", "from-version": "1", "to-version": "2" }, "C:/out", false, dependencies),
+    () =>
+      runOrgMode(
+        { org: "dev", flow: "My_Flow", "from-version": "1", "to-version": "2" },
+        "C:/out",
+        false,
+        dependencies,
+      ),
     /My_Flow version 1 or 2 uses the legacy Flow format/,
   );
 });
 
 test("sf runner gives actionable messages for missing CLI and auth failures", () => {
   assert.throws(
-    () => runSfJson([], undefined, () => {
-      throw Object.assign(new Error("spawn sf ENOENT"), { code: "ENOENT" });
-    }),
+    () =>
+      runSfJson([], undefined, () => {
+        throw Object.assign(new Error("spawn sf ENOENT"), { code: "ENOENT" });
+      }),
     /Salesforce CLI.*not found/,
   );
   assert.throws(
-    () => runSfJson([], undefined, () => {
-      throw Object.assign(new Error("unauthorized"), { stderr: "No authorization information found" });
-    }),
+    () =>
+      runSfJson([], undefined, () => {
+        throw Object.assign(new Error("unauthorized"), { stderr: "No authorization information found" });
+      }),
     /not authenticated.*sf.*sf org login web/,
   );
 });

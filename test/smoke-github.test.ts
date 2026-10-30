@@ -27,5 +27,8 @@ test("GitHub smoke workflow runs and reports both metadata products", () => {
   assert.match(workflow, /r2-publish\.mjs flow-delta-out/);
   assert.match(workflow, /r2-publish\.mjs flexipage-delta-out/);
   assert.match(workflow, /flow-delta-github --in flow-delta-out --artifact-urls flow-delta-out\/urls\.json/);
-  assert.match(workflow, /flexipage-delta-github --in flexipage-delta-out --artifact-urls flexipage-delta-out\/urls\.json/);
+  assert.match(
+    workflow,
+    /flexipage-delta-github --in flexipage-delta-out --artifact-urls flexipage-delta-out\/urls\.json/,
+  );
 });

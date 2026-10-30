@@ -9,14 +9,26 @@ export const FLEXIPAGE_MARKER = "<!-- FlexiPageDelta:report -->";
 
 export interface FlowResult {
   flowName: string;
-  summary: Pick<FlowDiff["summary"], "addedNodes" | "removedNodes" | "modifiedNodes" | "addedEdges" | "removedEdges" | "changedFlowAttributes">;
+  summary: Pick<
+    FlowDiff["summary"],
+    "addedNodes" | "removedNodes" | "modifiedNodes" | "addedEdges" | "removedEdges" | "changedFlowAttributes"
+  >;
   flowChanges?: FlowDiff["flowChanges"];
   artifactUrl: string;
 }
 
 export interface FlexiPageResult {
   pageName: string;
-  summary: Pick<PageDiff["summary"], "addedComponents" | "removedComponents" | "modifiedComponents" | "addedRegions" | "removedRegions" | "modifiedRegions" | "changedPageAttributes">;
+  summary: Pick<
+    PageDiff["summary"],
+    | "addedComponents"
+    | "removedComponents"
+    | "modifiedComponents"
+    | "addedRegions"
+    | "removedRegions"
+    | "modifiedRegions"
+    | "changedPageAttributes"
+  >;
   pageChanges?: PageDiff["pageChanges"];
   artifactUrl: string;
 }
@@ -31,17 +43,21 @@ export interface ReportNote {
 }
 
 export function buildComment(results: FlowResult[], opts: { marker?: string; commitSha?: string } = {}): string {
-  return buildProductComment(results, {
-    marker: DEFAULT_MARKER,
-    heading: (count) => `## 🔍 FlowDelta — ${count} ${pluralize(count, "flow")} changed`,
-    empty: "_No Flow changes in this MR._",
-    columns: "| Flow | Nodes (+/-/~) | Edges (+/-) | Flow Attributes (+/-/~) | Diff |",
-    separator: "| --- | ---: | ---: | ---: | --- |",
-    sortName: (result) => result.flowName,
-    row: (result) => {
-      return `| ${escapeTableCell(result.flowName)} | +${result.summary.addedNodes} / −${result.summary.removedNodes} / ~${result.summary.modifiedNodes} | +${result.summary.addedEdges} / −${result.summary.removedEdges} | +0 / −0 / ~${result.summary.changedFlowAttributes} | [View](${result.artifactUrl}) |`;
+  return buildProductComment(
+    results,
+    {
+      marker: DEFAULT_MARKER,
+      heading: (count) => `## 🔍 FlowDelta — ${count} ${pluralize(count, "flow")} changed`,
+      empty: "_No Flow changes in this MR._",
+      columns: "| Flow | Nodes (+/-/~) | Edges (+/-) | Flow Attributes (+/-/~) | Diff |",
+      separator: "| --- | ---: | ---: | ---: | --- |",
+      sortName: (result) => result.flowName,
+      row: (result) => {
+        return `| ${escapeTableCell(result.flowName)} | +${result.summary.addedNodes} / −${result.summary.removedNodes} / ~${result.summary.modifiedNodes} | +${result.summary.addedEdges} / −${result.summary.removedEdges} | +0 / −0 / ~${result.summary.changedFlowAttributes} | [View](${result.artifactUrl}) |`;
+      },
     },
-  }, opts);
+    opts,
+  );
 }
 
 export function readResults(inputDir: string): Array<{
@@ -117,8 +133,14 @@ export interface CommentVocabulary<T> {
   row: (result: T) => string;
 }
 
-export function buildProductComment<T>(results: T[], vocabulary: CommentVocabulary<T>, opts: { marker?: string; commitSha?: string } = {}): string {
-  const sorted = [...results].sort((left, right) => vocabulary.sortName(left).localeCompare(vocabulary.sortName(right)));
+export function buildProductComment<T>(
+  results: T[],
+  vocabulary: CommentVocabulary<T>,
+  opts: { marker?: string; commitSha?: string } = {},
+): string {
+  const sorted = [...results].sort((left, right) =>
+    vocabulary.sortName(left).localeCompare(vocabulary.sortName(right)),
+  );
   const lines = [opts.marker ?? vocabulary.marker, "", vocabulary.heading(sorted.length), ""];
   if (sorted.length === 0) lines.push(vocabulary.empty);
   else lines.push(vocabulary.columns, vocabulary.separator, ...sorted.map(vocabulary.row));
@@ -127,8 +149,15 @@ export function buildProductComment<T>(results: T[], vocabulary: CommentVocabula
 }
 
 export function isZeroPageSummary(summary: FlexiPageResult["summary"]): boolean {
-  return summary.addedComponents === 0 && summary.removedComponents === 0 && summary.modifiedComponents === 0
-    && summary.addedRegions === 0 && summary.removedRegions === 0 && summary.modifiedRegions === 0 && summary.changedPageAttributes === 0;
+  return (
+    summary.addedComponents === 0 &&
+    summary.removedComponents === 0 &&
+    summary.modifiedComponents === 0 &&
+    summary.addedRegions === 0 &&
+    summary.removedRegions === 0 &&
+    summary.modifiedRegions === 0 &&
+    summary.changedPageAttributes === 0
+  );
 }
 
 export function readFlexiPageResults(inputDir: string): FlexiPageResultWithStem[] {
@@ -137,7 +166,12 @@ export function readFlexiPageResults(inputDir: string): FlexiPageResultWithStem[
     .map((file) => {
       const diff = JSON.parse(readFileSync(join(inputDir, file), "utf8")) as PageDiff;
       if (isZeroPageSummary(diff.summary)) return null;
-      return { pageName: diff.pageName, summary: diff.summary, pageChanges: diff.pageChanges, stem: safeFileName(diff.pageName) };
+      return {
+        pageName: diff.pageName,
+        summary: diff.summary,
+        pageChanges: diff.pageChanges,
+        stem: safeFileName(diff.pageName),
+      };
     })
     .filter((value): value is NonNullable<typeof value> => value !== null);
 }
@@ -146,18 +180,25 @@ export interface FlexiPageResultWithStem extends Omit<FlexiPageResult, "artifact
   stem: string;
 }
 
-export function buildFlexiPageComment(results: FlexiPageResult[], opts: { marker?: string; commitSha?: string } = {}): string {
-  return buildProductComment(results, {
-    marker: FLEXIPAGE_MARKER,
-    heading: (count) => `## 🔍 FlexiPageDelta — ${count} ${pluralize(count, "page")} changed`,
-    empty: "_No FlexiPage changes in this MR._",
-    columns: "| Page | Components (+/–/~) | Regions (+/–/~) | Page Attributes (+/-/~) | Diff |",
-    separator: "| --- | ---: | ---: | ---: | --- |",
-    sortName: (result) => result.pageName,
-    row: (result) => {
-      return `| ${escapeTableCell(result.pageName)} | +${result.summary.addedComponents} / −${result.summary.removedComponents} / ~${result.summary.modifiedComponents} | +${result.summary.addedRegions} / −${result.summary.removedRegions} / ~${result.summary.modifiedRegions} | +0 / −0 / ~${result.summary.changedPageAttributes} | [View](${result.artifactUrl}) |`;
+export function buildFlexiPageComment(
+  results: FlexiPageResult[],
+  opts: { marker?: string; commitSha?: string } = {},
+): string {
+  return buildProductComment(
+    results,
+    {
+      marker: FLEXIPAGE_MARKER,
+      heading: (count) => `## 🔍 FlexiPageDelta — ${count} ${pluralize(count, "page")} changed`,
+      empty: "_No FlexiPage changes in this MR._",
+      columns: "| Page | Components (+/–/~) | Regions (+/–/~) | Page Attributes (+/-/~) | Diff |",
+      separator: "| --- | ---: | ---: | ---: | --- |",
+      sortName: (result) => result.pageName,
+      row: (result) => {
+        return `| ${escapeTableCell(result.pageName)} | +${result.summary.addedComponents} / −${result.summary.removedComponents} / ~${result.summary.modifiedComponents} | +${result.summary.addedRegions} / −${result.summary.removedRegions} / ~${result.summary.modifiedRegions} | +0 / −0 / ~${result.summary.changedPageAttributes} | [View](${result.artifactUrl}) |`;
+      },
     },
-  }, opts);
+    opts,
+  );
 }
 
 export function findStickyNote(notes: ReportNote[], marker: string, authorId?: number): ReportNote | undefined {
@@ -165,7 +206,11 @@ export function findStickyNote(notes: ReportNote[], marker: string, authorId?: n
 }
 
 export function normalizePath(value: string): string {
-  return value.replaceAll("\\", "/").replace(/^\.\/+/, "").replace(/^\/+/, "").replace(/\/+$/, "");
+  return value
+    .replaceAll("\\", "/")
+    .replace(/^\.\/+/, "")
+    .replace(/^\/+/, "")
+    .replace(/\/+$/, "");
 }
 
 export function escapeTableCell(value: string): string {
@@ -175,4 +220,3 @@ export function escapeTableCell(value: string): string {
 function pluralize(count: number, singular: string): string {
   return count === 1 ? singular : `${singular}s`;
 }
-

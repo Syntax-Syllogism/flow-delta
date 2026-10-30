@@ -18,12 +18,26 @@ test("buildComment renders a marker, table, escaped flow names, and commit foote
   const results: FlowResult[] = [
     {
       flowName: "TA | Case | InsertAuroraTag",
-      summary: { addedNodes: 1, removedNodes: 0, modifiedNodes: 2, addedEdges: 3, removedEdges: 4, changedFlowAttributes: 0 },
+      summary: {
+        addedNodes: 1,
+        removedNodes: 0,
+        modifiedNodes: 2,
+        addedEdges: 3,
+        removedEdges: 4,
+        changedFlowAttributes: 0,
+      },
       artifactUrl: "https://example.test/one",
     },
     {
       flowName: "Another Flow",
-      summary: { addedNodes: 0, removedNodes: 1, modifiedNodes: 0, addedEdges: 0, removedEdges: 1, changedFlowAttributes: 0 },
+      summary: {
+        addedNodes: 0,
+        removedNodes: 1,
+        modifiedNodes: 0,
+        addedEdges: 0,
+        removedEdges: 1,
+        changedFlowAttributes: 0,
+      },
       artifactUrl: "https://example.test/two",
     },
   ];
@@ -33,8 +47,14 @@ test("buildComment renders a marker, table, escaped flow names, and commit foote
   assert.match(comment, /^<!-- FlowDelta:report -->/);
   assert.match(comment, /## 🔍 FlowDelta — 2 flows changed/);
   assert.match(comment, /\| Flow \| Nodes \(\+\/-\/~\) \| Edges \(\+\/-\) \| Flow Attributes \(\+\/-\/~\) \| Diff \|/);
-  assert.match(comment, /TA \\| Case \\| InsertAuroraTag \| \+1 \/ −0 \/ ~2 \| \+3 \/ −4 \| \+0 \/ −0 \/ ~0 \| \[View\]\(https:\/\/example\.test\/one\) \|/);
-  assert.match(comment, /Another Flow \| \+0 \/ −1 \/ ~0 \| \+0 \/ −1 \| \+0 \/ −0 \/ ~0 \| \[View\]\(https:\/\/example\.test\/two\) \|/);
+  assert.match(
+    comment,
+    /TA \\| Case \\| InsertAuroraTag \| \+1 \/ −0 \/ ~2 \| \+3 \/ −4 \| \+0 \/ −0 \/ ~0 \| \[View\]\(https:\/\/example\.test\/one\) \|/,
+  );
+  assert.match(
+    comment,
+    /Another Flow \| \+0 \/ −1 \/ ~0 \| \+0 \/ −1 \| \+0 \/ −0 \/ ~0 \| \[View\]\(https:\/\/example\.test\/two\) \|/,
+  );
   assert.match(comment, /Commit: `abcdef1`/);
 });
 
@@ -47,37 +67,60 @@ test("buildComment shows a Flow Attributes count when nodes and edges are unchan
   const comment = buildComment([
     {
       flowName: "Header Only",
-      summary: { addedNodes: 0, removedNodes: 0, modifiedNodes: 0, addedEdges: 0, removedEdges: 0, changedFlowAttributes: 1 },
+      summary: {
+        addedNodes: 0,
+        removedNodes: 0,
+        modifiedNodes: 0,
+        addedEdges: 0,
+        removedEdges: 0,
+        changedFlowAttributes: 1,
+      },
       flowChanges: [{ path: "status", before: "Active", after: "Draft" }],
       artifactUrl: "https://example.test/header",
     },
   ]);
 
-  assert.match(comment, /Header Only \| \+0 \/ −0 \/ ~0 \| \+0 \/ −0 \| \+0 \/ −0 \/ ~1 \| \[View\]\(https:\/\/example\.test\/header\) \|/);
+  assert.match(
+    comment,
+    /Header Only \| \+0 \/ −0 \/ ~0 \| \+0 \/ −0 \| \+0 \/ −0 \/ ~1 \| \[View\]\(https:\/\/example\.test\/header\) \|/,
+  );
 });
 
 test("buildComment defaults the Flow Attributes count to 0 when there are no flow-level changes", () => {
   const comment = buildComment([
     {
       flowName: "Nodes Only",
-      summary: { addedNodes: 1, removedNodes: 0, modifiedNodes: 0, addedEdges: 0, removedEdges: 0, changedFlowAttributes: 0 },
+      summary: {
+        addedNodes: 1,
+        removedNodes: 0,
+        modifiedNodes: 0,
+        addedEdges: 0,
+        removedEdges: 0,
+        changedFlowAttributes: 0,
+      },
       artifactUrl: "https://example.test/nodes-only",
     },
   ]);
 
-  assert.match(comment, /Nodes Only \| \+1 \/ −0 \/ ~0 \| \+0 \/ −0 \| \+0 \/ −0 \/ ~0 \| \[View\]\(https:\/\/example\.test\/nodes-only\) \|/);
+  assert.match(
+    comment,
+    /Nodes Only \| \+1 \/ −0 \/ ~0 \| \+0 \/ −0 \| \+0 \/ −0 \/ ~0 \| \[View\]\(https:\/\/example\.test\/nodes-only\) \|/,
+  );
 });
 
 test("isZeroSummary treats flow-level attributes as changes", () => {
-  assert.equal(isZeroSummary({
-    addedNodes: 0,
-    removedNodes: 0,
-    modifiedNodes: 0,
-    unchangedNodes: 3,
-    addedEdges: 0,
-    removedEdges: 0,
-    changedFlowAttributes: 1,
-  }), false);
+  assert.equal(
+    isZeroSummary({
+      addedNodes: 0,
+      removedNodes: 0,
+      modifiedNodes: 0,
+      unchangedNodes: 3,
+      addedEdges: 0,
+      removedEdges: 0,
+      changedFlowAttributes: 1,
+    }),
+    false,
+  );
 });
 
 test("loadArtifactUrls and resolveArtifactUrl use manifest URLs with fallback", () => {
@@ -97,7 +140,10 @@ test("loadArtifactUrls and resolveArtifactUrl use manifest URLs with fallback", 
 
   assert.deepEqual(loadArtifactUrls(), {});
   assert.deepEqual(loadArtifactUrls(join(dir, "missing.json")), {});
-  assert.equal(resolveArtifactUrl("Test_Flow", urls, "https://github.example/run"), "https://artifacts.example/Test_Flow.html");
+  assert.equal(
+    resolveArtifactUrl("Test_Flow", urls, "https://github.example/run"),
+    "https://artifacts.example/Test_Flow.html",
+  );
   assert.equal(resolveArtifactUrl("Other_Flow", urls, "https://github.example/run"), "https://github.example/run");
   assert.equal(resolveArtifactUrl("Bad_Flow", urls, "https://github.example/run"), "https://github.example/run");
 });

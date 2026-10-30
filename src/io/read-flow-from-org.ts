@@ -1,10 +1,5 @@
 import { execFileSync } from "node:child_process";
-import {
-  mkdtempSync,
-  mkdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -56,7 +51,7 @@ function quoteWindowsShellArg(value: string): string {
   if (!/[\s"]/.test(value)) {
     return value;
   }
-  return `"${value.replace(/(\\*)"/g, "$1$1\\\"").replace(/(\\+)$/g, "$1$1")}"`;
+  return `"${value.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/g, "$1$1")}"`;
 }
 
 function defaultSfRunner(args: string[], cwd?: string): string {
@@ -77,14 +72,8 @@ function defaultSfRunner(args: string[], cwd?: string): string {
       signal?: string;
     };
     const detail = String(processError.stderr ?? "").toLowerCase();
-    if (
-      processError.code === "ENOENT" ||
-      detail.includes("not recognized") ||
-      detail.includes("command not found")
-    ) {
-      throw new SfCliError(
-        "Salesforce CLI (`sf`) was not found on PATH. Install Salesforce CLI and try again.",
-      );
+    if (processError.code === "ENOENT" || detail.includes("not recognized") || detail.includes("command not found")) {
+      throw new SfCliError("Salesforce CLI (`sf`) was not found on PATH. Install Salesforce CLI and try again.");
     }
 
     if (processError.code === "ETIMEDOUT" || processError.killed || processError.signal === "SIGTERM") {
@@ -94,9 +83,7 @@ function defaultSfRunner(args: string[], cwd?: string): string {
     }
 
     if (isAuthenticationFailure(detail)) {
-      throw new SfCliError(
-        "Salesforce org is not authenticated in `sf`. Run `sf org login web` and try again.",
-      );
+      throw new SfCliError("Salesforce org is not authenticated in `sf`. Run `sf org login web` and try again.");
     }
     throw new SfCliError(
       "The `sf` CLI could not complete the Salesforce request. Check the org alias and Salesforce CLI output.",
@@ -104,11 +91,7 @@ function defaultSfRunner(args: string[], cwd?: string): string {
   }
 }
 
-export function runSfJson(
-  args: string[],
-  cwd?: string,
-  runner: SfRunner = defaultSfRunner,
-): unknown {
+export function runSfJson(args: string[], cwd?: string, runner: SfRunner = defaultSfRunner): unknown {
   let stdout: string;
   try {
     stdout = runner(args, cwd);
@@ -123,9 +106,7 @@ export function runSfJson(
       signal?: string;
     };
     if (processError.code === "ENOENT") {
-      throw new SfCliError(
-        "Salesforce CLI (`sf`) was not found on PATH. Install Salesforce CLI and try again.",
-      );
+      throw new SfCliError("Salesforce CLI (`sf`) was not found on PATH. Install Salesforce CLI and try again.");
     }
     if (processError.code === "ETIMEDOUT" || processError.killed || processError.signal === "SIGTERM") {
       throw new SfCliError(
@@ -133,9 +114,7 @@ export function runSfJson(
       );
     }
     if (isAuthenticationFailure(String(processError.stderr ?? "").toLowerCase())) {
-      throw new SfCliError(
-        "Salesforce org is not authenticated in `sf`. Run `sf org login web` and try again.",
-      );
+      throw new SfCliError("Salesforce org is not authenticated in `sf`. Run `sf org login web` and try again.");
     }
     throw new SfCliError(
       "The `sf` CLI could not complete the Salesforce request. Check the org alias and Salesforce CLI output.",
@@ -154,9 +133,7 @@ export function runSfJson(
   const response = parsed as { status?: number; result?: unknown };
   if (response.status !== undefined && response.status !== 0) {
     if (isAuthenticationFailure(JSON.stringify(parsed).toLowerCase())) {
-      throw new SfCliError(
-        "Salesforce org is not authenticated in `sf`. Run `sf org login web` and try again.",
-      );
+      throw new SfCliError("Salesforce org is not authenticated in `sf`. Run `sf org login web` and try again.");
     }
     throw new SfCliError(
       "The `sf` CLI reported a failed Salesforce request. Check that the org is authenticated and the requested metadata exists.",
@@ -171,16 +148,7 @@ export function listFlowVersions(
   runner: SfRunner = defaultSfRunner,
 ): FlowVersion[] {
   const result = runSfJson(
-    [
-      "data",
-      "query",
-      "--use-tooling-api",
-      "--target-org",
-      org,
-      "--query",
-      VERSION_QUERY,
-      "--json",
-    ],
+    ["data", "query", "--use-tooling-api", "--target-org", org, "--query", VERSION_QUERY, "--json"],
     undefined,
     runner,
   ) as { records?: unknown[] };
@@ -215,8 +183,7 @@ export function listFlowVersions(
     .filter((version) => !developerName || version.developerName === developerName)
     .sort(
       (left, right) =>
-        left.developerName.localeCompare(right.developerName) ||
-        left.versionNumber - right.versionNumber,
+        left.developerName.localeCompare(right.developerName) || left.versionNumber - right.versionNumber,
     );
 }
 
@@ -249,10 +216,12 @@ function responseFiles(result: unknown): Array<{ fullName?: string; filePath: st
   return files.flatMap((file) => {
     const value = file as { fullName?: unknown; filePath?: unknown };
     return typeof value.filePath === "string"
-      ? [{
-          fullName: typeof value.fullName === "string" ? value.fullName : undefined,
-          filePath: value.filePath,
-        }]
+      ? [
+          {
+            fullName: typeof value.fullName === "string" ? value.fullName : undefined,
+            filePath: value.filePath,
+          },
+        ]
       : [];
   });
 }
@@ -271,15 +240,13 @@ function resolveRetrievedPaths(
     if (!file) {
       file = files.find(
         (candidate) =>
-          basename(candidate.filePath) === `${expectedName}.flow-meta.xml` &&
-          !used.has(candidate.filePath),
+          basename(candidate.filePath) === `${expectedName}.flow-meta.xml` && !used.has(candidate.filePath),
       );
     }
     if (!file && versionNumber === highestVersion) {
       file = files.find(
         (candidate) =>
-          basename(candidate.filePath) === `${developerName}.flow-meta.xml` &&
-          !used.has(candidate.filePath),
+          basename(candidate.filePath) === `${developerName}.flow-meta.xml` && !used.has(candidate.filePath),
       );
     }
     if (!file) {
@@ -315,15 +282,7 @@ export function retrieveFlowVersions(
     createScaffold(workDir);
     const metadataArgs = versions.flatMap((version) => ["-m", `Flow:${metadataName(developerName, version)}`]);
     const result = runSfJson(
-      [
-        "project",
-        "retrieve",
-        "start",
-        "--target-org",
-        org,
-        ...metadataArgs,
-        "--json",
-      ],
+      ["project", "retrieve", "start", "--target-org", org, ...metadataArgs, "--json"],
       workDir,
       runner,
     );

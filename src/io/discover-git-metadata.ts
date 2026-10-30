@@ -15,10 +15,7 @@ export function discoverGitMetadataFiles(
   const matcher = createPathMatcher(options.pattern);
   const files = options.changedOnly
     ? listChangedGitFiles(options, runner)
-    : [
-        ...listGitTree(options.repo, options.fromRef, runner),
-        ...listGitTree(options.repo, options.toRef, runner),
-      ];
+    : [...listGitTree(options.repo, options.fromRef, runner), ...listGitTree(options.repo, options.toRef, runner)];
 
   return [...new Set(files.map(normalizePath))].filter(matcher).sort();
 }
@@ -37,10 +34,7 @@ function listGitTree(repo: string, ref: string, runner: GitRunner): string[] {
   return splitLines(runner(repo, ["ls-tree", "-r", "--name-only", ref]));
 }
 
-function listChangedGitFiles(
-  options: DiscoverGitMetadataFilesOptions,
-  runner: GitRunner,
-): string[] {
+function listChangedGitFiles(options: DiscoverGitMetadataFilesOptions, runner: GitRunner): string[] {
   return splitLines(
     runner(options.repo, [
       "diff",

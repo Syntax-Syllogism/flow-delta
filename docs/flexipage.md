@@ -19,19 +19,19 @@ It is a separate binary family from FlowDelta.
 XML (old/new) -> xml2js parser -> PageModel -> PageDiff -> outline/wireframe HTML + diff.json
 ```
 
-| Module | Responsibility |
-| --- | --- |
-| `src/io/read-metadata.ts` / `src/io/discover-git-metadata.ts` | Shared local and Git metadata reading and path discovery. See [metadata-io.md](metadata-io.md). |
-| `src/flexipage/parse.ts` | Parse FlexiPage XML into a raw `PageModel` and run the model transformation. |
-| `src/flexipage/canonicalize-page.ts` | Canonicalize nested facet identities as a pure model transformation: stable paths, orphan hashes, rewritten references, and unique names. |
-| `src/flexipage/page-model.ts` | Define page headers, ordered regions, identifier-aware components and fields, and recursive property values. |
-| `src/flexipage/diff-page.ts` | Match unique canonical region paths and identifier-aware items with LCS. Attach breadcrumbs and visibility notes. |
-| `src/flexipage/component-schemas.ts` | Turn property changes on high-signal components into ordered, friendly groups for the detail panel. Unknown components and uncovered properties keep generic fallbacks. |
-| `src/flexipage/render-outline.ts` | Render the hierarchical, self-contained outline artifact, select wireframe geometry, and drive the shared rollup digest panel. |
-| `src/flexipage/render-wireframe.ts` | Render registry-driven slot placement, nested stacks, removal and orphan appendices, and top-level change rollup pills. |
-| `src/flexipage/template-geometry.ts` | Store and validate the curated template geometry registry. |
-| `src/flexipage-cli.ts` | Run file and git modes and write artifacts. |
-| `src/ci/flexipage-gitlab-report.ts` / `flexipage-github-report.ts` | Post FlexiPage-specific sticky comments, using the shared CI core. |
+| Module                                                             | Responsibility                                                                                                                                                          |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/io/read-metadata.ts` / `src/io/discover-git-metadata.ts`      | Shared local and Git metadata reading and path discovery. See [metadata-io.md](metadata-io.md).                                                                         |
+| `src/flexipage/parse.ts`                                           | Parse FlexiPage XML into a raw `PageModel` and run the model transformation.                                                                                            |
+| `src/flexipage/canonicalize-page.ts`                               | Canonicalize nested facet identities as a pure model transformation: stable paths, orphan hashes, rewritten references, and unique names.                               |
+| `src/flexipage/page-model.ts`                                      | Define page headers, ordered regions, identifier-aware components and fields, and recursive property values.                                                            |
+| `src/flexipage/diff-page.ts`                                       | Match unique canonical region paths and identifier-aware items with LCS. Attach breadcrumbs and visibility notes.                                                       |
+| `src/flexipage/component-schemas.ts`                               | Turn property changes on high-signal components into ordered, friendly groups for the detail panel. Unknown components and uncovered properties keep generic fallbacks. |
+| `src/flexipage/render-outline.ts`                                  | Render the hierarchical, self-contained outline artifact, select wireframe geometry, and drive the shared rollup digest panel.                                          |
+| `src/flexipage/render-wireframe.ts`                                | Render registry-driven slot placement, nested stacks, removal and orphan appendices, and top-level change rollup pills.                                                 |
+| `src/flexipage/template-geometry.ts`                               | Store and validate the curated template geometry registry.                                                                                                              |
+| `src/flexipage-cli.ts`                                             | Run file and git modes and write artifacts.                                                                                                                             |
+| `src/ci/flexipage-gitlab-report.ts` / `flexipage-github-report.ts` | Post FlexiPage-specific sticky comments, using the shared CI core.                                                                                                      |
 
 Shared pieces:
 
@@ -86,6 +86,7 @@ npx flexipage-delta \
 - Added and deleted pages are found from the union of both refs. A deleted page keeps the old page label for its output name.
 - Each page writes `<safe-name>.html`. With `--json`, it also writes `<safe-name>.diff.json`.
 - The default output directory is `./flexipage-delta-out`.
+- `flexipage-delta --help` and `flexipage-delta --version` work as described in [CLI usage](cli.md#help-and-version).
 
 ## Outline and wireframe artifact
 

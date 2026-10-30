@@ -20,7 +20,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
 export function publishDirectory(outDir, keyPrefix, env = process.env) {
   const bucket = required(env.R2_BUCKET, "R2_BUCKET");
   const endpoint = r2Endpoint(env);
-  const htmlFiles = readdirSync(outDir).filter((file) => file.endsWith(".html")).sort();
+  const htmlFiles = readdirSync(outDir)
+    .filter((file) => file.endsWith(".html"))
+    .sort();
   const urls = {};
 
   for (const file of htmlFiles) {
@@ -54,16 +56,7 @@ function resolveUrl(bucket, key, endpoint, env) {
 }
 
 function uploadHtml(path, bucket, key, endpoint) {
-  runAws([
-    "s3",
-    "cp",
-    path,
-    `s3://${bucket}/${key}`,
-    "--endpoint-url",
-    endpoint,
-    "--content-type",
-    "text/html",
-  ]);
+  runAws(["s3", "cp", path, `s3://${bucket}/${key}`, "--endpoint-url", endpoint, "--content-type", "text/html"]);
 }
 
 function presignUrl(bucket, key, endpoint, expiresIn) {

@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
 import { isMainModule } from "../util/is-main-module.ts";
+import { versionLine } from "../util/version.ts";
 import {
   DEFAULT_MARKER,
   buildComment,
@@ -29,9 +30,14 @@ export interface GitLabReporterEnv {
 const REPORTER_USAGE = `Usage:
   flow-delta-gitlab --in <flow-delta-out> [--api-url <url>] [--project-id <id>] [--mr-iid <iid>]
                     [--project-url <url>] [--job-id <id>] [--token <token>] [--commit-sha <sha>]
+  flow-delta-gitlab --version
 `;
 
-export function artifactUrl(env: Pick<GitLabReporterEnv, "projectUrl" | "jobId">, relPath: string, stem: string): string {
+export function artifactUrl(
+  env: Pick<GitLabReporterEnv, "projectUrl" | "jobId">,
+  relPath: string,
+  stem: string,
+): string {
   const base = env.projectUrl.replace(/\/+$/, "");
   const relativePath = normalizePath(relPath);
   const encodedPath = [relativePath, `${stem}.html`]
@@ -61,14 +67,22 @@ export async function upsertComment(
   const notePath = sticky ? `/notes/${sticky.id}` : "/notes";
   const method = sticky ? "PUT" : "POST";
 
-  await requestJson(fetchImpl, `${env.apiUrl}/projects/${env.projectId}/merge_requests/${env.mergeRequestIid}${notePath}`, {
-    method,
-    headers,
-    body: JSON.stringify({ body }),
-  });
+  await requestJson(
+    fetchImpl,
+    `${env.apiUrl}/projects/${env.projectId}/merge_requests/${env.mergeRequestIid}${notePath}`,
+    {
+      method,
+      headers,
+      body: JSON.stringify({ body }),
+    },
+  );
 }
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
+  if (argv.includes("--version")) {
+    console.log(versionLine("flow-delta-gitlab"));
+    return;
+  }
   try {
     const parsed = parseArgs({
       args: argv,
@@ -83,6 +97,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
         "commit-sha": { type: "string" },
         marker: { type: "string" },
         help: { type: "boolean", short: "h" },
+        version: { type: "boolean" },
       },
       allowPositionals: false,
     });
@@ -163,12 +178,7 @@ async function listNotes(
   }
 }
 
-async function requestJson<T>(
-  fetchImpl: typeof fetch,
-  url: string,
-  init: RequestInit,
-  label = url,
-): Promise<T> {
+async function requestJson<T>(fetchImpl: typeof fetch, url: string, init: RequestInit, label = url): Promise<T> {
   const response = await fetchImpl(url, init);
   return parseResponse<T>(response, label);
 }

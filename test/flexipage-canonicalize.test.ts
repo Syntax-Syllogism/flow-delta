@@ -5,7 +5,11 @@ import type { ComponentItem, FieldItem, PageModel, PropertyValue, Region } from 
 
 const guid = (hex: string) => `Facet-${hex.repeat(36).slice(0, 36)}`;
 
-function component(componentName: string, properties: Record<string, PropertyValue> = {}, identifier?: string): ComponentItem {
+function component(
+  componentName: string,
+  properties: Record<string, PropertyValue> = {},
+  identifier?: string,
+): ComponentItem {
   return {
     kind: "component",
     componentName,
@@ -35,28 +39,35 @@ function model(regions: Region[]): PageModel {
 test("canonicalizes transitive facet references without GUIDs", () => {
   const tabs = guid("1");
   const accordion = guid("2");
-  const result = canonicalizePageModel(model([
-    region("main", "Region", [component("flexipage:tab", { title: "Details", body: tabs }, "detailsTab")]),
-    region(tabs, "Facet", [component("flexipage:accordion", { body: accordion }, "accountAccordion")]),
-    region(accordion, "Facet", [field("Record.Name", "name")]),
-  ]));
+  const result = canonicalizePageModel(
+    model([
+      region("main", "Region", [component("flexipage:tab", { title: "Details", body: tabs }, "detailsTab")]),
+      region(tabs, "Facet", [component("flexipage:accordion", { body: accordion }, "accountAccordion")]),
+      region(accordion, "Facet", [field("Record.Name", "name")]),
+    ]),
+  );
 
-  assert.deepEqual(result.regions.map(({ name }) => name), [
-    "main",
-    "main › flexipage:tab#detailsTab (Details) › body",
-    "main › flexipage:tab#detailsTab (Details) › body › flexipage:accordion#accountAccordion › body",
-  ]);
+  assert.deepEqual(
+    result.regions.map(({ name }) => name),
+    [
+      "main",
+      "main › flexipage:tab#detailsTab (Details) › body",
+      "main › flexipage:tab#detailsTab (Details) › body › flexipage:accordion#accountAccordion › body",
+    ],
+  );
   assert.ok(result.regions.every(({ name }) => !name.startsWith("Facet-")));
 });
 
 test("disambiguates duplicate sibling facet signals with deterministic suffixes", () => {
   const first = guid("1");
   const second = guid("2");
-  const result = canonicalizePageModel(model([
-    region("main", "Region", [component("container", { body: [first, second] })]),
-    region(first, "Facet", [field("Record.First")]),
-    region(second, "Facet", [field("Record.Second")]),
-  ]));
+  const result = canonicalizePageModel(
+    model([
+      region("main", "Region", [component("container", { body: [first, second] })]),
+      region(first, "Facet", [field("Record.First")]),
+      region(second, "Facet", [field("Record.Second")]),
+    ]),
+  );
 
   const names = result.regions.map(({ name }) => name);
   assert.deepEqual(names.slice(1), ["main › container › body", "main › container › body#2"]);
@@ -71,17 +82,18 @@ test("disambiguates duplicate sibling facet signals with deterministic suffixes"
 test("terminates safely for cyclic facet references", () => {
   const first = guid("1");
   const second = guid("2");
-  const result = canonicalizePageModel(model([
-    region("main", "Region", [component("root", { body: first })]),
-    region(first, "Facet", [component("first", { body: second })]),
-    region(second, "Facet", [component("second", { body: first })]),
-  ]));
+  const result = canonicalizePageModel(
+    model([
+      region("main", "Region", [component("root", { body: first })]),
+      region(first, "Facet", [component("first", { body: second })]),
+      region(second, "Facet", [component("second", { body: first })]),
+    ]),
+  );
 
-  assert.deepEqual(result.regions.map(({ name }) => name), [
-    "main",
-    "main › root › body",
-    "main › root › body › first › body",
-  ]);
+  assert.deepEqual(
+    result.regions.map(({ name }) => name),
+    ["main", "main › root › body", "main › root › body › first › body"],
+  );
   assert.deepEqual(result.regions[2].items[0], {
     kind: "component",
     componentName: "second",
@@ -91,8 +103,12 @@ test("terminates safely for cyclic facet references", () => {
 });
 
 test("uses deterministic content hashes for orphan facets", () => {
-  const first = canonicalizePageModel(model([region(guid("1"), "Facet", [component("force:detailPanel", { a: "1", z: "2" })])]));
-  const second = canonicalizePageModel(model([region(guid("2"), "Facet", [component("force:detailPanel", { a: "1", z: "2" })])]));
+  const first = canonicalizePageModel(
+    model([region(guid("1"), "Facet", [component("force:detailPanel", { a: "1", z: "2" })])]),
+  );
+  const second = canonicalizePageModel(
+    model([region(guid("2"), "Facet", [component("force:detailPanel", { a: "1", z: "2" })])]),
+  );
 
   assert.match(first.regions[0].name, /^Facet:orphan:[0-9a-f]{12}$/);
   assert.equal(first.regions[0].name, second.regions[0].name);
@@ -100,10 +116,12 @@ test("uses deterministic content hashes for orphan facets", () => {
 
 test("rewrites nested property facet references and deduplicates facetRefs", () => {
   const facet = guid("1");
-  const result = canonicalizePageModel(model([
-    region("main", "Region", [component("container", { config: { slot: facet }, slots: [facet, facet] })]),
-    region(facet, "Facet", [field("Record.Name")]),
-  ]));
+  const result = canonicalizePageModel(
+    model([
+      region("main", "Region", [component("container", { config: { slot: facet }, slots: [facet, facet] })]),
+      region(facet, "Facet", [field("Record.Name")]),
+    ]),
+  );
   const canonical = "main › container › config";
   const item = result.regions[0].items[0];
 

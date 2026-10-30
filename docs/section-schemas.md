@@ -29,19 +29,19 @@ Section schemas live in `src/render/section-schemas.ts`. Each one says how a nod
 
 ```typescript
 interface SectionSchema {
-  name: string;           // Section header (e.g., "Outcomes", "Field Mappings")
-  paths: string[];        // Top-level property keys this section owns
-  render: RenderMode;     // How to display: "lines" | "table" | "grouped-table"
-  columns?: ColumnSchema[];  // (table/grouped-table only) Column definitions
+  name: string; // Section header (e.g., "Outcomes", "Field Mappings")
+  paths: string[]; // Top-level property keys this section owns
+  render: RenderMode; // How to display: "lines" | "table" | "grouped-table"
+  columns?: ColumnSchema[]; // (table/grouped-table only) Column definitions
 }
 
 type RenderMode = "lines" | "table" | "grouped-table";
 
 interface ColumnSchema {
-  key: string;           // Property name to extract
-  label: string;         // Column header
-  unwrap?: boolean;      // Strip type wrappers like { stringValue: "x" } → "x"
-  highlight?: boolean;   // Highlight in green/red for changed cells
+  key: string; // Property name to extract
+  label: string; // Column header
+  unwrap?: boolean; // Strip type wrappers like { stringValue: "x" } → "x"
+  highlight?: boolean; // Highlight in green/red for changed cells
 }
 ```
 
@@ -167,8 +167,8 @@ Each `rules[]` entry becomes a group, labeled by rule name. Its `conditions[]` b
        render: "table",
        columns: [
          { key: "name", label: "Trigger" },
-         { key: "event", label: "Event" }
-       ]
+         { key: "event", label: "Event" },
+       ],
      },
      {
        name: "Handlers",
@@ -176,9 +176,9 @@ Each `rules[]` entry becomes a group, labeled by rule name. Its `conditions[]` b
        render: "grouped-table",
        columns: [
          { key: "type", label: "Type" },
-         { key: "action", label: "Action" }
-       ]
-     }
+         { key: "action", label: "Action" },
+       ],
+     },
    ];
    ```
 
@@ -264,7 +264,7 @@ Field Mappings (modified):
 
 ### Added and deleted nodes
 
-Section schemas aren't used. The panel shows an empty-state message: *"This node was added in the new version."*
+Section schemas aren't used. The panel shows an empty-state message: _"This node was added in the new version."_
 
 ## Fallback grouping
 
@@ -283,8 +283,8 @@ An array in `UNORDERED_ARRAY_KEYS` (see [architecture.md](architecture.md)) is s
 
 ```typescript
 // If "inputParameters" is unordered:
-before:  [{ name: "a" }, { name: "b" }]
-after:   [{ name: "b" }, { name: "a" }]  // Still zero diff (re-sorted)
+before: [{ name: "a" }, { name: "b" }];
+after: [{ name: "b" }, { name: "a" }]; // Still zero diff (re-sorted)
 ```
 
 Add an array to `UNORDERED_ARRAY_KEYS` in `src/model/build-model.ts` if reordering shouldn't count as a change.
@@ -294,8 +294,8 @@ Add an array to `UNORDERED_ARRAY_KEYS` in `src/model/build-model.ts` if reorderi
 Arrays **not** in `UNORDERED_ARRAY_KEYS` stay positional. A change in position **does** produce a diff. Decision `rules[]` is positional, because outcome order matters.
 
 ```typescript
-before:  rules[0].name = "Outcome1"
-after:   rules[0].name = "Outcome2"  // Different outcome in position 0 = diff
+before: rules[0].name = "Outcome1";
+after: rules[0].name = "Outcome2"; // Different outcome in position 0 = diff
 ```
 
 ## Debugging schema issues

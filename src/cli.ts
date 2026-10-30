@@ -20,6 +20,7 @@ import { pickFlowAndVersions } from "./cli-prompt.ts";
 import { ERROR_MESSAGES } from "./parser/flow_parser.ts";
 import { safeFileName } from "./util/file-name.ts";
 import { isMainModule } from "./util/is-main-module.ts";
+import { versionLine } from "./util/version.ts";
 
 export interface CliOptions {
   old?: string;
@@ -31,6 +32,7 @@ export interface CliOptions {
   out?: string;
   json?: boolean;
   help?: boolean;
+  version?: boolean;
   org?: string;
   flow?: string;
   "from-version"?: string;
@@ -54,35 +56,52 @@ const CLI_USAGE = `Usage:
   flow-delta --as-built --file <flow.flow-meta.xml> [--out dir] [--json]
   flow-delta --as-built --org <alias> --flow <Name> [--flow-version <n>] [--out dir] [--json]
   flow-delta --as-built --repo <path> --at <ref> --path <glob> [--out dir] [--json]
+  flow-delta --version
 `;
 
 export async function main(argv = process.argv.slice(2)): Promise<void> {
-  const parsed = parseArgs({
-    args: argv,
-    options: {
-      old: { type: "string" },
-      new: { type: "string" },
-      from: { type: "string" },
-      to: { type: "string" },
-      repo: { type: "string" },
-      path: { type: "string" },
-      out: { type: "string" },
-      json: { type: "boolean" },
-      "changed-only": { type: "boolean" },
-      org: { type: "string" },
-      flow: { type: "string" },
-      "from-version": { type: "string" },
-      "to-version": { type: "string" },
-      "flow-version": { type: "string" },
-      "as-built": { type: "boolean" },
-      file: { type: "string" },
-      at: { type: "string" },
-      interactive: { type: "boolean" },
-      keep: { type: "boolean" },
-      help: { type: "boolean", short: "h" },
-    },
-    allowPositionals: false,
-  });
+  if (argv.includes("--version")) {
+    console.log(versionLine("flow-delta"));
+    return;
+  }
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args: argv,
+      options: {
+        old: { type: "string" },
+        new: { type: "string" },
+        from: { type: "string" },
+        to: { type: "string" },
+        repo: { type: "string" },
+        path: { type: "string" },
+        out: { type: "string" },
+        json: { type: "boolean" },
+        "changed-only": { type: "boolean" },
+        org: { type: "string" },
+        flow: { type: "string" },
+        "from-version": { type: "string" },
+        "to-version": { type: "string" },
+        "flow-version": { type: "string" },
+        "as-built": { type: "boolean" },
+        file: { type: "string" },
+        at: { type: "string" },
+        interactive: { type: "boolean" },
+        keep: { type: "boolean" },
+        help: { type: "boolean", short: "h" },
+        version: { type: "boolean" },
+      },
+      allowPositionals: false,
+    });
+  } catch (error) {
+    const parseError = error as NodeJS.ErrnoException;
+    if (parseError.code?.startsWith("ERR_PARSE_ARGS")) {
+      console.error(`${parseError.message}\nRun flow-delta --help for usage.`);
+      process.exitCode = 1;
+      return;
+    }
+    throw error;
+  }
 
   const options = parsed.values as ParsedCliOptions;
   if (options.help) {
@@ -127,7 +146,14 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       return;
     }
 
-    if (options.org || options.flow || options["from-version"] || options["to-version"] || options.interactive || options.keep) {
+    if (
+      options.org ||
+      options.flow ||
+      options["from-version"] ||
+      options["to-version"] ||
+      options.interactive ||
+      options.keep
+    ) {
       if (!options.org) {
         throw new Error("Org mode requires --org");
       }
@@ -169,7 +195,9 @@ function validateAsBuiltOptions(options: ParsedCliOptions): void {
   const orgInput = options.org !== undefined || options.flow !== undefined || options["flow-version"] !== undefined;
   const gitInput = options.repo !== undefined || options.at !== undefined || options.path !== undefined;
   if ([fileInput, orgInput, gitInput].filter(Boolean).length !== 1) {
-    throw new Error("As-built mode requires exactly one input form: --file, --org with --flow, or --repo with --at and --path.");
+    throw new Error(
+      "As-built mode requires exactly one input form: --file, --org with --flow, or --repo with --at and --path.",
+    );
   }
   if (fileInput && !options.file) {
     throw new Error("As-built file mode requires --file <flow.flow-meta.xml>.");
@@ -212,12 +240,7 @@ export async function runAsBuiltMode(
   dependencies: SnapshotModeDependencies = defaultSnapshotModeDependencies,
 ): Promise<void> {
   if (options.file) {
-    await dependencies.runSnapshotFileMode(
-      options.file,
-      outDir,
-      writeJson,
-      `File ${resolve(options.file)}`,
-    );
+    await dependencies.runSnapshotFileMode(options.file, outDir, writeJson, `File ${resolve(options.file)}`);
     return;
   }
 
@@ -234,19 +257,18 @@ export async function runAsBuiltMode(
     throw new Error(`Flow ${options.flow} was not found in Salesforce org ${options.org}.`);
   }
   const requestedVersion = parseVersionOption(options["flow-version"], "--flow-version");
-  const selected = requestedVersion === undefined
-    ? selectLatestSnapshotVersion(versions)
-    : versions.find((version) => version.versionNumber === requestedVersion);
+  const selected =
+    requestedVersion === undefined
+      ? selectLatestSnapshotVersion(versions)
+      : versions.find((version) => version.versionNumber === requestedVersion);
   if (!selected) {
     throw new Error(`Flow ${options.flow} version ${requestedVersion} was not found in Salesforce org ${options.org}.`);
   }
 
-  console.error(`As-built mode: retrieving Flow ${selected.developerName} version ${selected.versionNumber} from Salesforce...`);
-  const retrieved = dependencies.retrieveSingleFlowVersion(
-    options.org,
-    selected.developerName,
-    selected.versionNumber,
+  console.error(
+    `As-built mode: retrieving Flow ${selected.developerName} version ${selected.versionNumber} from Salesforce...`,
   );
+  const retrieved = dependencies.retrieveSingleFlowVersion(options.org, selected.developerName, selected.versionNumber);
   try {
     const path = retrieved.versions[0]?.path;
     if (!path) {
@@ -266,8 +288,9 @@ export async function runAsBuiltMode(
 
 function selectLatestSnapshotVersion(versions: FlowVersion[]): FlowVersion | undefined {
   const activeVersions = versions.filter((version) => version.status === "Active");
-  return [...(activeVersions.length > 0 ? activeVersions : versions)]
-    .sort((left, right) => right.versionNumber - left.versionNumber)[0];
+  return [...(activeVersions.length > 0 ? activeVersions : versions)].sort(
+    (left, right) => right.versionNumber - left.versionNumber,
+  )[0];
 }
 
 async function runAsBuiltGitMode(
@@ -286,12 +309,7 @@ async function runAsBuiltGitMode(
     try {
       const xml = readMetadataFromGit(repo, ref, filePath);
       if (!xml) continue;
-      await writeSnapshotXml(
-        xml,
-        outDir,
-        writeJson,
-        `Git ${ref}: ${filePath}`,
-      );
+      await writeSnapshotXml(xml, outDir, writeJson, `Git ${ref}: ${filePath}`);
     } catch (error) {
       hadFailure = true;
       console.error(`${filePath}: ${(error as Error).message}`);
@@ -337,7 +355,8 @@ export async function runOrgMode(
   if (fromVersion !== undefined && toVersion !== undefined && fromVersion === toVersion) {
     throw new Error("--from-version and --to-version must be different flow versions.");
   }
-  const shouldPrompt = Boolean(options.interactive) || !options.flow || fromVersion === undefined || toVersion === undefined;
+  const shouldPrompt =
+    Boolean(options.interactive) || !options.flow || fromVersion === undefined || toVersion === undefined;
   let selection: { developerName: string; fromVersion: number; toVersion: number };
   if (shouldPrompt) {
     selection = await dependencies.pickFlowAndVersions(versions, options.flow);
@@ -532,7 +551,9 @@ function formatArtifactSummary(diff: ReturnType<typeof diffModel>): string {
 
 function readToolVersion(): string {
   try {
-    const packageData = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version?: unknown };
+    const packageData = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+      version?: unknown;
+    };
     return typeof packageData.version === "string" ? packageData.version : "unknown";
   } catch {
     return "unknown";

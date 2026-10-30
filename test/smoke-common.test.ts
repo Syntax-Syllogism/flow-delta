@@ -6,7 +6,16 @@ import assert from "node:assert/strict";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { writeFileSync } from "node:fs";
-import { buildRepoGitIgnore, checkoutOrCreateBranch, collectFlexiPageFixturePairs, renameFlexiPageMetadata, renameFlowMetadata, resolveNpmCommand, resolveNpmInvocation, stageAndCommit } from "../scripts/smoke-common.ts";
+import {
+  buildRepoGitIgnore,
+  checkoutOrCreateBranch,
+  collectFlexiPageFixturePairs,
+  renameFlexiPageMetadata,
+  renameFlowMetadata,
+  resolveNpmCommand,
+  resolveNpmInvocation,
+  stageAndCommit,
+} from "../scripts/smoke-common.ts";
 
 test("renameFlowMetadata changes only the Flow identity labels", () => {
   const xml = readFileSync(join(process.cwd(), "fixtures", "diff", "add_node", "after.flow-meta.xml"), "utf8");
@@ -43,7 +52,10 @@ test("FlexiPage smoke fixtures include semantic and template pairs", () => {
 });
 
 test("renameFlexiPageMetadata changes only the top-level page label", () => {
-  const xml = readFileSync(join(process.cwd(), "fixtures", "flexipage-template", "recordHomeTemplateDesktop", "after.flexipage-meta.xml"), "utf8");
+  const xml = readFileSync(
+    join(process.cwd(), "fixtures", "flexipage-template", "recordHomeTemplateDesktop", "after.flexipage-meta.xml"),
+    "utf8",
+  );
 
   const renamed = renameFlexiPageMetadata(xml, "smoke-template-record-home");
 

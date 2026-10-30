@@ -7,10 +7,7 @@ export interface DomHarness {
   close(): void;
 }
 
-export async function renderDom(
-  html: string,
-  storage: Record<string, string> = {},
-): Promise<DomHarness> {
+export async function renderDom(html: string, storage: Record<string, string> = {}): Promise<DomHarness> {
   const window = new Window({
     url: "http://flow-delta.test/",
     settings: {

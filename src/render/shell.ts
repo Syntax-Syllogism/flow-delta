@@ -24,13 +24,17 @@ export function renderShell(options: ShellOptions): string {
   const title = escapeHtml(options.title);
   const productName = escapeHtml(options.productName ?? "FlowDelta");
   const panelTitle = escapeHtml(options.panelTitle ?? "Select a component or field");
-  const panelBackHtml = options.panelBackHtml ?? `<button class="panel-back" id="panel-back" type="button" hidden>Back to changes</button>`;
+  const panelBackHtml =
+    options.panelBackHtml ?? `<button class="panel-back" id="panel-back" type="button" hidden>Back to changes</button>`;
   const panelBadgeHtml = options.panelBadgeHtml ?? `<div class="panel-badge" id="panel-badge" hidden></div>`;
-  const panelBodyHtml = options.panelBodyHtml ?? `<div id="panel-body" class="empty">Click a component or field row to inspect its property deltas.</div>`;
+  const panelBodyHtml =
+    options.panelBodyHtml ??
+    `<div id="panel-body" class="empty">Click a component or field row to inspect its property deltas.</div>`;
   const mode = options.mode ?? "diff";
-  const filtersHtml = options.showFilters === false
-    ? ""
-    : `<div class="filters" aria-label="View filters"><button class="filter-button active" data-view-mode="all">All</button><button class="filter-button" data-view-mode="after">After</button><button class="filter-button" data-view-mode="before">Before</button><button class="filter-button" data-view-mode="changes">Changes only</button></div>`;
+  const filtersHtml =
+    options.showFilters === false
+      ? ""
+      : `<div class="filters" aria-label="View filters"><button class="filter-button active" data-view-mode="all">All</button><button class="filter-button" data-view-mode="after">After</button><button class="filter-button" data-view-mode="before">Before</button><button class="filter-button" data-view-mode="changes">Changes only</button></div>`;
   return `<!doctype html>
 <html lang="en" data-mode="${mode}">
 <head>
@@ -45,14 +49,18 @@ export function renderShell(options: ShellOptions): string {
       try { const stored = localStorage.getItem(key); if (allowed.has(stored)) theme = stored; } catch {}
       document.documentElement.dataset.theme = theme;
       document.documentElement.dataset.mode = ${JSON.stringify(mode)};
-    })();${options.wireframeHtml === undefined ? "" : `
+    })();${
+      options.wireframeHtml === undefined
+        ? ""
+        : `
     (() => {
       const key = ${JSON.stringify(VIEW_STORAGE_KEY)};
       const allowed = new Set(["outline", "wireframe"]);
       let view = ${JSON.stringify(options.defaultView ?? "outline")};
       try { const stored = localStorage.getItem(key); if (allowed.has(stored)) view = stored; } catch {}
       document.documentElement.dataset.view = view;
-    })();`}
+    })();`
+    }
   </script>
   <style>
     :root { color-scheme: light; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; --bg:#f5f7fb; --surface:#fff; --surface-muted:#f8fafc; --surface-selected:#eff6ff; --border:#e3e8ef; --focus:#93c5fd; --text:#1f2937; --muted:#64748b; --faint:#94a3b8; --added:#16a34a; --added-fill:#dcfce7; --deleted:#dc2626; --deleted-fill:#fee2e2; --modified:#d97706; --modified-fill:#fef3c7; --unchanged:#94a3b8; --unchanged-fill:#e9edf3; --panel-width:34vw; }
@@ -114,7 +122,10 @@ export function renderShell(options: ShellOptions): string {
   <header><div><h1>${productName} — ${title}</h1><div class="meta">${options.metaHtml}</div></div><div class="header-actions">${filtersHtml}<div class="display-controls">${options.wireframeHtml === undefined ? "" : `<div class="view-toggle" aria-label="Canvas view"><button class="view-button" data-canvas-view="outline">Outline</button><button class="view-button" data-canvas-view="wireframe">Wireframe</button></div>`}<div class="theme-toggle" aria-label="Color theme"><button class="theme-button" data-theme-choice="system">System</button><button class="theme-button" data-theme-choice="light">Light</button><button class="theme-button" data-theme-choice="dark">Dark</button></div></div></div></header>
   <main><section class="canvas">${options.bannerHtml ?? ""}<div class="view-canvas" data-view-canvas="outline">${options.contentHtml}</div>${options.wireframeHtml === undefined ? "" : `<div class="view-canvas" data-view-canvas="wireframe">${options.wireframeHtml}</div>`}</section><aside class="panel" id="detail-panel"><div class="panel-resizer" id="panel-resizer" role="separator" aria-orientation="vertical" aria-label="Resize panel"></div><div class="panel-head"><div>${panelBackHtml}<h2 id="panel-title">${panelTitle}</h2></div><button class="panel-toggle" id="panel-toggle" type="button" aria-expanded="true" aria-label="Collapse details" title="Collapse details">›</button></div>${panelBadgeHtml}${panelBodyHtml}</aside><button class="panel-reopen" id="panel-reopen" type="button">Show details</button></main>
   <script>
-    ${options.showFilters === false ? "" : `(() => {
+    ${
+      options.showFilters === false
+        ? ""
+        : `(() => {
       const buttons = [...document.querySelectorAll('.filter-button')];
       const modes = new Set(['all', 'after', 'before', 'changes']);
       function applyFilter(mode) {
@@ -128,7 +139,8 @@ export function renderShell(options: ShellOptions): string {
       }
       buttons.forEach((button) => button.addEventListener('click', () => applyFilter(button.dataset.viewMode)));
       applyFilter('all');
-    })();`}
+    })();`
+    }
     (() => {
       const buttons = [...document.querySelectorAll('.theme-button')];
       const allowed = new Set(['system', 'light', 'dark']);

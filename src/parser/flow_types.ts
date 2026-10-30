@@ -40,8 +40,7 @@ export enum FlowAssignmentOperator {
 
 export enum FlowCollectionProcessorType {
   SORT_COLLECTION_PROCESSOR = "SortCollectionProcessor",
-  RECOMMENDATION_MAP_COLLECTION_PROCESSOR =
-    "RecommendationMapCollectionProcessor",
+  RECOMMENDATION_MAP_COLLECTION_PROCESSOR = "RecommendationMapCollectionProcessor",
   FILTER_COLLECTION_PROCESSOR = "FilterCollectionProcessor",
 }
 
@@ -516,14 +515,12 @@ export interface FlowStageStepAssignee {
   assigneeType: FlowStageStepAssigneeType;
 }
 
-export interface FlowStageStepEntryActionInputParameter
-  extends FlowBaseElement {
+export interface FlowStageStepEntryActionInputParameter extends FlowBaseElement {
   name: string;
   value: FlowElementReferenceOrValue;
 }
 
-export interface FlowStageStepEntryActionOutputParameter
-  extends FlowBaseElement {
+export interface FlowStageStepEntryActionOutputParameter extends FlowBaseElement {
   assignToReference?: string; // Reserved for future use
   name: "isOrchestrationConditionMet";
 }
@@ -533,8 +530,7 @@ export interface FlowStageStepExitActionInputParameter extends FlowBaseElement {
   value: FlowElementReferenceOrValue;
 }
 
-export interface FlowStageStepExitActionOutputParameter
-  extends FlowBaseElement {
+export interface FlowStageStepExitActionOutputParameter extends FlowBaseElement {
   assignToReference?: string; // Reserved for future use
   name: "isOrchestrationConditionMet"; // Only possible value
 }

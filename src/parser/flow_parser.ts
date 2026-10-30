@@ -39,8 +39,7 @@ const END_NODE: flowTypes.FlowNode = {
  * Error messages used while parsing flows
  */
 export const ERROR_MESSAGES = {
-  couldNotFindConnectedNode: (node: string) =>
-    `Could not find connected node for ${node}`,
+  couldNotFindConnectedNode: (node: string) => `Could not find connected node for ${node}`,
   flowStartNotDefined: "Flow start is not defined",
 };
 
@@ -142,9 +141,7 @@ export class FlowParser {
     this.beingParsed.apexPluginCalls = ensureArray(flow.apexPluginCalls);
     this.beingParsed.assignments = ensureArray(flow.assignments);
     setAssignments(this.beingParsed.assignments);
-    this.beingParsed.collectionProcessors = ensureArray(
-      flow.collectionProcessors,
-    );
+    this.beingParsed.collectionProcessors = ensureArray(flow.collectionProcessors);
     this.beingParsed.customErrors = ensureArray(flow.customErrors);
     setCustomErrorMessages(this.beingParsed.customErrors);
     this.beingParsed.decisions = ensureArray(flow.decisions);
@@ -305,13 +302,9 @@ export class FlowParser {
     isFault: boolean,
     transitionLabel?: string,
   ): Transition {
-    const connectedNode = this.beingParsed.nameToNode?.get(
-      connection.targetReference,
-    );
+    const connectedNode = this.beingParsed.nameToNode?.get(connection.targetReference);
     if (!connectedNode) {
-      throw new Error(
-        ERROR_MESSAGES.couldNotFindConnectedNode(connection.targetReference),
-      );
+      throw new Error(ERROR_MESSAGES.couldNotFindConnectedNode(connection.targetReference));
     }
     return {
       from: from.name,
@@ -321,26 +314,15 @@ export class FlowParser {
     };
   }
 
-  private getTransitionsFromDecision(
-    node: flowTypes.FlowDecision,
-  ): Transition[] {
+  private getTransitionsFromDecision(node: flowTypes.FlowDecision): Transition[] {
     const result: Transition[] = [];
     if (node.defaultConnector) {
-      result.push(
-        this.createTransition(
-          node,
-          node.defaultConnector,
-          false,
-          node.defaultConnectorLabel,
-        ),
-      );
+      result.push(this.createTransition(node, node.defaultConnector, false, node.defaultConnectorLabel));
     }
     if (node.rules) {
       for (const rule of node.rules) {
         if (rule && rule.connector) {
-          result.push(
-            this.createTransition(node, rule.connector, false, rule.label),
-          );
+          result.push(this.createTransition(node, rule.connector, false, rule.label));
         }
       }
     }
@@ -369,14 +351,10 @@ export class FlowParser {
     const result: Transition[] = [];
 
     if (node.connector) {
-      result.push(
-        this.createTransition(node, node.connector, false, undefined),
-      );
+      result.push(this.createTransition(node, node.connector, false, undefined));
     }
     if (node.faultConnector) {
-      result.push(
-        this.createTransition(node, node.faultConnector, true, FAULT),
-      );
+      result.push(this.createTransition(node, node.faultConnector, true, FAULT));
     }
 
     return result;
@@ -385,19 +363,10 @@ export class FlowParser {
   private getTransitionsFromLoop(node: flowTypes.FlowLoop): Transition[] {
     const result: Transition[] = [];
     if (node.nextValueConnector) {
-      result.push(
-        this.createTransition(node, node.nextValueConnector, false, "for each"),
-      );
+      result.push(this.createTransition(node, node.nextValueConnector, false, "for each"));
     }
     if (node.noMoreValuesConnector) {
-      result.push(
-        this.createTransition(
-          node,
-          node.noMoreValuesConnector,
-          false,
-          "after all",
-        ),
-      );
+      result.push(this.createTransition(node, node.noMoreValuesConnector, false, "after all"));
     }
     return result;
   }
@@ -415,11 +384,7 @@ export class FlowParser {
     const result: Transition[] = [];
 
     if (node.connector) {
-      for (
-        const connector of Array.isArray(node.connector)
-          ? node.connector
-          : [node.connector]
-      ) {
+      for (const connector of Array.isArray(node.connector) ? node.connector : [node.connector]) {
         result.push(this.createTransition(node, connector, false, undefined));
       }
     }
@@ -430,19 +395,10 @@ export class FlowParser {
   private getTransitionsFromWait(node: flowTypes.FlowWait): Transition[] {
     const result: Transition[] = [];
     if (node.defaultConnector) {
-      result.push(
-        this.createTransition(
-          node,
-          node.defaultConnector,
-          false,
-          node.defaultConnectorLabel,
-        ),
-      );
+      result.push(this.createTransition(node, node.defaultConnector, false, node.defaultConnectorLabel));
     }
     if (node.faultConnector) {
-      result.push(
-        this.createTransition(node, node.faultConnector, true, FAULT),
-      );
+      result.push(this.createTransition(node, node.faultConnector, true, FAULT));
     }
     return result;
   }
@@ -452,9 +408,7 @@ export class FlowParser {
 
     // Add main flow transition
     if (node.connector) {
-      result.push(
-        this.createTransition(node, node.connector, false, undefined),
-      );
+      result.push(this.createTransition(node, node.connector, false, undefined));
     }
 
     // Add scheduled path transitions
@@ -462,9 +416,7 @@ export class FlowParser {
       for (const scheduledPath of node.scheduledPaths) {
         if (scheduledPath.connector) {
           const label = scheduledPath.pathType;
-          result.push(
-            this.createTransition(node, scheduledPath.connector, false, label),
-          );
+          result.push(this.createTransition(node, scheduledPath.connector, false, label));
         }
       }
     }
@@ -492,9 +444,7 @@ function ensureArray<T>(input: T[] | undefined): T[] | undefined {
  */
 function setAssignments(assignments: flowTypes.FlowAssignment[] | undefined) {
   assignments?.forEach((assignment) => {
-    assignment.assignmentItems = ensureArray(
-      assignment.assignmentItems,
-    ) as flowTypes.FlowAssignmentItem[];
+    assignment.assignmentItems = ensureArray(assignment.assignmentItems) as flowTypes.FlowAssignmentItem[];
   });
 }
 
@@ -504,16 +454,12 @@ function setAssignments(assignments: flowTypes.FlowAssignment[] | undefined) {
  * Stage Steps are nested properties which also need to be converted to an
  * array.
  */
-function setOrchestratedStageSteps(
-  orchestratedStages: flowTypes.FlowOrchestratedStage[] | undefined,
-) {
+function setOrchestratedStageSteps(orchestratedStages: flowTypes.FlowOrchestratedStage[] | undefined) {
   orchestratedStages?.forEach((stage) => {
     if (!stage.stageSteps) {
       return;
     }
-    stage.stageSteps = ensureArray(
-      stage.stageSteps,
-    ) as flowTypes.FlowStageStep[];
+    stage.stageSteps = ensureArray(stage.stageSteps) as flowTypes.FlowStageStep[];
   });
 }
 
@@ -554,19 +500,13 @@ function setRuleConditions(rules: flowTypes.FlowRule[] | undefined) {
  * Record Lookup filters and queried fields are nested properties which also
  * need to be converted to an array.
  */
-function setRecordLookups(
-  recordLookups: flowTypes.FlowRecordLookup[] | undefined,
-) {
+function setRecordLookups(recordLookups: flowTypes.FlowRecordLookup[] | undefined) {
   recordLookups?.forEach((recordLookup) => {
     if (recordLookup.filters) {
-      recordLookup.filters = ensureArray(
-        recordLookup.filters,
-      ) as flowTypes.FlowRecordFilter[];
+      recordLookup.filters = ensureArray(recordLookup.filters) as flowTypes.FlowRecordFilter[];
     }
     if (recordLookup.queriedFields) {
-      recordLookup.queriedFields = ensureArray(
-        recordLookup.queriedFields,
-      ) as string[];
+      recordLookup.queriedFields = ensureArray(recordLookup.queriedFields) as string[];
     }
   });
 }
@@ -574,16 +514,12 @@ function setRecordLookups(
 /**
  * Ensures that filters and inputAssignments are arrays in record update nodes
  */
-function setRecordUpdates(
-  recordUpdates: flowTypes.FlowRecordUpdate[] | undefined,
-) {
+function setRecordUpdates(recordUpdates: flowTypes.FlowRecordUpdate[] | undefined) {
   if (!recordUpdates) {
     return;
   }
   for (const recordUpdate of recordUpdates) {
-    recordUpdate.filters = ensureArray(
-      recordUpdate.filters ?? [],
-    ) as flowTypes.FlowRecordFilter[];
+    recordUpdate.filters = ensureArray(recordUpdate.filters ?? []) as flowTypes.FlowRecordFilter[];
 
     recordUpdate.inputAssignments = ensureArray(
       recordUpdate.inputAssignments ?? [],
@@ -597,9 +533,7 @@ function setRecordUpdates(
  * Custom Error Messages are nested properties which also need to be converted to
  * an array.
  */
-function setCustomErrorMessages(
-  customErrors: flowTypes.FlowCustomError[] | undefined,
-) {
+function setCustomErrorMessages(customErrors: flowTypes.FlowCustomError[] | undefined) {
   if (!customErrors) {
     return;
   }
@@ -624,14 +558,10 @@ function setFlowStart(start: flowTypes.FlowStart | undefined) {
     start.filters = ensureArray(start.filters) as flowTypes.FlowRecordFilter[];
   }
   if (start.scheduledPaths) {
-    start.scheduledPaths = ensureArray(
-      start.scheduledPaths,
-    ) as flowTypes.FlowScheduledPath[];
+    start.scheduledPaths = ensureArray(start.scheduledPaths) as flowTypes.FlowScheduledPath[];
   }
   if (start.capabilityTypes) {
-    start.capabilityTypes = ensureArray(
-      start.capabilityTypes,
-    ) as flowTypes.FlowCapability[];
+    start.capabilityTypes = ensureArray(start.capabilityTypes) as flowTypes.FlowCapability[];
   }
 }
 
@@ -639,19 +569,12 @@ function setFlowStart(start: flowTypes.FlowStart | undefined) {
  * The following functions are used to determine if a node is a specific type
  * of node.
  */
-function isAssignment(
-  node: flowTypes.FlowNode,
-): node is flowTypes.FlowAssignment {
+function isAssignment(node: flowTypes.FlowNode): node is flowTypes.FlowAssignment {
   return (node as flowTypes.FlowAssignment).assignmentItems !== undefined;
 }
 
-function isCollectionProcessor(
-  node: flowTypes.FlowNode,
-): node is flowTypes.FlowCollectionProcessor {
-  return (
-    (node as flowTypes.FlowCollectionProcessor).collectionProcessorType !==
-      undefined
-  );
+function isCollectionProcessor(node: flowTypes.FlowNode): node is flowTypes.FlowCollectionProcessor {
+  return (node as flowTypes.FlowCollectionProcessor).collectionProcessorType !== undefined;
 }
 
 function isScreen(node: flowTypes.FlowNode): node is flowTypes.FlowScreen {
@@ -662,9 +585,7 @@ function isSubflow(node: flowTypes.FlowNode): node is flowTypes.FlowSubflow {
   return (node as flowTypes.FlowSubflow).flowName !== undefined;
 }
 
-function isTransform(
-  node: flowTypes.FlowNode,
-): node is flowTypes.FlowTransform {
+function isTransform(node: flowTypes.FlowNode): node is flowTypes.FlowTransform {
   return (node as flowTypes.FlowTransform).dataType !== undefined;
 }
 
@@ -684,13 +605,11 @@ function isLoop(node: flowTypes.FlowNode): node is flowTypes.FlowLoop {
   return (node as flowTypes.FlowLoop).nextValueConnector !== undefined;
 }
 
-function isRecordCreate(
-  node: flowTypes.FlowNode,
-): node is flowTypes.FlowRecordCreate {
+function isRecordCreate(node: flowTypes.FlowNode): node is flowTypes.FlowRecordCreate {
   const recordCreate = node as flowTypes.FlowRecordCreate;
   // Check for required FlowRecordCreate properties
-  const hasInputAssignments = recordCreate.inputAssignments !== undefined &&
-    Array.isArray(recordCreate.inputAssignments);
+  const hasInputAssignments =
+    recordCreate.inputAssignments !== undefined && Array.isArray(recordCreate.inputAssignments);
   const hasObject = recordCreate.object !== undefined;
   // FlowRecordUpdate has filters, FlowRecordCreate does not
   const recordUpdate = node as flowTypes.FlowRecordUpdate;
@@ -699,21 +618,15 @@ function isRecordCreate(
   return hasInputAssignments && hasObject && hasNoFilters;
 }
 
-function isRecordDelete(
-  node: flowTypes.FlowNode,
-): node is flowTypes.FlowRecordDelete {
+function isRecordDelete(node: flowTypes.FlowNode): node is flowTypes.FlowRecordDelete {
   return (node as flowTypes.FlowRecordDelete).inputReference !== undefined;
 }
 
-function isRecordLookup(
-  node: flowTypes.FlowNode,
-): node is flowTypes.FlowRecordLookup {
+function isRecordLookup(node: flowTypes.FlowNode): node is flowTypes.FlowRecordLookup {
   return (node as flowTypes.FlowRecordLookup).filters !== undefined;
 }
 
-function isRecordUpdate(
-  node: flowTypes.FlowNode,
-): node is flowTypes.FlowRecordUpdate {
+function isRecordUpdate(node: flowTypes.FlowNode): node is flowTypes.FlowRecordUpdate {
   const recordUpdate = node as flowTypes.FlowRecordUpdate;
   return (
     recordUpdate.inputAssignments !== undefined &&
@@ -722,33 +635,22 @@ function isRecordUpdate(
   );
 }
 
-function isRecordRollback(
-  node: flowTypes.FlowNode,
-): node is flowTypes.FlowRecordRollback {
+function isRecordRollback(node: flowTypes.FlowNode): node is flowTypes.FlowRecordRollback {
   return (node as flowTypes.FlowRecordRollback).connector !== undefined;
 }
 
-function isApexPluginCall(
-  node: flowTypes.FlowNode,
-): node is flowTypes.FlowApexPluginCall {
+function isApexPluginCall(node: flowTypes.FlowNode): node is flowTypes.FlowApexPluginCall {
   return (node as flowTypes.FlowApexPluginCall).apexClass !== undefined;
 }
 
-function isFlowActionCall(
-  node: flowTypes.FlowNode,
-): node is flowTypes.FlowActionCall {
+function isFlowActionCall(node: flowTypes.FlowNode): node is flowTypes.FlowActionCall {
   return (node as flowTypes.FlowActionCall).actionName !== undefined;
 }
 
-function isCustomError(
-  node: flowTypes.FlowNode,
-): node is flowTypes.FlowCustomError {
+function isCustomError(node: flowTypes.FlowNode): node is flowTypes.FlowCustomError {
   return (node as flowTypes.FlowCustomError).customErrorMessages !== undefined;
 }
 
 function isFlowStart(node: flowTypes.FlowNode): node is flowTypes.FlowStart {
-  return (
-    (node as flowTypes.FlowStart).name === START &&
-    (node as flowTypes.FlowStart).label === undefined
-  );
+  return (node as flowTypes.FlowStart).name === START && (node as flowTypes.FlowStart).label === undefined;
 }
