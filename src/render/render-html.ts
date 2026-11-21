@@ -1,5 +1,8 @@
+import type { NodeType } from "../model/graph-model.ts";
+import { NODE_TYPE_LABELS } from "../model/node-summary.ts";
 import type { LayoutedFlow } from "./layout.ts";
 import { buildFlowArtifactClientData } from "./artifact-client-data.ts";
+import { nodeCaption, nodeDisplayLabel } from "./node-caption.ts";
 import { humanizePath } from "./snapshot-panel.ts";
 import { renderShell, THEME_STORAGE_KEY } from "./shell.ts";
 
@@ -44,12 +47,32 @@ const FLOW_RENDER_STYLES = `
     .flow-popover { position:absolute; top:14px; left:14px; z-index:6; width:min(300px,calc(100% - 28px)); background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:0 16px 40px -12px var(--shadow-strong); overflow:hidden; } .flow-popover[hidden] { display:none; } .flow-popover-head { padding:10px 12px; border-bottom:1px solid var(--border); background:var(--surface-muted); font-size:12px; font-weight:650; } .flow-popover-body { padding:12px; max-height:60vh; overflow:auto; } .flow-banner-callout { margin-bottom:8px; font-weight:750; } .flow-banner-callout.deactivated { color:var(--deleted); } .flow-banner-callout.activated { color:var(--added); } .flow-banner-callout.neutral { color:var(--modified); } .flow-banner-list { display:grid; gap:7px; } .flow-change-row { display:grid; grid-template-columns:minmax(90px,120px) minmax(0,1fr); align-items:start; gap:10px; } .flow-change-row + .flow-change-row { margin-top:7px; } .flow-change-label { color:var(--muted); font-size:12px; font-weight:700; } .flow-change-value { min-width: 0; max-height: 180px; overflow: auto; }
     .edge { fill:none; } .edge.unchanged { stroke-width:1.4; opacity:.55; } .edge.normal.unchanged { stroke:var(--edge); marker-end:url(#arrow-normal); } .edge.fault.unchanged { stroke:var(--fault); stroke-dasharray:6 4; marker-end:url(#arrow-fault); } .edge.added { stroke:var(--added); stroke-width:3; marker-end:url(#arrow-added); } .edge.deleted { stroke:var(--deleted); stroke-width:2; stroke-dasharray:7 5; marker-end:url(#arrow-deleted); } #arrow-normal path { fill:var(--edge); } #arrow-fault path { fill:var(--fault); } #arrow-added path { fill:var(--added); } #arrow-deleted path { fill:var(--deleted); }
     .edge.present { stroke:var(--edge); stroke-width:1.8; marker-end:url(#arrow-normal); opacity:.9; } .edge.fault.present { stroke:var(--fault); stroke-dasharray:6 4; }
-    .node rect { rx:11; ry:11; stroke-width:1.75; filter:drop-shadow(0 1px 2px var(--shadow)); } .node { cursor:pointer; } .node text { font-size:12px; fill:var(--node-text); pointer-events:none; } .node.added rect { fill:var(--added-fill); stroke:var(--added); } .node.deleted rect { fill:var(--deleted-fill); stroke:var(--deleted); } .node.modified rect { fill:var(--modified-fill); stroke:var(--modified); } .node.unchanged rect { fill:var(--unchanged-fill); stroke:var(--unchanged); } .node.selected rect { stroke-width:3; filter:drop-shadow(0 2px 6px var(--shadow-strong)); } .node-label { white-space:pre; } .node.type-start rect,.node.type-end rect { rx:24; ry:24; stroke-width:2.5; filter:drop-shadow(0 0 0 3px var(--shadow)) drop-shadow(0 1px 3px var(--shadow-strong)); } .node.type-recordLookup rect,.node.type-recordCreate rect,.node.type-recordUpdate rect,.node.type-recordDelete rect { rx:4; ry:4; } .node.type-screen rect { rx:6; ry:6; } .node.type-subflow rect { stroke-width:2.5; } .node.type-loop rect { stroke-dasharray:2 3; } .node.type-wait rect { stroke-dasharray:4 4; } .node.selected.type-start rect,.node.selected.type-end rect { stroke-width:3.5; filter:drop-shadow(0 0 0 5px var(--shadow-strong)) drop-shadow(0 2px 6px var(--shadow-strong)); }
+    .node { cursor:pointer; }
+    .card-body { stroke-width:1.75; filter:drop-shadow(0 1px 2px var(--shadow)); }
+    .node.added { --card-status:var(--added); --card-fill:var(--added-fill); }
+    .node.modified { --card-status:var(--modified); --card-fill:var(--modified-fill); }
+    .node.deleted { --card-status:var(--deleted); --card-fill:var(--deleted-fill); }
+    .node.unchanged { --card-status:var(--unchanged); --card-fill:var(--unchanged-fill); }
+    .node .card-body { fill:var(--card-fill); stroke:var(--card-status); }
+    .node.present { --card-status:var(--tok); --card-fill:var(--surface); }
+    .node.deleted .card-body { stroke-dasharray:6 4; }
+    .node:focus-visible { outline:none; }
+    .node.selected .card-body, .node:focus-visible .card-body { stroke:var(--focus); stroke-width:3; stroke-dasharray:none; filter:drop-shadow(0 2px 6px var(--shadow-strong)); }
+    .card-tile { fill:var(--tok-fill); stroke:var(--tok); }
+    .card-tile.mono { fill:color-mix(in srgb,var(--surface) 70%,transparent); stroke:var(--border); }
+    .card-glyph { fill:none; color:var(--tok); stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+    .card-glyph.mono { color:var(--muted); }
+    .card-glyph .solid { fill:currentColor; stroke:none; }
+    .card-label, .card-cap, .card-badge text { pointer-events:none; }
+    .card-label { font-size:13px; font-weight:650; fill:var(--node-text); }
+    .card-cap { font-size:11.5px; fill:var(--muted); }
+    .node.deleted .card-label { text-decoration:line-through; }
+    .card-badge rect { fill:var(--card-fill); stroke:var(--card-status); }
+    .card-badge text { font-size:9.5px; font-weight:750; letter-spacing:.05em; fill:var(--node-text); }
+    .panel-node-summary { margin:0 0 12px; overflow-wrap:anywhere; }
     :root { --type-screen:#2563eb; --type-screen-fill:#dbeafe; --type-decision:#d97706; --type-decision-fill:#fef3c7; --type-record:#0f766e; --type-record-fill:#ccfbf1; --type-loop:#7c3aed; --type-loop-fill:#ede9fe; --type-subflow:#475569; --type-subflow-fill:#e2e8f0; --type-assignment:#4f46e5; --type-assignment-fill:#e0e7ff; --type-action:#0891b2; --type-action-fill:#cffafe; --type-wait:#8b5cf6; --type-wait-fill:#ede9fe; --type-start:#16a34a; --type-start-fill:#dcfce7; --type-end:#dc2626; --type-end-fill:#fee2e2; --type-neutral:#64748b; --type-neutral-fill:#e2e8f0; }
     :root[data-theme="dark"] { --type-screen:#60a5fa; --type-screen-fill:#172554; --type-decision:#fbbf24; --type-decision-fill:#422006; --type-record:#2dd4bf; --type-record-fill:#123b3a; --type-loop:#c4b5fd; --type-loop-fill:#2e1d55; --type-subflow:#cbd5e1; --type-subflow-fill:#273449; --type-assignment:#a5b4fc; --type-assignment-fill:#25205b; --type-action:#67e8f9; --type-action-fill:#123b49; --type-wait:#c4b5fd; --type-wait-fill:#2e1d55; --type-start:#4ade80; --type-start-fill:#123f2a; --type-end:#f87171; --type-end-fill:#4a1d23; --type-neutral:#94a3b8; --type-neutral-fill:#263241; }
     @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --type-screen:#60a5fa; --type-screen-fill:#172554; --type-decision:#fbbf24; --type-decision-fill:#422006; --type-record:#2dd4bf; --type-record-fill:#123b3a; --type-loop:#c4b5fd; --type-loop-fill:#2e1d55; --type-subflow:#cbd5e1; --type-subflow-fill:#273449; --type-assignment:#a5b4fc; --type-assignment-fill:#25205b; --type-action:#67e8f9; --type-action-fill:#123b49; --type-wait:#c4b5fd; --type-wait-fill:#2e1d55; --type-start:#4ade80; --type-start-fill:#123f2a; --type-end:#f87171; --type-end-fill:#4a1d23; --type-neutral:#94a3b8; --type-neutral-fill:#263241; } }
-    :root[data-mode="snapshot"] .node.present rect { stroke:var(--type-neutral); fill:var(--type-neutral-fill); }
-    :root[data-mode="snapshot"] .node.present.type-screen rect { stroke:var(--type-screen); fill:var(--type-screen-fill); } :root[data-mode="snapshot"] .node.present.type-decision rect { stroke:var(--type-decision); fill:var(--type-decision-fill); } :root[data-mode="snapshot"] .node.present.type-recordLookup rect,:root[data-mode="snapshot"] .node.present.type-recordCreate rect,:root[data-mode="snapshot"] .node.present.type-recordUpdate rect,:root[data-mode="snapshot"] .node.present.type-recordDelete rect { stroke:var(--type-record); fill:var(--type-record-fill); } :root[data-mode="snapshot"] .node.present.type-loop rect { stroke:var(--type-loop); fill:var(--type-loop-fill); } :root[data-mode="snapshot"] .node.present.type-subflow rect { stroke:var(--type-subflow); fill:var(--type-subflow-fill); } :root[data-mode="snapshot"] .node.present.type-assignment rect { stroke:var(--type-assignment); fill:var(--type-assignment-fill); } :root[data-mode="snapshot"] .node.present.type-actionCall rect,:root[data-mode="snapshot"] .node.present.type-apexPluginCall rect { stroke:var(--type-action); fill:var(--type-action-fill); } :root[data-mode="snapshot"] .node.present.type-wait rect { stroke:var(--type-wait); fill:var(--type-wait-fill); } :root[data-mode="snapshot"] .node.present.type-start rect { stroke:var(--type-start); fill:var(--type-start-fill); } :root[data-mode="snapshot"] .node.present.type-end rect { stroke:var(--type-end); fill:var(--type-end-fill); }
     .snapshot-inventory { display:flex; align-items:center; gap:8px; flex-wrap:wrap; } .snapshot-inventory .stat { color:var(--text); } .snapshot-type-legend { display:flex; gap:12px; flex-wrap:wrap; } .snapshot-type-legend span { white-space:nowrap; } .snapshot-type-swatch { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:5px; vertical-align:0; background:var(--type-neutral); } .snapshot-type-legend .type-screen .snapshot-type-swatch { background:var(--type-screen); } .snapshot-type-legend .type-decision .snapshot-type-swatch { background:var(--type-decision); } .snapshot-type-legend .type-record .snapshot-type-swatch { background:var(--type-record); } .snapshot-type-legend .type-loop .snapshot-type-swatch { background:var(--type-loop); } .snapshot-type-legend .type-subflow .snapshot-type-swatch { background:var(--type-subflow); } .snapshot-type-legend .type-assignment .snapshot-type-swatch { background:var(--type-assignment); } .snapshot-type-legend .type-action .snapshot-type-swatch { background:var(--type-action); } .snapshot-type-legend .type-wait .snapshot-type-swatch { background:var(--type-wait); } .snapshot-type-legend .type-start .snapshot-type-swatch { background:var(--type-start); } .snapshot-type-legend .type-end .snapshot-type-swatch { background:var(--type-end); }
     .detail-section.snapshot-section.present { border-left-color:var(--type-neutral); } .detail-section.snapshot-section.present summary { background:color-mix(in srgb,var(--type-neutral-fill) 45%,transparent); } .panel.present .panel-badge { background:var(--type-neutral-fill); color:var(--type-neutral); }
     @media (max-width:1000px) { .panel { padding:16px; } }
@@ -84,7 +107,7 @@ export function renderHtml(layout: LayoutedFlow): string {
       <marker id="arrow-added" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z"></path></marker>
       <marker id="arrow-deleted" markerWidth="8" height="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L8,4 L0,8 Z"></path></marker>
     </defs>
-    <g id="viewport">${layout.edges.map(renderEdge).join("")}${layout.nodes.map(renderNode).join("")}</g>
+    <g id="viewport">${layout.edges.map(renderEdge).join("")}${layout.nodes.map((node) => renderNode(node, snapshotMode)).join("")}</g>
   </svg>`;
   const clientScript = `
     const DATA = ${json};
@@ -214,21 +237,17 @@ const SNAPSHOT_TYPE_GROUPS = [
   },
   { key: "loop", label: "Loops", types: ["loop"] },
   { key: "subflow", label: "Subflows", types: ["subflow"] },
-  { key: "assignment", label: "Assignments", types: ["assignment"] },
-  { key: "action", label: "Actions", types: ["actionCall", "apexPluginCall"] },
+  {
+    key: "assignment",
+    label: "Assignments and collections",
+    types: ["assignment", "transform", "collectionProcessor"],
+  },
+  { key: "action", label: "Actions and errors", types: ["actionCall", "apexPluginCall", "customError"] },
   { key: "wait", label: "Waits", types: ["wait"] },
   {
     key: "other",
     label: "Other",
-    types: [
-      "step",
-      "orchestratedStage",
-      "transform",
-      "collectionProcessor",
-      "customError",
-      "recordRollback",
-      "unknown",
-    ],
+    types: ["step", "orchestratedStage", "recordRollback", "unknown"],
   },
 ] as const;
 
@@ -331,26 +350,106 @@ function renderEdge(edge: LayoutedFlow["edges"][number]): string {
   const d = points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
   return `<path class="edge ${edge.kind} ${edge.status}" d="${d}" data-edge-id="${escapeHtml(edge.id)}"></path>`;
 }
-function renderNode(node: LayoutedFlow["nodes"][number]): string {
-  const lines = wrapLabel(node.label, 22),
-    lineHeight = 14,
-    textY = node.height / 2 - ((lines.length - 1) * lineHeight) / 2 + 5;
-  return `<g class="node ${node.status} type-${node.type}" role="button" tabindex="0" data-node-id="${escapeHtml(node.id)}" transform="translate(${node.x},${node.y})"><rect width="${node.width}" height="${node.height}"></rect><text x="${node.width / 2}" y="${textY}" text-anchor="middle" class="node-label">${lines.map((line, index) => `<tspan x="${node.width / 2}" dy="${index === 0 ? 0 : lineHeight}">${escapeHtml(line)}</tspan>`).join("")}</text></g>`;
+export const CARD_GLYPHS: Record<NodeType, string> = {
+  start: '<path d="M5 3L13 8L5 13Z" class="solid"/>',
+  end: '<rect x="4" y="4" width="8" height="8" rx="1.5" class="solid"/>',
+  decision: '<path d="M8 1.5L14.5 8L8 14.5L1.5 8Z"/>',
+  assignment: '<path d="M3.5 6h9M3.5 10h9"/>',
+  loop: '<path d="M12.5 8a4.5 4.5 0 1 1-1.3-3.2"/><path d="M11.5 1.8v3h-3"/>',
+  recordLookup: '<circle cx="7" cy="7" r="4.3"/><path d="M10.2 10.2L14 14"/>',
+  recordUpdate: '<path d="M2.5 13.5l.8-3.3 7.4-7.4 2.5 2.5-7.4 7.4z"/>',
+  recordCreate: '<rect x="2" y="2" width="12" height="12" rx="2"/><path d="M8 5v6M5 8h6"/>',
+  recordDelete: '<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9"/>',
+  screen: '<rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M1.5 5.5h13"/>',
+  actionCall: '<path d="M9.5 1.5L3.5 9h4l-1 5.5 6-7.5h-4z" class="solid"/>',
+  apexPluginCall: '<path d="M9.5 1.5L3.5 9h4l-1 5.5 6-7.5h-4z" class="solid"/>',
+  subflow: '<rect x="1.5" y="1.5" width="8" height="8" rx="1.5"/><rect x="6.5" y="6.5" width="8" height="8" rx="1.5"/>',
+  collectionProcessor: '<path d="M2 4h12M4 8h8M6 12h4"/>',
+  wait: '<circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.5 1.5"/>',
+  customError: '<circle cx="8" cy="8" r="6"/><path d="M8 4.5v4.5M8 11.2v.3"/>',
+  step: '<path d="M2 12h4V8h4V4h4"/>',
+  orchestratedStage: '<path d="M2 4h12M2 8h8M2 12h10"/>',
+  transform: '<path d="M2 5h12l-3-3M14 11H2l3 3"/>',
+  recordRollback: '<path d="M2 7l4-4M2 7l4 4M2 7h7a4 4 0 0 1 0 8"/>',
+  unknown: '<circle cx="8" cy="8" r="5.5"/>',
+};
+
+export const CARD_TYPE_TOKENS: Record<NodeType, string> = {
+  start: "start",
+  end: "end",
+  assignment: "assignment",
+  decision: "decision",
+  loop: "loop",
+  recordLookup: "record",
+  recordCreate: "record",
+  recordUpdate: "record",
+  recordDelete: "record",
+  screen: "screen",
+  subflow: "subflow",
+  actionCall: "action",
+  apexPluginCall: "action",
+  wait: "wait",
+  step: "neutral",
+  orchestratedStage: "neutral",
+  transform: "assignment",
+  collectionProcessor: "assignment",
+  customError: "action",
+  recordRollback: "neutral",
+  unknown: "neutral",
+};
+
+function renderNode(node: LayoutedFlow["nodes"][number], snapshot: boolean): string {
+  const { width, height, type, status } = node;
+  const label = nodeDisplayLabel(node);
+  const caption = nodeCaption(node);
+  const showBadge = !snapshot && (status === "added" || status === "modified" || status === "deleted");
+  const compact = type === "end";
+  const terminal = compact || type === "start";
+  const mono = snapshot ? "" : " mono";
+  const token = CARD_TYPE_TOKENS[type] ?? "neutral";
+  const typeLabel = NODE_TYPE_LABELS[type];
+  const title = [`${typeLabel}: ${label}`, caption, snapshot ? "" : status.toUpperCase()].filter(Boolean).join("\n");
+  const tileSize = compact ? 26 : 34;
+  const tileY = (height - tileSize) / 2;
+  const glyphInset = (tileSize - 16) / 2;
+  const textX = compact ? 46 : 58;
+  const textWidth = width - textX - 12;
+  return (
+    `<g class="node ${status} type-${type}" role="button" tabindex="0" data-node-id="${escapeHtml(node.id)}" transform="translate(${node.x},${node.y})" style="--tok:var(--type-${token});--tok-fill:var(--type-${token}-fill)">` +
+    `<title>${escapeHtml(title)}</title>` +
+    `<rect class="card-body" width="${width}" height="${height}" rx="${terminal ? height / 2 : 10}"></rect>` +
+    `<rect class="card-tile${mono}" x="12" y="${tileY}" width="${tileSize}" height="${tileSize}" rx="${terminal ? tileSize / 2 : 8}"></rect>` +
+    `<g class="card-glyph${mono}" aria-hidden="true" transform="translate(${12 + glyphInset},${tileY + glyphInset})">${CARD_GLYPHS[type] ?? CARD_GLYPHS.unknown}</g>` +
+    `<text class="card-label" x="${textX}" y="${compact ? 19 : 27}">${escapeHtml(clipText(label, textWidth, 7.1))}</text>` +
+    `<text class="card-cap" x="${textX}" y="${compact ? 34 : 45}">${escapeHtml(clipText(caption, textWidth, 6))}</text>` +
+    (showBadge ? renderCardBadge(status, width) : "") +
+    "</g>"
+  );
 }
-function wrapLabel(label: string, maxChars: number): string[] {
-  const words = label.split(/\s+/),
-    lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-    if (candidate.length > maxChars && current) {
-      lines.push(current);
-      current = word;
-    } else current = candidate;
+
+function renderCardBadge(status: string, width: number): string {
+  const label = status.toUpperCase();
+  const badgeWidth = Math.round(label.length * 6.4 + 14);
+  return (
+    `<g class="card-badge ${status}" transform="translate(${width - badgeWidth - 10},-9)">` +
+    `<rect width="${badgeWidth}" height="18" rx="9"></rect>` +
+    `<text x="${badgeWidth / 2}" y="12.5" text-anchor="middle">${label}</text></g>`
+  );
+}
+
+function clipText(value: string, width: number, average: number): string {
+  const characters = Array.from(value.replace(/\s+/g, " ").trim());
+  const widths = characters.map((character) => (/[MW@%\u2e80-\u{10ffff}]/u.test(character) ? average * 1.8 : average));
+  if (widths.reduce((total, size) => total + size, 0) <= width) return characters.join("");
+  let remaining = width - average * 1.8;
+  let end = 0;
+  while (end < widths.length && remaining >= widths[end]) {
+    remaining -= widths[end];
+    end += 1;
   }
-  if (current) lines.push(current);
-  return lines.length ? lines.slice(0, 3) : [label];
+  return characters.slice(0, end).join("") + "…";
 }
+
 function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

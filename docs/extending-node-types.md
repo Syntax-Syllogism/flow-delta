@@ -36,6 +36,14 @@ export type NodeType =
 - Use the exact element name from the Salesforce XML.
 - Add a test fixture (see Step 4).
 
+**Also add the type to the element card maps.** These maps are typed `Record<NodeType, …>`, so `npm run typecheck` fails until each one has an entry:
+
+- `NODE_TYPE_LABELS` in `src/model/node-summary.ts`: the type name shown in the card's tooltip, and the caption fallback.
+- `CARD_GLYPHS` in `src/render/render-html.ts`: the inline SVG glyph for the card tile.
+- `CARD_TYPE_TOKENS` in `src/render/render-html.ts`: the `--type-*` color token for the tile and border. Reuse an existing token, such as `record` or `neutral`. A new token also needs `--type-<token>` and `--type-<token>-fill` in the light and dark palettes in `render-html.ts`.
+
+Optionally, add a `SUMMARIES` entry in `src/model/node-summary.ts` to give the card a key-fact caption. Without one, the caption falls back to the display name.
+
 ## Step 2: Verify parser support
 
 The parser is vendored from Google Flow Lens. It lives in `src/parser/flow_types.ts`, which is read-only. Check whether it already defines the new element type:
@@ -258,6 +266,7 @@ If a new element type doesn't parse or diff correctly:
 ## Checklist
 
 - [ ] Added the type name to the `NodeType` union in `src/model/graph-model.ts`
+- [ ] Added the type to `NODE_TYPE_LABELS`, `CARD_GLYPHS`, and `CARD_TYPE_TOKENS` (required by typecheck)
 - [ ] Verified the parser supports it (or filed an upstream issue)
 - [ ] Created a fixture in `fixtures/diff/<case>/` with before/after flows
 - [ ] Added a test row in `test/semantic-diff.test.ts`

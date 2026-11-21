@@ -7,6 +7,14 @@ description: Interactive FlowDelta artifacts, layouts, and detail panels.
 
 The renderer turns a `FlowDiff` into one self-contained HTML artifact, with an embedded data payload for the browser. The page works fully offline. CSS, SVG, and client-side JS are all inline, and the browser fetches no external assets.
 
+## Element cards
+
+Each card shows an inline type glyph, the element label, and a one-line caption with its key fact, such as the queried object or the number of decision outcomes. Modified cards show a short summary of property changes. Long labels and captions end in an ellipsis. Hover over the card for the full label, type, and caption.
+
+In diff artifacts, the card body uses the status colors and the glyph tile is monochrome. Added, modified, and deleted cards repeat their status in a text badge. Deleted cards also have a dashed border and a struck-through label. The selection and keyboard focus ring uses the theme's focus color.
+
+The start node displays as **Start** on the canvas and in the detail panel, not as its internal `FLOW_START` name. Its caption describes the record trigger (object, timing, and create/update) or the flow process type. For unchanged, added, deleted, and as-built start nodes, the caption also appears as a line at the top of the Start detail panel. A modified start shows its change summary on the card, and its panel shows its property changes like any other modified node. The detail panel for an added or deleted node starts with the card's caption.
+
 ## As-built snapshots
 
 `buildSnapshotDiff` gives every graph node and edge the status `present` and keeps the current node properties in `after`. `FlowDiff.mode` selects the snapshot renderer path.
@@ -15,7 +23,7 @@ Snapshot artifacts:
 
 - hide the diff filters;
 - show flow facts without before/after arrows;
-- color nodes by element type; and
+- use neutral card bodies with type-colored tiles and borders that match the header legend; and
 - end with a provenance footer (source, version, generation time, and FlowDelta version).
 
 The embedded client payload includes each node's type, so the panel badge can name the selected element (for example, Screen) instead of showing a change status.
@@ -125,11 +133,13 @@ Changes that match no section schema are grouped by:
 
 ## Key code paths
 
-- `src/render/layout.ts`: layout baking and bounds measurement.
+- `src/render/layout.ts`: layout baking, element card sizing (`cardSize`), and bounds measurement.
 - `src/render/artifact-client-data.ts`: the browser data boundary. Semantic node and edge data, pre-rendered detail HTML, and geometry-only baked views.
 - `src/render/shell.ts`: the shared offline document shell, theme persistence, filter dispatch, panel chrome, and optional Outline/Wireframe switching.
-- `src/render/render-html.ts`: the Flow SVG canvas, client-side graph and filter behavior, the flow-level banner, and semantic node detail content.
+- `src/render/render-html.ts`: the Flow SVG canvas and element cards (`renderNode`, the `CARD_GLYPHS` and `CARD_TYPE_TOKENS` maps, and card CSS), client-side graph and filter behavior, the flow-level banner, and semantic node detail content.
 - `src/render/section-schemas.ts`: type-specific property grouping schemas.
+- `src/model/node-summary.ts`: element display names and the summary helpers that populate `NodeDiff.summary`.
+- `src/render/node-caption.ts`: card display labels and captions, including a fallback for nodes without a stored summary.
 
 ## Manual smoke
 
@@ -143,6 +153,15 @@ For `rewire_connector`, check that `After` and `Before` each read as a coherent 
 - tables render their columns and unwrap typed values;
 - unchanged sibling columns appear faint, as context; and
 - the panel resizes smoothly and collapses and reopens without visual glitches.
+
+**Element cards.** Open `fault_path` and `modify_decision` in diff mode and check that:
+
+- every card shows its glyph, label, and caption, and changed cards carry a status badge;
+- added, modified, and deleted cards keep their status colors, and deleted cards have a dashed border and a struck-through label;
+- hovering a card shows the full label, type, and caption; and
+- long labels and captions end in an ellipsis.
+
+Render an as-built snapshot of a fixture's after file (for example `npx tsx src/cli.ts --as-built --file fixtures/diff/fault_path/after.flow-meta.xml --out out/`) and check that card bodies stay neutral, while each tile and border matches its type in the header legend.
 
 **Flow-level changes.** Open `deactivate_flow` and `bump_api_version` and check that the banner appears above the graph, stays visible in every view filter, and adds no external network references.
 

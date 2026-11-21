@@ -1,5 +1,6 @@
 import ELK from "elkjs/lib/elk.bundled.js";
 import type { FlowDiff, EdgeDiff, NodeDiff } from "../diff/diff-model.ts";
+import { nodeCaption, nodeDisplayLabel } from "./node-caption.ts";
 
 export interface LayoutPoint {
   x: number;
@@ -109,13 +110,12 @@ async function layoutView(
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": "DOWN",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "60",
-      "elk.spacing.nodeNode": "40",
+      "elk.layered.spacing.nodeNodeBetweenLayers": "56",
+      "elk.spacing.nodeNode": "44",
     },
     children: nodes.map((node) => ({
       id: node.id,
-      width: estimateWidth(node.label),
-      height: 48,
+      ...cardSize(node),
     })),
     edges: edges.map((edge) => ({
       id: edge.id,
@@ -137,13 +137,13 @@ async function layoutView(
   const edgeMap = new Map(edgeLayouts.map((edge) => [edge.id, edge]));
 
   const positionedNodes = nodes.map((node) => {
-    const positioned = nodeMap.get(node.id);
+    const positioned = nodeMap.get(node.id) ?? { x: 0, y: 0, ...cardSize(node) };
     return {
       id: node.id,
-      x: positioned?.x ?? 0,
-      y: positioned?.y ?? 0,
-      width: positioned?.width ?? estimateWidth(node.label),
-      height: positioned?.height ?? 48,
+      x: positioned.x ?? 0,
+      y: positioned.y ?? 0,
+      width: positioned.width,
+      height: positioned.height,
     };
   });
 
@@ -161,8 +161,10 @@ async function layoutView(
   };
 }
 
-function estimateWidth(label: string): number {
-  return Math.max(120, Math.min(320, label.length * 8 + 32));
+export function cardSize(node: NodeDiff): { width: number; height: number } {
+  if (node.type === "end") return { width: 128, height: 44 };
+  const width = 70 + Math.max(nodeDisplayLabel(node).length * 7.4, nodeCaption(node).length * 6.2);
+  return { width: Math.round(Math.max(180, Math.min(320, width))), height: 60 };
 }
 
 function normalizeSections(sections: LayoutSection[] | undefined): LayoutSection[] {
@@ -185,10 +187,7 @@ function measureBounds(nodes: LayoutNodeGeometry[]): { width: number; height: nu
 function withNodeGeometry(node: NodeDiff, geometry: LayoutNodeGeometry | undefined): LayoutedNode {
   return {
     ...node,
-    x: geometry?.x ?? 0,
-    y: geometry?.y ?? 0,
-    width: geometry?.width ?? estimateWidth(node.label),
-    height: geometry?.height ?? 48,
+    ...(geometry ?? { x: 0, y: 0, ...cardSize(node) }),
   };
 }
 

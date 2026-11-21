@@ -26,7 +26,7 @@ New to the project? Read these three in order:
 
 - [Data model reference](data-model.md): the core types (`GraphModel`, `GraphNode`, `FlowDiff`) and how they move through the pipeline.
 - [Architecture](architecture.md): what each module does, how properties are canonicalized, and the invariants that must hold.
-- [Rendering](render.md): the interactive HTML, layout strategy, and side panel.
+- [Rendering](render.md): the interactive HTML, element cards, layout strategy, and side panel.
 
 ## Extending FlowDelta
 
@@ -50,7 +50,7 @@ New to the project? Read these three in order:
 → [CLI usage](cli.md#as-built-mode-render-one-current-flow), then [Rendering](render.md#as-built-snapshots)
 
 **Set up CI reporting in GitLab or GitHub**
-→ [CI integration](ci.md), plus [examples/gitlab-ci.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.4/examples/gitlab-ci.yml) or [examples/github-actions.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.4/examples/github-actions.yml)
+→ [CI integration](ci.md), plus [examples/gitlab-ci.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.10.0/examples/gitlab-ci.yml) or [examples/github-actions.yml](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.10.0/examples/github-actions.yml)
 
 **Work out why a diff looks wrong**
 → [Debugging and troubleshooting](debugging.md), then [Data model reference](data-model.md)
@@ -97,12 +97,12 @@ New to the project? Read these three in order:
 ## Conventions
 
 - File paths are relative to the project root, for example `src/cli.ts`.
-- Code examples use `npm` and `npm run` scripts. See [package.json](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.4/package.json).
+- Code examples use `npm` and `npm run` scripts. See [package.json](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.10.0/package.json).
 - Terminal examples use bash. On Windows, use PowerShell or Git Bash.
 - Links to source assume you have the repo cloned and open.
 
 ## Contributing and license
 
-See [CONTRIBUTING.md](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.4/CONTRIBUTING.md) for code style, PR expectations, and workflow.
+See [CONTRIBUTING.md](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.10.0/CONTRIBUTING.md) for code style, PR expectations, and workflow.
 
-FlowDelta's code is MIT. The vendored parser is Apache-2.0. See [LICENSE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.4/LICENSE) and [LICENSE-APACHE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.9.4/LICENSE-APACHE).
+FlowDelta's code is MIT. The vendored parser is Apache-2.0. See [LICENSE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.10.0/LICENSE) and [LICENSE-APACHE](https://github.com/Syntax-Syllogism/flow-delta/blob/v0.10.0/LICENSE-APACHE).

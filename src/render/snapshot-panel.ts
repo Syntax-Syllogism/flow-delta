@@ -1,7 +1,10 @@
+import type { NodeType } from "../model/graph-model.ts";
 import type { SectionSchema } from "./section-schemas.ts";
 
 export interface SnapshotPanelNode {
+  type?: NodeType;
   status: "added" | "deleted" | "modified" | "unchanged" | "present";
+  summary?: string;
   before?: Record<string, unknown>;
   after?: Record<string, unknown>;
 }
@@ -64,8 +67,12 @@ const COLLECTION_KEY_NAMES = [
 const COLLECTION_KEYS = new Set(COLLECTION_KEY_NAMES);
 
 export function renderNodePanelBody(node: SnapshotPanelNode, schemas: SectionSchema[] = []): string {
+  const showSummary =
+    node.status === "added" || node.status === "deleted" || (node.type === "start" && node.status !== "modified");
+  const summary =
+    showSummary && node.summary ? "<p class='panel-node-summary'>" + escapeHtml(node.summary) + "</p>" : "";
   if (node.status === "unchanged") {
-    return "<div class='empty'>No property changes.</div>";
+    return summary + "<div class='empty'>No property changes.</div>";
   }
 
   const before = node.status === "added" || node.status === "present" ? undefined : node.before;
@@ -73,10 +80,10 @@ export function renderNodePanelBody(node: SnapshotPanelNode, schemas: SectionSch
   const options = { showUnchanged: node.status !== "modified", nodeStatus: node.status };
   const sections = renderSections(before, after, schemas || [], options);
   if (!sections.length) {
-    return "<div class='empty'>No configuration.</div>";
+    return summary + "<div class='empty'>No configuration.</div>";
   }
 
-  return sections
+  const details = sections
     .map((section, index) => {
       const open = node.status === "modified" || node.status === "present" || index === 0 ? " open" : "";
       return (
@@ -95,6 +102,7 @@ export function renderNodePanelBody(node: SnapshotPanelNode, schemas: SectionSch
       );
     })
     .join("");
+  return summary + details;
 }
 
 function renderSections(

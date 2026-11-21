@@ -1,5 +1,6 @@
 import type { GraphEdge, GraphModel, GraphNode, NodeType } from "../model/graph-model.ts";
 import { FLOW_HEADER_KEYS } from "../model/flow-header.ts";
+import { changeSummary, nodeSummary } from "../model/node-summary.ts";
 import { deepDiff, type PropertyChange } from "./deep-diff.ts";
 
 export type Status = "added" | "deleted" | "modified" | "unchanged" | "present";
@@ -22,6 +23,7 @@ export interface NodeDiff {
   type: NodeType;
   label: string;
   status: Status;
+  summary?: string;
   changes?: PropertyChange[];
   /**
    * Raw property snapshots for changed nodes. Modified nodes carry both
@@ -68,7 +70,18 @@ export function diffModel(oldModel: GraphModel, newModel: GraphModel): FlowDiff 
   const nodeIds = [...new Set([...oldNodes.keys(), ...newNodes.keys()])].sort();
   const edgeIds = [...new Set([...oldEdges.keys(), ...newEdges.keys()])].sort();
 
-  const nodes = nodeIds.map((id) => classifyNode(oldNodes.get(id), newNodes.get(id)));
+  const nodes = nodeIds.map((id) => {
+    const after = newNodes.get(id);
+    const before = oldNodes.get(id);
+    const diff = classifyNode(before, after);
+    const node = (after ?? before)!;
+    const model = after ? newModel : oldModel;
+    diff.summary =
+      diff.status === "modified"
+        ? changeSummary(diff)
+        : nodeSummary(node.type, node.properties, { processType: model.header?.processType ?? model.processType });
+    return diff;
+  });
   const edges = edgeIds.map((id) => classifyEdge(oldEdges.get(id), newEdges.get(id)));
   const flowChanges = diffFlowHeaders(oldModel, newModel);
 
@@ -108,6 +121,9 @@ export function buildSnapshotDiff(model: GraphModel, snapshotMeta: SnapshotMeta)
       type: node.type,
       label: node.label,
       status: "present",
+      summary: nodeSummary(node.type, node.properties, {
+        processType: model.header?.processType ?? model.processType ?? snapshotMeta.processType,
+      }),
       after: node.properties,
     })),
     edges: model.edges.map((edge) => toEdgeDiff(edge, "present")),

@@ -7,13 +7,15 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { HTMLButtonElement, HTMLElement, SVGSVGElement } from "happy-dom";
 import { FlowParser } from "../src/parser/flow_parser.ts";
+import type { NodeType } from "../src/model/graph-model.ts";
 import { buildModel } from "../src/model/build-model.ts";
 import { extractFlowHeader } from "../src/model/flow-header.ts";
+import { NODE_TYPE_LABELS, changeSummary, nodeSummary } from "../src/model/node-summary.ts";
 import { deepDiff } from "../src/diff/deep-diff.ts";
 import { buildSnapshotDiff, diffModel } from "../src/diff/diff-model.ts";
 import { buildFlowArtifactClientData } from "../src/render/artifact-client-data.ts";
-import { layoutDiff } from "../src/render/layout.ts";
-import { THEME_STORAGE_KEY, renderHtml } from "../src/render/render-html.ts";
+import { cardSize, layoutDiff } from "../src/render/layout.ts";
+import { CARD_GLYPHS, CARD_TYPE_TOKENS, THEME_STORAGE_KEY, renderHtml } from "../src/render/render-html.ts";
 import { getSectionSchemas } from "../src/render/section-schemas.ts";
 import { renderNodePanelBody } from "../src/render/snapshot-panel.ts";
 import { main } from "../src/cli.ts";
@@ -337,6 +339,7 @@ test("snapshot diffs render present nodes, inventory, facts, and provenance", as
   assert.match(html, /snapshot-inventory/);
   assert.match(html, /3 elements/);
   assert.match(html, /snapshot-type-legend/);
+  assert.doesNotMatch(html, /\.node\.present[^{}\n]* rect\s*\{/);
   assert.match(html, /class="node present type-screen"/);
   assert.match(html, /<svg[^>]+aria-label="Flow snapshot"/);
   assert.match(html, /Flow facts/);
@@ -351,6 +354,10 @@ test("snapshot diffs render present nodes, inventory, facts, and provenance", as
     const node = dom.document.querySelector('[data-node-id="SCREEN"]') as HTMLElement;
     node.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
     assert.equal(dom.document.getElementById("panel-badge")?.textContent, "Screen");
+    assert.match(node.getAttribute("style") ?? "", /--type-screen-fill/);
+    assert.ok(node.querySelector(".card-tile:not(.mono)"));
+    assert.equal(node.querySelector(".card-badge"), null);
+    assert.equal(node.querySelector(".card-cap")?.textContent, "0 components");
     assert.match(dom.document.getElementById("panel-body")?.innerHTML ?? "", /Allow Back/);
   } finally {
     dom.close();
@@ -641,20 +648,18 @@ test("renderHtml refits the viewport to each filter's visible bounds", async () 
   const dom = await renderDom(html);
   try {
     const svg = dom.document.getElementById("flow-svg") as SVGSVGElement;
-    // Assert on x/y, never width: fitViewBox floors width at 720 and every fixture flow
-    // is narrower, so viewBox.width is 720 in the markup and in every mode. An assertion
-    // on width passes with the refit deleted.
+    // Before and Changes only shrink this fixture. All and After can share bounds.
     const origin = () => `${svg.viewBox.baseVal.x} ${svg.viewBox.baseVal.y}`;
     const origins = new Map<string, string>();
     for (const mode of ["all", "after", "before", "changes"]) {
       (dom.document.querySelector(`.filters button[data-view-mode="${mode}"]`) as HTMLButtonElement | null)?.click();
       origins.set(mode, origin());
     }
-    assert.equal(
-      new Set(origins.values()).size,
-      4,
-      `each filter refits to its own visible bounds, got ${[...origins].map(([m, o]) => `${m}=${o}`).join(", ")}`,
-    );
+    assert.notEqual(origins.get("before"), origins.get("all"));
+    assert.notEqual(origins.get("changes"), origins.get("before"));
+    assert.notEqual(origins.get("changes"), origins.get("after"));
+    (dom.document.querySelector('.filters button[data-view-mode="all"]') as HTMLButtonElement).click();
+    assert.equal(origin(), origins.get("all"));
   } finally {
     dom.close();
   }
@@ -1078,14 +1083,154 @@ test("filter table unwraps numberValue and unknown node types fall back without 
   assert.match(unknownPanel, /<th>Foo<\/th>/);
 });
 
-test("renderHtml positions node labels within their translated node groups", async () => {
-  const diff = diffModel(buildModel(await parseXml(SAMPLE_XML)), buildModel(await parseXml(SAMPLE_XML)));
-  const layout = await layoutDiff(diff);
-  const html = renderHtml(layout);
-  const textYValues = [...html.matchAll(/<text x="[^"]+" y="([^"]+)"/g)].map((match) => Number(match[1]));
+test("element captions describe each supported node type", () => {
+  const cases: Record<NodeType, [Record<string, unknown>, string]> = {
+    start: [
+      { object: "Tag_Definition__c", triggerType: "RecordBeforeSave", recordTriggerType: "CreateAndUpdate" },
+      "Tag_Definition__c · Before save · Create/Update",
+    ],
+    end: [{}, "End"],
+    decision: [{ rules: { label: "Accepted" } }, "1 outcome + default"],
+    assignment: [{ assignmentItems: [{}, {}] }, "2 assignments"],
+    loop: [{ collectionReference: "Accounts" }, "Each in {!Accounts}"],
+    recordLookup: [
+      { object: "Account", getFirstRecordOnly: "true", filters: [{}, {}] },
+      "Account · first record · 2 filters",
+    ],
+    recordCreate: [{ object: "Account" }, "Account"],
+    recordUpdate: [{ inputReference: "Accounts", inputAssignments: {} }, "{!Accounts} · 1 field"],
+    recordDelete: [{ inputReference: "Accounts" }, "{!Accounts}"],
+    screen: [{ fields: { name: "Review" } }, "1 component"],
+    subflow: [{ flowName: "Review_Record" }, "Runs Review_Record"],
+    actionCall: [{ actionType: "apex", actionName: "TriggerActionFlowAddError" }, "apex · TriggerActionFlowAddError"],
+    apexPluginCall: [{ actionName: "Plugin" }, "Plugin"],
+    wait: [{ waitEvents: { label: "Resume" } }, "1 event"],
+    step: [{}, "Step"],
+    orchestratedStage: [{}, "Orchestrated Stage"],
+    transform: [{}, "Transform"],
+    collectionProcessor: [
+      { collectionProcessorType: "SortCollectionProcessor", collectionReference: "Accounts" },
+      "Sort {!Accounts}",
+    ],
+    customError: [{ customErrorMessages: { errorMessage: { stringValue: "Try again" } } }, '"Try again"'],
+    recordRollback: [{}, "Roll Back"],
+    unknown: [{}, "Unknown"],
+  };
+  for (const type of Object.keys(cases) as NodeType[]) {
+    const [props, expected] = cases[type];
+    assert.equal(nodeSummary(type, props), expected, type);
+    assert.match(CARD_GLYPHS[type], /^<(path|rect|circle) /);
+    assert.match(
+      CARD_TYPE_TOKENS[type],
+      /^(start|end|screen|decision|record|loop|subflow|assignment|action|wait|neutral)$/,
+    );
+  }
+  assert.equal(nodeSummary("start", {}, { processType: "Flow" }), "Screen flow");
+  assert.equal(nodeSummary("start", {}, { processType: "AutoLaunchedFlow" }), "Autolaunched flow");
+  assert.equal(nodeSummary("recordLookup", { object: "Account", filters: {} }), "Account · all records · 1 filter");
+  assert.equal(
+    nodeSummary("customError", { customErrorMessages: { errorMessage: { $: { "xsi:nil": "true" } } } }),
+    "No message set",
+  );
+  assert.equal(nodeSummary("customError", { customErrorMessages: [{}, {}] }), "2 messages");
+});
 
-  assert.equal(textYValues.length, layout.nodes.length);
-  assert.ok(textYValues.every((textY) => textY > 0 && textY < 48));
+test("element change captions group paths by leaf and direction", () => {
+  const changes = [
+    { path: "rules[0].conditions[1]", before: undefined, after: {} },
+    { path: "filters[1]", before: {}, after: undefined },
+    { path: "filters[2]", before: {}, after: undefined },
+    { path: "inputAssignments[0]", before: {}, after: { field: "Name" } },
+    { path: "inputAssignments[1]", before: {}, after: { field: "Id" } },
+  ];
+  assert.equal(changeSummary({ changes }), "+1 condition · −2 filters · +1 more");
+  assert.equal(changeSummary({ changes: changes.slice(3) }), "2 fields changed");
+  assert.equal(changeSummary({}), "Changed");
+});
+
+test("element card dimensions clamp text and keep End compact", () => {
+  const node = {
+    id: "node",
+    status: "unchanged",
+    label: "Short",
+    type: "assignment",
+    summary: "1 assignment",
+  } as const;
+  assert.deepEqual(cardSize(node), { width: 180, height: 60 });
+  assert.deepEqual(cardSize({ ...node, summary: "Caption".repeat(40) }), { width: 320, height: 60 });
+  assert.deepEqual(cardSize({ ...node, type: "end" }), { width: 128, height: 44 });
+  const start = { ...node, type: "start", summary: "Start" } as const;
+  assert.deepEqual(cardSize({ ...start, label: "FLOW_START" }), cardSize({ ...start, label: "Start" }));
+});
+
+test("element cards retain the node contract and display full text in tooltips", async () => {
+  const before = buildModel(await parseXml(SAMPLE_XML));
+  const after = structuredClone(before);
+  const start = after.nodes.find((node) => node.type === "start")!;
+  start.label = "FLOW_START";
+  start.properties = { object: "Account", triggerType: "RecordAfterSave", recordTriggerType: "Update" };
+  const originalStart = before.nodes.find((node) => node.id === start.id)!;
+  Object.assign(originalStart, structuredClone(start));
+  const longLabel = "W".repeat(90) + " <Review>";
+  before.nodes.push({ id: "gone", type: "recordDelete", label: "Delete", properties: { inputReference: "Records" } });
+  after.nodes.push({ id: "new", type: "subflow", label: longLabel, properties: { flowName: "Review" } });
+  for (const [model, fields] of [
+    [before, []],
+    [after, [{}]],
+  ] as const) {
+    model.nodes.push({ id: "changed", type: "screen", label: "Review", properties: { fields } });
+  }
+  const diff = diffModel(before, after);
+  assert.ok(diff.nodes.every((node) => node.summary));
+  assert.equal(diff.nodes.find((node) => node.id === "changed")?.summary, "+1 field");
+  assert.equal(diff.nodes.find((node) => node.id === start.id)?.after, undefined);
+
+  const layout = await layoutDiff(diff);
+  const dom = await renderDom(renderHtml(layout));
+  try {
+    for (const node of layout.nodes) {
+      const card = dom.document.querySelector(`[data-node-id="${node.id}"]`)!;
+      assert.equal(card.getAttribute("role"), "button");
+      assert.equal(card.getAttribute("tabindex"), "0");
+      assert.ok(card.classList.contains(node.status));
+      assert.ok(card.classList.contains(`type-${node.type}`));
+      assert.ok(card.querySelector(".card-tile.mono"));
+      assert.ok(card.querySelector(".card-glyph"));
+      for (const selector of [".card-label", ".card-cap"]) {
+        const y = Number(card.querySelector(selector)?.getAttribute("y"));
+        assert.ok(y > 0 && y < node.height);
+      }
+      assert.match(card.querySelector("title")?.textContent ?? "", new RegExp(NODE_TYPE_LABELS[node.type]));
+      assert.equal(
+        card.querySelector(".card-badge")?.textContent,
+        node.status === "unchanged" ? undefined : node.status.toUpperCase(),
+      );
+    }
+    const startCard = dom.document.querySelector(`[data-node-id="${start.id}"]`)!;
+    startCard.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    assert.equal(startCard.querySelector(".card-label")?.textContent, "Start");
+    assert.equal(startCard.querySelector(".card-cap")?.textContent, "Account · After save · Update");
+    assert.equal(dom.document.getElementById("panel-title")?.textContent, "Start");
+    assert.equal(dom.document.querySelector(".panel-node-summary")?.textContent, "Account · After save · Update");
+    const added = dom.document.querySelector('[data-node-id="new"]')!;
+    assert.match(added.querySelector(".card-label")?.textContent ?? "", /…$/);
+    assert.equal(added.querySelector("title")?.textContent?.includes(longLabel), true);
+    for (const [id, caption] of [
+      ["new", "Runs Review"],
+      ["gone", "{!Records}"],
+    ]) {
+      dom.document
+        .querySelector(`[data-node-id="${id}"]`)!
+        .dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+      assert.equal(dom.document.querySelector("#panel-body > :first-child")?.textContent, caption);
+    }
+    dom.document
+      .querySelector('[data-view-mode="changes"]')!
+      .dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
+    assert.equal(startCard.getAttribute("style")?.includes("display: none"), true);
+  } finally {
+    dom.close();
+  }
 });
 
 test("CLI git mode writes diff.json that matches file-mode output", async () => {
@@ -1116,6 +1261,7 @@ test("CLI git mode writes diff.json that matches file-mode output", async () => 
   assert.equal(diffFiles.length, 1);
   const diffJson = JSON.parse(readFileSync(join(outDir, diffFiles[0]), "utf8"));
   const expected = diffModel(buildModel(await parseXml(oldXml)), buildModel(await parseXml(newXml)));
+  assert.ok(diffJson.nodes.every((node: { summary?: string }) => node.summary));
   assert.deepEqual(diffJson, JSON.parse(JSON.stringify(expected)));
 });
 
@@ -1353,6 +1499,7 @@ test("CLI file mode writes diff.json and html artifacts", async () => {
       await parseXml(SAMPLE_XML.replace("<booleanValue>true</booleanValue>", "<booleanValue>false</booleanValue>")),
     ),
   );
+  assert.ok(diffJson.nodes.every((node: { summary?: string }) => node.summary));
   assert.deepEqual(diffJson, JSON.parse(JSON.stringify(expected)));
 });
 

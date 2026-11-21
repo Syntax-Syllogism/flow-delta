@@ -11,6 +11,8 @@ The property panel in the interactive diff groups property changes into sections
 
 Section schemas live in `src/render/section-schemas.ts`. Each one says how a node type's properties are grouped and rendered. Schemas keep domain structures (decision outcomes, field mappings, filters) apart from generic property changes, which makes diffs easier to read.
 
+The per-type display names (`NODE_TYPE_LABELS`) and the summary helpers (`nodeSummary`, `changeSummary`) live in `src/model/node-summary.ts`. The diff model stores those captions as `NodeDiff.summary` in `diff.json`. If you change a caption’s wording, regenerate fixtures and check the cards and the corresponding `summary` fields in `diff.json`.
+
 ## When to add or change a schema
 
 **Add a schema when:**

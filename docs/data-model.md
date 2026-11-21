@@ -143,6 +143,10 @@ interface NodeDiff {
   label: string;
   status: "added" | "deleted" | "modified" | "unchanged" | "present";
 
+  summary?: string;
+  // One-line card caption. Modified nodes summarize property changes.
+  // Other statuses describe the element from its current or last known properties.
+
   changes?: PropertyChange[];
   // Per-property deltas. Only for "modified".
   // Example: { path: "rules[0].conditions[1].value", before: "x", after: "y" }

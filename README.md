@@ -1,6 +1,6 @@
 # FlowDelta
 
-<img width="2880" height="1800" alt="add_screen" src="https://github.com/user-attachments/assets/27ebedf2-e55d-4637-b285-0cb5beb725aa" />
+![Flow diff with element cards, an added fault path, and a modified decision](docs/assets/flow-element-cards-diff.png)
 
 [![npm](https://img.shields.io/npm/v/@syntax-syllogism/flow-delta.svg)](https://www.npmjs.com/package/@syntax-syllogism/flow-delta)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -44,6 +44,8 @@ For Lightning pages:
 ```bash
 npx flexipage-delta --old before.flexipage-meta.xml --new after.flexipage-meta.xml --out ./flexipage-delta-out
 ```
+
+![As-built Flow snapshot in dark mode with type-colored element cards](docs/assets/flow-element-cards-snapshot.png)
 
 ## Usage
 

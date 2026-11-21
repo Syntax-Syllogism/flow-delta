@@ -1,4 +1,5 @@
 import type { EdgeDiff, NodeDiff } from "../diff/diff-model.ts";
+import { nodeCaption, nodeDisplayLabel } from "./node-caption.ts";
 import { getSectionSchemas } from "./section-schemas.ts";
 import type { LayoutEdgeGeometry, LayoutNodeGeometry, LayoutView, LayoutedFlow } from "./layout.ts";
 import { renderNodePanelBody } from "./snapshot-panel.ts";
@@ -40,9 +41,9 @@ export function buildFlowArtifactClientData(layout: LayoutedFlow): FlowArtifactC
     nodes: layout.diff.nodes.map((node) => ({
       id: node.id,
       type: node.type,
-      label: node.label,
+      label: nodeDisplayLabel(node),
       status: node.status,
-      detailHtml: renderNodePanelBody(node, getSectionSchemas(node.type)),
+      detailHtml: renderNodePanelBody({ ...node, summary: nodeCaption(node) }, getSectionSchemas(node.type)),
     })),
     edges: layout.diff.edges.map((edge) => ({
       id: edge.id,
